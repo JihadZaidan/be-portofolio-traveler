@@ -89,7 +89,7 @@ router.get('/config', (req, res) => {
 // Get current user info (for frontend)
 router.get('/me', async (req, res) => {
   try {
-    const token = req.cookies.token || req.headers.authorization?.replace('Bearer ', '');
+    const token = req.cookies?.token || req.headers?.authorization?.replace('Bearer ', '');
     
     if (!token) {
       return res.status(401).json({ 
