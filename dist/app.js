@@ -6,14 +6,33 @@ import chatRoutes from "./routes/chat.routes.js";
 import improvedChatRoutes from "./routes/improved-chat.routes.js";
 import autoChatRoutes from "./routes/auto-chat.routes.js";
 import authRoutes from "./routes/auth.routes.js";
-import googleAuthRoutes from "./routes/google-auth.routes.js";
 import cookieParser from "cookie-parser";
 import { errorHandler } from "./middlewares/error.middleware.js";
 import path from "path";
 import { fileURLToPath } from "url";
+import swaggerUi from 'swagger-ui-express';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const swaggerDocument = require('./swagger.json');
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
+// Swagger documentation with enhanced CORS support
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: "Travello API Documentation",
+    swaggerOptions: {
+        persistAuthorization: true,
+        displayRequestDuration: true,
+        filter: true,
+        showExtensions: true,
+        showCommonExtensions: true,
+        docExpansion: "none",
+        defaultModelsExpandDepth: 2,
+        defaultModelExpandDepth: 2,
+        tryItOutEnabled: true
+    }
+}));
 // Session middleware for Passport
 app.use(session({
     secret: process.env.SESSION_SECRET,
@@ -28,11 +47,25 @@ app.use(session({
 // Initialize Passport
 app.use(passport.initialize());
 app.use(passport.session());
-// Middleware
+// Middleware - Enhanced CORS for Swagger UI
 app.use(cors({
-    origin: process.env.CORS_ORIGIN || "*",
-    credentials: true // Allow cookies for auth
+    origin: [
+        process.env.CORS_ORIGIN || "http://localhost:5173",
+        "http://localhost:5000",
+        "http://127.0.0.1:5000",
+        "http://localhost:5000/api-docs",
+        "http://127.0.0.1:5000/api-docs",
+        /^http:\/\/localhost:\d+$/,
+        /^http:\/\/127\.0\.0\.1:\d+$/
+    ],
+    credentials: true, // Allow cookies for auth
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With', 'X-API-Key'],
+    exposedHeaders: ['Set-Cookie', 'X-Total-Count'],
+    maxAge: 86400 // 24 hours
 }));
+// Explicit pre-flight handling for all routes
+app.options('*', cors());
 app.use(express.json());
 app.use(cookieParser());
 // Serve static files
@@ -91,11 +124,27 @@ app.get("/works", (req, res) => {
 app.use("/api/chat", improvedChatRoutes); // Use improved chat routes
 app.use("/api/chat/legacy", chatRoutes); // Keep legacy routes for compatibility
 app.use("/api/auto-chat", autoChatRoutes); // Auto chat bot routes
-app.use("/api/auth", authRoutes);
-app.use("/api/auth", googleAuthRoutes); // Google auth routes
+app.use("/api/auth", authRoutes); // This now includes Google OAuth routes
+// Test route to verify API is working
+app.get("/api/test", (req, res) => {
+    res.json({
+        success: true,
+        message: "API is working",
+        timestamp: new Date().toISOString(),
+        routes: {
+            googleAuth: "/api/auth/google",
+            googleCallback: "/api/auth/google/callback",
+            authMe: "/api/auth/me"
+        }
+    });
+});
+console.log('Routes registered successfully');
 // Serve frontend routes
 app.get("/", (req, res) => {
     res.sendFile(path.join(__dirname, '../public/auth.html'));
+});
+app.get("/google-auth-test", (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/google-auth-test.html'));
 });
 app.get("/chat", (req, res) => {
     res.sendFile(path.join(__dirname, '../public/chat.html'));

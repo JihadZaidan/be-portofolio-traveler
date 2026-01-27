@@ -3,9 +3,19 @@ import passport from '../config/passport.config.js';
 import { generateToken, verifyToken } from '../config/passport.config.js';
 import { User } from '../models/User.model.js';
 const router = Router();
+console.log('Google Auth Routes loaded');
 // Google OAuth login endpoint
 router.get('/google', (req, res) => {
+    console.log('Google OAuth endpoint hit:', req.path, req.method);
     try {
+        // Check if Google OAuth is configured
+        if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CALLBACK_URL) {
+            return res.status(500).json({
+                success: false,
+                message: 'Google OAuth not configured',
+                error: 'Missing Google OAuth credentials'
+            });
+        }
         const redirectUrl = `https://accounts.google.com/oauth/authorize?` +
             `client_id=${process.env.GOOGLE_CLIENT_ID}&` +
             `redirect_uri=${encodeURIComponent(process.env.GOOGLE_CALLBACK_URL)}&` +
@@ -14,23 +24,46 @@ router.get('/google', (req, res) => {
             `access_type=offline&` +
             `prompt=consent`;
         console.log('Redirecting to Google OAuth:', redirectUrl);
-        res.redirect(redirectUrl);
+        // For Swagger UI and API clients, return JSON with the URL
+        if (req.headers.accept?.includes('application/json')) {
+            res.json({
+                success: true,
+                message: 'Google OAuth URL generated',
+                data: {
+                    authUrl: redirectUrl,
+                    instructions: 'Visit the authUrl above to authenticate with Google',
+                    clientId: process.env.GOOGLE_CLIENT_ID ? 'Configured' : 'Not configured',
+                    callbackUrl: process.env.GOOGLE_CALLBACK_URL
+                }
+            });
+        }
+        else {
+            // For web browsers, redirect directly
+            res.redirect(redirectUrl);
+        }
     }
     catch (error) {
         console.error('Google OAuth initiation error:', error);
         res.status(500).json({
             success: false,
-            message: 'Failed to initiate Google OAuth'
+            message: 'Failed to initiate Google OAuth',
+            error: error instanceof Error ? error.message : 'Unknown error'
         });
     }
 });
 // Google OAuth callback endpoint
-router.get('/google/callback', passport.authenticate('google', {
-    failureRedirect: `${process.env.CORS_ORIGIN || 'http://localhost:5173'}?auth=error&message=google_auth_failed`,
-    session: false
-}), async (req, res) => {
+router.get('/google/callback', (req, res, next) => {
+    passport.authenticate('google', {
+        failureRedirect: `${process.env.CORS_ORIGIN || 'http://localhost:5173'}?auth=error&message=google_auth_failed`,
+        session: false,
+        failWithError: true
+    })(req, res, next);
+}, async (req, res) => {
     try {
         console.log('Google OAuth callback successful, user:', req.user);
+        if (!req.user) {
+            throw new Error('User not found in OAuth callback');
+        }
         // Generate JWT token
         const token = generateToken(req.user);
         // Set token in HTTP-only cookie
@@ -40,14 +73,63 @@ router.get('/google/callback', passport.authenticate('google', {
             sameSite: 'lax',
             maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
         });
-        // Redirect to frontend with success
-        const redirectUrl = `${process.env.CORS_ORIGIN || 'http://localhost:5173'}?auth=success&token=${token}`;
-        console.log('Redirecting to frontend:', redirectUrl);
-        res.redirect(redirectUrl);
+        // For Swagger UI and API clients, return JSON with token
+        if (req.headers.accept?.includes('application/json')) {
+            res.json({
+                success: true,
+                message: 'Google OAuth authentication successful',
+                data: {
+                    user: {
+                        id: req.user.id,
+                        username: req.user.username,
+                        email: req.user.email,
+                        displayName: req.user.displayName,
+                        profilePicture: req.user.profilePicture,
+                        role: req.user.role,
+                        isEmailVerified: req.user.isEmailVerified,
+                        lastLogin: req.user.lastLogin,
+                        createdAt: req.user.createdAt
+                    },
+                    token,
+                    instructions: 'Use this token for authenticated requests'
+                }
+            });
+        }
+        else {
+            // Redirect to frontend with success
+            const redirectUrl = `${process.env.CORS_ORIGIN || 'http://localhost:5173'}?auth=success&token=${token}`;
+            console.log('Redirecting to frontend:', redirectUrl);
+            res.redirect(redirectUrl);
+        }
     }
     catch (error) {
         console.error('Google OAuth callback error:', error);
-        const errorUrl = `${process.env.CORS_ORIGIN || 'http://localhost:5173'}?auth=error&message=callback_failed`;
+        // For Swagger UI and API clients, return JSON error
+        if (req.headers.accept?.includes('application/json')) {
+            res.status(500).json({
+                success: false,
+                message: 'Google OAuth callback failed',
+                error: error instanceof Error ? error.message : 'Unknown error'
+            });
+        }
+        else {
+            const errorUrl = `${process.env.CORS_ORIGIN || 'http://localhost:5173'}?auth=error&message=callback_failed`;
+            res.redirect(errorUrl);
+        }
+    }
+});
+// Error handler for OAuth failures
+router.use((error, req, res, next) => {
+    console.error('OAuth Error:', error);
+    if (req.headers.accept?.includes('application/json')) {
+        res.status(401).json({
+            success: false,
+            message: 'OAuth authentication failed',
+            error: error.message || 'Authentication error'
+        });
+    }
+    else {
+        const errorUrl = `${process.env.CORS_ORIGIN || 'http://localhost:5173'}?auth=error&message=${encodeURIComponent(error.message || 'oauth_failed')}`;
         res.redirect(errorUrl);
     }
 });
@@ -79,7 +161,7 @@ router.get('/config', (req, res) => {
 // Get current user info (for frontend)
 router.get('/me', async (req, res) => {
     try {
-        const token = req.cookies.token || req.headers.authorization?.replace('Bearer ', '');
+        const token = req.cookies?.token || req.headers?.authorization?.replace('Bearer ', '');
         if (!token) {
             return res.status(401).json({
                 success: false,
@@ -116,16 +198,37 @@ router.get('/me', async (req, res) => {
         console.error('Get current user error:', error);
         return res.status(401).json({
             success: false,
-            message: 'Invalid token'
+            message: 'Invalid token',
+            error: error instanceof Error ? error.message : 'Unknown error'
         });
     }
 });
 // Logout endpoint
 router.post('/logout', (req, res) => {
-    res.clearCookie('token');
-    res.json({
-        success: true,
-        message: 'Logged out successfully'
-    });
+    try {
+        res.clearCookie('token');
+        // Check if request expects JSON (Swagger UI/API clients)
+        if (req.headers.accept?.includes('application/json')) {
+            res.json({
+                success: true,
+                message: 'Logged out successfully',
+                data: {
+                    instructions: 'Token has been cleared from cookies'
+                }
+            });
+        }
+        else {
+            // For web browsers, redirect to login page
+            res.redirect(`${process.env.CORS_ORIGIN || 'http://localhost:5173'}?auth=logged_out`);
+        }
+    }
+    catch (error) {
+        console.error('Logout error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Logout failed',
+            error: error instanceof Error ? error.message : 'Unknown error'
+        });
+    }
 });
 export default router;

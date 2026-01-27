@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import passport from '../config/passport.config.js';
+import { generateToken } from '../config/passport.config.js';
 import AuthController from '../controllers/auth.controller.js';
 
 const router = Router();
@@ -68,60 +70,72 @@ router.get('/github', (req, res) => {
   }
 });
 
-// GitHub OAuth callback
-router.get('/github/callback', (req, res) => {
-  try {
-    const { code, error } = req.query;
-    
-    if (error) {
-      return res.status(400).json({
-        success: false,
-        message: 'GitHub OAuth failed',
-        error: error
+// GitHub OAuth callback with Passport
+router.get('/github/callback', 
+  passport.authenticate('github', { failureRedirect: `${process.env.CORS_ORIGIN || 'http://localhost:5173'}?auth=error&message=github_auth_failed`, session: false }),
+  async (req, res) => {
+    try {
+      console.log('GitHub OAuth callback successful, user:', req.user);
+      
+      if (!req.user) {
+        throw new Error('User not found in GitHub OAuth callback');
+      }
+      
+      // Generate JWT token
+      const token = generateToken(req.user);
+      
+      // Set token in HTTP-only cookie
+      res.cookie('token', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
       });
-    }
 
-    if (code) {
-      const mockUser = {
-        id: 'github_user_' + Math.random().toString(36).substr(2, 9),
-        email: 'user@example.com',
-        username: 'githubuser',
-        displayName: 'GitHub User',
-        profilePicture: 'https://avatars.githubusercontent.com/u/1?v=4',
-        role: 'user'
-      };
-
-      const mockToken = 'mock_jwt_token_' + Math.random().toString(36).substr(2, 20);
-
-      // For Swagger UI and API clients, return JSON response
+      // For Swagger UI and API clients, return JSON with token
       if (req.headers.accept?.includes('application/json')) {
         res.json({
           success: true,
-          message: 'GitHub OAuth successful',
+          message: 'GitHub OAuth authentication successful',
           data: {
-            user: mockUser,
-            token: mockToken
+            user: {
+              id: req.user.id,
+              username: req.user.username,
+              email: req.user.email,
+              displayName: req.user.displayName,
+              profilePicture: req.user.profilePicture,
+              role: req.user.role,
+              isEmailVerified: req.user.isEmailVerified,
+              lastLogin: req.user.lastLogin,
+              createdAt: req.user.createdAt
+            },
+            token,
+            instructions: 'Use this token for authenticated requests'
           }
         });
       } else {
-        // For web browsers, redirect to frontend with success
-        const redirectUrl = `${process.env.CORS_ORIGIN || 'http://localhost:5173'}?auth=github_success&token=${mockToken}`;
+        // Redirect to frontend with success
+        const redirectUrl = `${process.env.CORS_ORIGIN || 'http://localhost:5173'}?auth=github_success&token=${token}`;
+        console.log('Redirecting to frontend:', redirectUrl);
         res.redirect(redirectUrl);
       }
-    } else {
-      res.status(400).json({
-        success: false,
-        message: 'No authorization code received'
-      });
+    } catch (error) {
+      console.error('GitHub OAuth callback error:', error);
+      
+      // For Swagger UI and API clients, return JSON error
+      if (req.headers.accept?.includes('application/json')) {
+        res.status(500).json({
+          success: false,
+          message: 'GitHub OAuth callback failed',
+          error: error.message || 'Unknown error'
+        });
+      } else {
+        const errorUrl = `${process.env.CORS_ORIGIN || 'http://localhost:5173'}?auth=error&message=callback_failed`;
+        res.redirect(errorUrl);
+      }
     }
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Failed to process callback',
-      error: error.message
-    });
   }
-});
+);
 
 router.get('/google/callback', (req, res) => {
   try {

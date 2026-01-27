@@ -35,6 +35,18 @@
       "createdAt": "2026-01-26T04:21:37.772Z",
       "updatedAt": "2026-01-27T00:14:08.093Z",
       "lastLogin": "2026-01-27T00:14:08.085Z"
+    },
+    {
+      "id": "25f07f20-a810-4971-9891-fd0d660a94b7",
+      "username": "string",
+      "email": "user@example.com",
+      "password": "$2b$12$jNGgcD9V8.DGKzqJehr34u5fWyw0vwC2vCLdRwMsfPA8A9uqr6aAu",
+      "role": "user",
+      "isEmailVerified": true,
+      "displayName": "string",
+      "createdAt": "2026-01-27T03:02:27.937Z",
+      "updatedAt": "2026-01-27T03:02:27.953Z",
+      "lastLogin": "2026-01-27T03:02:27.951Z"
     }
   ],
   "chatMessages": [],

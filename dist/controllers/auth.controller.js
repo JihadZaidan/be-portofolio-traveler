@@ -170,7 +170,7 @@ class AuthController {
     }
     static async getMe(req, res) {
         try {
-            const token = req.cookies.token || req.headers.authorization?.replace('Bearer ', '');
+            const token = req.cookies?.token || req.headers?.authorization?.replace('Bearer ', '');
             if (!token) {
                 res.status(401).json({
                     success: false,

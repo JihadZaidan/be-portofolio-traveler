@@ -1,0 +1,563 @@
+{
+  "/api/payments/process": {
+    "post": {
+      "summary": "Process payment",
+      "description": "Process a new payment with various payment methods",
+      "tags": [
+        "Payments"
+      ],
+      "security": [
+        {
+          "bearerAuth": []
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "method",
+                "amount",
+                "description"
+              ],
+              "properties": {
+                "method": {
+                  "type": "string",
+                  "enum": [
+                    "credit_card",
+                    "bank_transfer",
+                    "ewallet",
+                    "virtual_account"
+                  ],
+                  "example": "credit_card"
+                },
+                "amount": {
+                  "type": "number",
+                  "format": "decimal",
+                  "minimum": 1000,
+                  "example": 150000
+                },
+                "currency": {
+                  "type": "string",
+                  "default": "IDR",
+                  "example": "IDR"
+                },
+                "description": {
+                  "type": "string",
+                  "example": "Hotel booking - Bali Resort"
+                },
+                "bookingId": {
+                  "type": "string",
+                  "example": "booking_12345"
+                },
+                "customerInfo": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "phone": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "responses": {
+        "200": {
+          "description": "Payment processed successfully",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "success": {
+                    "type": "boolean",
+                    "example": true
+                  },
+                  "message": {
+                    "type": "string",
+                    "example": "Payment processed successfully"
+                  },
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "paymentId": {
+                        "type": "string",
+                        "example": "pay_1234567890"
+                      },
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "pending",
+                          "processing",
+                          "completed",
+                          "failed"
+                        ],
+                        "example": "completed"
+                      },
+                      "amount": {
+                        "type": "number",
+                        "example": 150000
+                      },
+                      "currency": {
+                        "type": "string",
+                        "example": "IDR"
+                      },
+                      "method": {
+                        "type": "string",
+                        "example": "credit_card"
+                      },
+                      "gatewayResponse": {
+                        "type": "object",
+                        "properties": {
+                          "transactionId": {
+                            "type": "string"
+                          },
+                          "approvalCode": {
+                            "type": "string"
+                          },
+                          "maskedCard": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/api/payments/methods": {
+    "get": {
+      "summary": "Get available payment methods",
+      "description": "Get list of available payment methods with fees and configuration",
+      "tags": [
+        "Payments"
+      ],
+      "security": [
+        {
+          "bearerAuth": []
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Payment methods retrieved successfully",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "success": {
+                    "type": "boolean",
+                    "example": true
+                  },
+                  "data": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "example": "credit_card"
+                        },
+                        "name": {
+                          "type": "string",
+                          "example": "Credit Card"
+                        },
+                        "description": {
+                          "type": "string",
+                          "example": "Visa, Mastercard, JCB"
+                        },
+                        "icon": {
+                          "type": "string",
+                          "example": "💳"
+                        },
+                        "fees": {
+                          "type": "number",
+                          "example": 2.9
+                        },
+                        "available": {
+                          "type": "boolean",
+                          "example": true
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/api/payments/history": {
+    "get": {
+      "summary": "Get payment history",
+      "description": "Get paginated payment history for the authenticated user",
+      "tags": [
+        "Payments"
+      ],
+      "security": [
+        {
+          "bearerAuth": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "page",
+          "in": "query",
+          "description": "Page number",
+          "required": false,
+          "schema": {
+            "type": "integer",
+            "default": 1
+          }
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "description": "Number of items per page",
+          "required": false,
+          "schema": {
+            "type": "integer",
+            "default": 10
+          }
+        },
+        {
+          "name": "status",
+          "in": "query",
+          "description": "Filter by payment status",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "completed",
+              "failed",
+              "refunded"
+            ]
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Payment history retrieved successfully",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "success": {
+                    "type": "boolean",
+                    "example": true
+                  },
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "payments": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "method": {
+                              "type": "string"
+                            },
+                            "amount": {
+                              "type": "number"
+                            },
+                            "currency": {
+                              "type": "string"
+                            },
+                            "description": {
+                              "type": "string"
+                            },
+                            "status": {
+                              "type": "string"
+                            },
+                            "createdAt": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      },
+                      "pagination": {
+                        "type": "object",
+                        "properties": {
+                          "page": {
+                            "type": "integer"
+                          },
+                          "limit": {
+                            "type": "integer"
+                          },
+                          "total": {
+                            "type": "integer"
+                          },
+                          "totalPages": {
+                            "type": "integer"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/api/payments/details/{paymentId}": {
+    "get": {
+      "summary": "Get payment details",
+      "description": "Get detailed information about a specific payment",
+      "tags": [
+        "Payments"
+      ],
+      "security": [
+        {
+          "bearerAuth": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "paymentId",
+          "in": "path",
+          "required": true,
+          "description": "Payment ID",
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Payment details retrieved successfully",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "success": {
+                    "type": "boolean",
+                    "example": true
+                  },
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "method": {
+                        "type": "string"
+                      },
+                      "amount": {
+                        "type": "number"
+                      },
+                      "currency": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "status": {
+                        "type": "string"
+                      },
+                      "bookingId": {
+                        "type": "string"
+                      },
+                      "customerInfo": {
+                        "type": "object"
+                      },
+                      "gatewayResponse": {
+                        "type": "object"
+                      },
+                      "createdAt": {
+                        "type": "string"
+                      },
+                      "updatedAt": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/api/payments/refund/{paymentId}": {
+    "post": {
+      "summary": "Refund payment",
+      "description": "Process a refund for a completed payment",
+      "tags": [
+        "Payments"
+      ],
+      "security": [
+        {
+          "bearerAuth": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "paymentId",
+          "in": "path",
+          "required": true,
+          "description": "Payment ID to refund",
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestBody": {
+        "required": false,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "reason": {
+                  "type": "string",
+                  "example": "Customer requested refund"
+                }
+              }
+            }
+          }
+        }
+      },
+      "responses": {
+        "200": {
+          "description": "Refund processed successfully",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "success": {
+                    "type": "boolean",
+                    "example": true
+                  },
+                  "message": {
+                    "type": "string",
+                    "example": "Payment refunded successfully"
+                  },
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "paymentId": {
+                        "type": "string"
+                      },
+                      "refundId": {
+                        "type": "string"
+                      },
+                      "amount": {
+                        "type": "number"
+                      },
+                      "refundReason": {
+                        "type": "string"
+                      },
+                      "processedAt": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/api/payments/verify/{paymentId}": {
+    "get": {
+      "summary": "Verify payment status",
+      "description": "Check and verify the current status of a payment",
+      "tags": [
+        "Payments"
+      ],
+      "security": [
+        {
+          "bearerAuth": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "paymentId",
+          "in": "path",
+          "required": true,
+          "description": "Payment ID to verify",
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Payment status verified successfully",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "success": {
+                    "type": "boolean",
+                    "example": true
+                  },
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "paymentId": {
+                        "type": "string"
+                      },
+                      "status": {
+                        "type": "string"
+                      },
+                      "verified": {
+                        "type": "boolean"
+                      },
+                      "amount": {
+                        "type": "number"
+                      },
+                      "currency": {
+                        "type": "string"
+                      },
+                      "method": {
+                        "type": "string"
+                      },
+                      "createdAt": {
+                        "type": "string"
+                      },
+                      "updatedAt": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
