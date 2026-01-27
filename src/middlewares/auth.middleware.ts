@@ -4,10 +4,14 @@ import { User } from '../models/User.model.js';
 
 export const isAuthenticated = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const token = req.cookies.token || req.headers.authorization?.replace('Bearer ', '');
+    const token = req.cookies?.token || req.headers?.authorization?.replace('Bearer ', '');
 
     if (!token) {
-      res.status(401).json({ success: false, message: 'Unauthorized: No token provided' });
+      res.status(401).json({ 
+        success: false, 
+        message: 'Unauthorized: No token provided',
+        error: 'Authentication token is required'
+      });
       return;
     }
 
@@ -15,13 +19,21 @@ export const isAuthenticated = async (req: Request, res: Response, next: NextFun
     const user = await User.findByPk(decoded.id);
 
     if (!user) {
-      res.status(401).json({ success: false, message: 'Unauthorized: User not found' });
+      res.status(401).json({ 
+        success: false, 
+        message: 'Unauthorized: User not found',
+        error: 'User associated with token does not exist'
+      });
       return;
     }
 
     req.user = user.toJSON();
     next();
   } catch (error) {
-    res.status(401).json({ success: false, message: 'Unauthorized: Invalid token' });
+    res.status(401).json({ 
+      success: false, 
+      message: 'Unauthorized: Invalid token',
+      error: error instanceof Error ? error.message : 'Token verification failed'
+    });
   }
 };

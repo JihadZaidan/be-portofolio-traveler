@@ -17,12 +17,27 @@ router.get('/google', (req: Request, res: Response) => {
       `prompt=consent`;
     
     console.log('Redirecting to Google OAuth:', redirectUrl);
-    res.redirect(redirectUrl);
+    
+    // For Swagger UI and API clients, return JSON with the URL
+    if (req.headers.accept?.includes('application/json')) {
+      res.json({
+        success: true,
+        message: 'Google OAuth URL generated',
+        data: {
+          authUrl: redirectUrl,
+          instructions: 'Visit the authUrl above to authenticate with Google'
+        }
+      });
+    } else {
+      // For web browsers, redirect directly
+      res.redirect(redirectUrl);
+    }
   } catch (error) {
     console.error('Google OAuth initiation error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to initiate Google OAuth'
+      message: 'Failed to initiate Google OAuth',
+      error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 });
@@ -48,14 +63,47 @@ router.get('/google/callback',
         maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
       });
 
-      // Redirect to frontend with success
-      const redirectUrl = `${process.env.CORS_ORIGIN || 'http://localhost:5173'}?auth=success&token=${token}`;
-      console.log('Redirecting to frontend:', redirectUrl);
-      res.redirect(redirectUrl);
+      // For Swagger UI and API clients, return JSON with token
+      if (req.headers.accept?.includes('application/json')) {
+        res.json({
+          success: true,
+          message: 'Google OAuth authentication successful',
+          data: {
+            user: {
+              id: (req.user as User).id,
+              username: (req.user as User).username,
+              email: (req.user as User).email,
+              displayName: (req.user as User).displayName,
+              profilePicture: (req.user as User).profilePicture,
+              role: (req.user as User).role,
+              isEmailVerified: (req.user as User).isEmailVerified,
+              lastLogin: (req.user as User).lastLogin,
+              createdAt: (req.user as User).createdAt
+            },
+            token,
+            instructions: 'Use this token for authenticated requests'
+          }
+        });
+      } else {
+        // Redirect to frontend with success
+        const redirectUrl = `${process.env.CORS_ORIGIN || 'http://localhost:5173'}?auth=success&token=${token}`;
+        console.log('Redirecting to frontend:', redirectUrl);
+        res.redirect(redirectUrl);
+      }
     } catch (error) {
       console.error('Google OAuth callback error:', error);
-      const errorUrl = `${process.env.CORS_ORIGIN || 'http://localhost:5173'}?auth=error&message=callback_failed`;
-      res.redirect(errorUrl);
+      
+      // For Swagger UI and API clients, return JSON error
+      if (req.headers.accept?.includes('application/json')) {
+        res.status(500).json({
+          success: false,
+          message: 'Google OAuth callback failed',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      } else {
+        const errorUrl = `${process.env.CORS_ORIGIN || 'http://localhost:5173'}?auth=error&message=callback_failed`;
+        res.redirect(errorUrl);
+      }
     }
   }
 );
@@ -89,7 +137,7 @@ router.get('/config', (req: Request, res: Response) => {
 // Get current user info (for frontend)
 router.get('/me', async (req: Request, res: Response) => {
   try {
-    const token = req.cookies.token || req.headers.authorization?.replace('Bearer ', '');
+    const token = req.cookies?.token || req.headers?.authorization?.replace('Bearer ', '');
     
     if (!token) {
       return res.status(401).json({ 
@@ -130,18 +178,38 @@ router.get('/me', async (req: Request, res: Response) => {
     console.error('Get current user error:', error);
     return res.status(401).json({ 
       success: false, 
-      message: 'Invalid token' 
+      message: 'Invalid token',
+      error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 });
 
 // Logout endpoint
 router.post('/logout', (req: Request, res: Response) => {
-  res.clearCookie('token');
-  res.json({
-    success: true,
-    message: 'Logged out successfully'
-  });
+  try {
+    res.clearCookie('token');
+    
+    // Check if request expects JSON (Swagger UI/API clients)
+    if (req.headers.accept?.includes('application/json')) {
+      res.json({
+        success: true,
+        message: 'Logged out successfully',
+        data: {
+          instructions: 'Token has been cleared from cookies'
+        }
+      });
+    } else {
+      // For web browsers, redirect to login page
+      res.redirect(`${process.env.CORS_ORIGIN || 'http://localhost:5173'}?auth=logged_out`);
+    }
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Logout failed',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
 });
 
 export default router;
