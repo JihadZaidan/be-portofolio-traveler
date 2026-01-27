@@ -40,22 +40,25 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Middleware
+// Middleware - Enhanced CORS for Swagger UI
 app.use(cors({ 
   origin: [
     process.env.CORS_ORIGIN || "http://localhost:5173",
     "http://localhost:5000",
     "http://127.0.0.1:5000",
+    "http://localhost:5000/api-docs",
+    "http://127.0.0.1:5000/api-docs",
     /^http:\/\/localhost:\d+$/,
     /^http:\/\/127\.0\.0\.1:\d+$/
   ], 
   credentials: true, // Allow cookies for auth
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
-  exposedHeaders: ['Set-Cookie']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With', 'X-API-Key'],
+  exposedHeaders: ['Set-Cookie', 'X-Total-Count'],
+  maxAge: 86400 // 24 hours
 }));
 
-// Explicit pre-flight handling
+// Explicit pre-flight handling for all routes
 app.options('*', cors());
 app.use(express.json());
 app.use(cookieParser());
@@ -122,6 +125,22 @@ app.use("/api/chat/legacy", chatRoutes); // Keep legacy routes for compatibility
 app.use("/api/auto-chat", autoChatRoutes); // Auto chat bot routes
 app.use("/api/auth", authRoutes);
 app.use("/api/auth", googleAuthRoutes); // Google auth routes
+
+// Test route to verify API is working
+app.get("/api/test", (req: Request, res: Response) => {
+  res.json({
+    success: true,
+    message: "API is working",
+    timestamp: new Date().toISOString(),
+    routes: {
+      googleAuth: "/api/auth/google",
+      googleCallback: "/api/auth/google/callback",
+      authMe: "/api/auth/me"
+    }
+  });
+});
+
+console.log('Routes registered, Google Auth Routes:', !!googleAuthRoutes);
 
 // Serve frontend routes
 app.get("/", (req: Request, res: Response) => {
