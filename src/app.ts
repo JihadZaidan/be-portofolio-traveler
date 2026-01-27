@@ -11,11 +11,18 @@ import cookieParser from "cookie-parser";
 import { errorHandler } from "./middlewares/error.middleware.js";
 import path from "path";
 import { fileURLToPath } from "url";
+import swaggerUi from 'swagger-ui-express';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const swaggerDocument = require('./swagger.json');
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app: Application = express();
+
+// Swagger documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // Session middleware for Passport
 app.use(session({
@@ -35,9 +42,21 @@ app.use(passport.session());
 
 // Middleware
 app.use(cors({ 
-  origin: process.env.CORS_ORIGIN || "*", 
-  credentials: true // Allow cookies for auth
+  origin: [
+    process.env.CORS_ORIGIN || "http://localhost:5173",
+    "http://localhost:5000",
+    "http://127.0.0.1:5000",
+    /^http:\/\/localhost:\d+$/,
+    /^http:\/\/127\.0\.0\.1:\d+$/
+  ], 
+  credentials: true, // Allow cookies for auth
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
+  exposedHeaders: ['Set-Cookie']
 }));
+
+// Explicit pre-flight handling
+app.options('*', cors());
 app.use(express.json());
 app.use(cookieParser());
 
