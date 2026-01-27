@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import passport from '../config/passport.config.js';
 import { generateToken, verifyToken } from '../config/passport.config.js';
 import { User } from '../models/User.model.js';
@@ -44,13 +44,20 @@ router.get('/google', (req: Request, res: Response) => {
 
 // Google OAuth callback endpoint
 router.get('/google/callback', 
-  passport.authenticate('google', { 
-    failureRedirect: `${process.env.CORS_ORIGIN || 'http://localhost:5173'}?auth=error&message=google_auth_failed`,
-    session: false
-  }),
+  (req: Request, res: Response, next: NextFunction) => {
+    passport.authenticate('google', { 
+      failureRedirect: `${process.env.CORS_ORIGIN || 'http://localhost:5173'}?auth=error&message=google_auth_failed`,
+      session: false,
+      failWithError: true
+    })(req, res, next);
+  },
   async (req: Request, res: Response) => {
     try {
       console.log('Google OAuth callback successful, user:', req.user);
+      
+      if (!req.user) {
+        throw new Error('User not found in OAuth callback');
+      }
       
       // Generate JWT token
       const token = generateToken(req.user as User);
@@ -107,6 +114,22 @@ router.get('/google/callback',
     }
   }
 );
+
+// Error handler for OAuth failures
+router.use((error: any, req: Request, res: Response, next: NextFunction) => {
+  console.error('OAuth Error:', error);
+  
+  if (req.headers.accept?.includes('application/json')) {
+    res.status(401).json({
+      success: false,
+      message: 'OAuth authentication failed',
+      error: error.message || 'Authentication error'
+    });
+  } else {
+    const errorUrl = `${process.env.CORS_ORIGIN || 'http://localhost:5173'}?auth=error&message=${encodeURIComponent(error.message || 'oauth_failed')}`;
+    res.redirect(errorUrl);
+  }
+});
 
 // Check Google OAuth configuration
 router.get('/config', (req: Request, res: Response) => {

@@ -29,13 +29,20 @@ router.get('/google', (req, res) => {
 
 // Google OAuth callback endpoint
 router.get('/google/callback', 
-  passport.authenticate('google', { 
-    failureRedirect: `${process.env.CORS_ORIGIN || 'http://localhost:5173'}?auth=error&message=google_auth_failed`,
-    session: false
-  }),
+  (req, res, next) => {
+    passport.authenticate('google', { 
+      failureRedirect: `${process.env.CORS_ORIGIN || 'http://localhost:5173'}?auth=error&message=google_auth_failed`,
+      session: false,
+      failWithError: true
+    })(req, res, next);
+  },
   async (req, res) => {
     try {
       console.log('Google OAuth callback successful, user:', req.user);
+      
+      if (!req.user) {
+        throw new Error('User not found in OAuth callback');
+      }
       
       // Generate JWT token
       const token = generateToken(req.user);
@@ -48,17 +55,66 @@ router.get('/google/callback',
         maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
       });
 
-      // Redirect to frontend with token
-      const redirectUrl = `http://localhost:5173/auth/callback?auth=success&token=${token}`;
-      console.log('Redirecting to frontend:', redirectUrl);
-      res.redirect(redirectUrl);
+      // For Swagger UI and API clients, return JSON with token
+      if (req.headers.accept?.includes('application/json')) {
+        res.json({
+          success: true,
+          message: 'Google OAuth authentication successful',
+          data: {
+            user: {
+              id: req.user.id,
+              username: req.user.username,
+              email: req.user.email,
+              displayName: req.user.displayName,
+              profilePicture: req.user.profilePicture,
+              role: req.user.role,
+              isEmailVerified: req.user.isEmailVerified,
+              lastLogin: req.user.lastLogin,
+              createdAt: req.user.createdAt
+            },
+            token,
+            instructions: 'Use this token for authenticated requests'
+          }
+        });
+      } else {
+        // Redirect to frontend with success
+        const redirectUrl = `${process.env.CORS_ORIGIN || 'http://localhost:5173'}?auth=success&token=${token}`;
+        console.log('Redirecting to frontend:', redirectUrl);
+        res.redirect(redirectUrl);
+      }
     } catch (error) {
       console.error('Google OAuth callback error:', error);
-      const errorUrl = `${process.env.CORS_ORIGIN || 'http://localhost:5173'}?auth=error&message=callback_failed`;
-      res.redirect(errorUrl);
+      
+      // For Swagger UI and API clients, return JSON error
+      if (req.headers.accept?.includes('application/json')) {
+        res.status(500).json({
+          success: false,
+          message: 'Google OAuth callback failed',
+          error: error.message || 'Unknown error'
+        });
+      } else {
+        const errorUrl = `${process.env.CORS_ORIGIN || 'http://localhost:5173'}?auth=error&message=callback_failed`;
+        res.redirect(errorUrl);
+      }
     }
   }
 );
+
+// Error handler for OAuth failures
+router.use((error, req, res, next) => {
+  console.error('OAuth Error:', error);
+  
+  if (req.headers.accept?.includes('application/json')) {
+    res.status(401).json({
+      success: false,
+      message: 'OAuth authentication failed',
+      error: error.message || 'Authentication error'
+    });
+  } else {
+    const errorUrl = `${process.env.CORS_ORIGIN || 'http://localhost:5173'}?auth=error&message=${encodeURIComponent(error.message || 'oauth_failed')}`;
+    res.redirect(errorUrl);
+  }
+});
 
 // Check Google OAuth configuration
 router.get('/config', (req, res) => {
