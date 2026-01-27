@@ -60,7 +60,7 @@
             <textarea id="message" rows="3" placeholder="Enter your message here...">Hello, how are you?</textarea>
         </div>
         
-        <button onclick="sendMessage()">Send Message</button>
+        <button id="sendButton" onclick="sendMessage()">Send Message</button>
         <button onclick="clearChat()">Clear</button>
         
         <div id="response" class="response" style="display: none;"></div>
@@ -70,12 +70,16 @@
         async function sendMessage() {
             const message = document.getElementById('message').value;
             const responseDiv = document.getElementById('response');
+            const sendButton = document.getElementById('sendButton');
             
             if (!message.trim()) {
                 alert('Please enter a message');
                 return;
             }
             
+            // Disable button and show loading
+            sendButton.disabled = true;
+            sendButton.textContent = 'Sending...';
             responseDiv.style.display = 'block';
             responseDiv.className = 'response';
             responseDiv.textContent = 'Sending...';
@@ -89,16 +93,20 @@
                 
                 const data = await response.json();
                 
-                if (response.ok) {
+                if (response.ok && data.success) {
                     responseDiv.className = 'response';
-                    responseDiv.textContent = `Reply: ${data.data.reply}`;
+                    responseDiv.innerHTML = `<strong>Reply:</strong><br>${data.data.reply.replace(/\n/g, '<br>')}`;
                 } else {
                     responseDiv.className = 'response error';
-                    responseDiv.textContent = `Error: ${data.message}`;
+                    responseDiv.innerHTML = `<strong>Error:</strong><br>${data.message || 'Unknown error'}`;
                 }
             } catch (error) {
                 responseDiv.className = 'response error';
-                responseDiv.textContent = `Network Error: ${error.message}`;
+                responseDiv.innerHTML = `<strong>Network Error:</strong><br>${error.message}`;
+            } finally {
+                // Re-enable button
+                sendButton.disabled = false;
+                sendButton.textContent = 'Send Message';
             }
         }
         
