@@ -1,7 +1,8 @@
 import passport, { AuthenticateCallback } from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
+import { Strategy as GitHubStrategy } from 'passport-github2';
 import jwt from 'jsonwebtoken';
-import { User, findByGoogleId, findByEmail } from '../models/User.model.js';
+import { User, findByGoogleId, findByGitHubId, findByEmail } from '../models/User.model.js';
 
 interface GoogleProfile {
   id: string;
@@ -11,6 +12,24 @@ interface GoogleProfile {
   name?: {
     givenName: string;
     familyName: string;
+  };
+}
+
+interface GitHubProfile {
+  id: string;
+  displayName: string;
+  username: string;
+  emails: Array<{ value: string; verified?: boolean }>;
+  photos: Array<{ value: string }>;
+  profileUrl: string;
+  _json: {
+    bio?: string;
+    location?: string;
+    company?: string;
+    blog?: string;
+    public_repos?: number;
+    followers?: number;
+    following?: number;
   };
 }
 
@@ -112,6 +131,72 @@ passport.use(
         return done(null, newUser);
       } catch (error) {
         console.error('Google OAuth Error:', error);
+        return done(error as Error, undefined);
+      }
+    }
+  )
+);
+
+// GitHub OAuth Strategy
+passport.use(
+  new GitHubStrategy(
+    {
+      clientID: process.env.GITHUB_CLIENT_ID!,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+      callbackURL: process.env.GITHUB_CALLBACK_URL!,
+      scope: ['user:email'],
+      passReqToCallback: true
+    },
+    async (req: any, accessToken: string, refreshToken: string, profile: any, done: (err: any, user?: AuthenticatedUser) => void) => {
+      try {
+        console.log('GitHub OAuth Profile:', profile);
+        
+        // Check if user already exists
+        let user = await findByGitHubId(profile.id);
+
+        if (user) {
+          // User exists, update last login
+          user.lastLogin = new Date();
+          await user.save();
+          return done(null, user);
+        }
+
+        // Check if user exists with same email
+        if (profile.emails && profile.emails[0]) {
+          user = await findByEmail(profile.emails[0].value);
+
+          if (user) {
+            // Link GitHub account to existing user
+            user.githubId = profile.id;
+            user.lastLogin = new Date();
+            await user.save();
+            return done(null, user);
+          }
+        }
+
+        // Create new user
+        const createData: any = {
+          githubId: profile.id,
+          username: profile.username || profile.emails?.[0]?.value?.split('@')[0] || 'user',
+          email: profile.emails?.[0]?.value || '',
+          role: 'user' as const,
+          isEmailVerified: true,
+          lastLogin: new Date()
+        };
+
+        if (profile.displayName) {
+          createData.displayName = profile.displayName;
+        }
+
+        if (profile.photos?.[0]?.value) {
+          createData.profilePicture = profile.photos[0].value;
+        }
+
+        const newUser = await User.create(createData);
+        console.log('New GitHub user created:', newUser.toJSON());
+        return done(null, newUser);
+      } catch (error) {
+        console.error('GitHub OAuth Error:', error);
         return done(error as Error, undefined);
       }
     }

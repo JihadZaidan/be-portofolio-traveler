@@ -6,7 +6,6 @@ import chatRoutes from "./routes/chat.routes.js";
 import improvedChatRoutes from "./routes/improved-chat.routes.js";
 import autoChatRoutes from "./routes/auto-chat.routes.js";
 import authRoutes from "./routes/auth.routes.js";
-import googleAuthRoutes from "./routes/google-auth.routes.js";
 import cookieParser from "cookie-parser";
 import { errorHandler } from "./middlewares/error.middleware.js";
 import path from "path";
@@ -21,8 +20,22 @@ const __dirname = path.dirname(__filename);
 
 const app: Application = express();
 
-// Swagger documentation
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+// Swagger documentation with enhanced CORS support
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: "Travello API Documentation",
+  swaggerOptions: {
+    persistAuthorization: true,
+    displayRequestDuration: true,
+    filter: true,
+    showExtensions: true,
+    showCommonExtensions: true,
+    docExpansion: "none",
+    defaultModelsExpandDepth: 2,
+    defaultModelExpandDepth: 2,
+    tryItOutEnabled: true
+  }
+}));
 
 // Session middleware for Passport
 app.use(session({
@@ -123,8 +136,7 @@ app.get("/works", (req: Request, res: Response) => {
 app.use("/api/chat", improvedChatRoutes); // Use improved chat routes
 app.use("/api/chat/legacy", chatRoutes); // Keep legacy routes for compatibility
 app.use("/api/auto-chat", autoChatRoutes); // Auto chat bot routes
-app.use("/api/auth", authRoutes);
-app.use("/api/auth", googleAuthRoutes); // Google auth routes
+app.use("/api/auth", authRoutes); // This now includes Google OAuth routes
 
 // Test route to verify API is working
 app.get("/api/test", (req: Request, res: Response) => {
@@ -140,7 +152,7 @@ app.get("/api/test", (req: Request, res: Response) => {
   });
 });
 
-console.log('Routes registered, Google Auth Routes:', !!googleAuthRoutes);
+console.log('Routes registered successfully');
 
 // Serve frontend routes
 app.get("/", (req: Request, res: Response) => {

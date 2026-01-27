@@ -2,10 +2,10 @@ import express from "express";
 import cors from "cors";
 import session from "express-session";
 import passport from "./config/passport.config.js";
-import chatRoutes from "./routes/chat.routes.js";
-import authRoutes from "./routes/auth.routes.js";
-import googleAuthRoutes from "./routes/google-auth.routes.js";
-import profileRoutes from "./routes/profile.routes.js";
+import chatRoutes from './routes/chat.routes.js';
+import authRoutes from './routes/auth.routes.js';
+import profileRoutes from './routes/profile.routes.js';
+import paymentRoutes from './routes/payment.routes.js';
 import { errorHandler } from "./middlewares/error.middleware.js";
 import swaggerUi from 'swagger-ui-express';
 import { createRequire } from 'module';
@@ -14,8 +14,22 @@ const swaggerDocument = require('./swagger.json');
 
 const app = express();
 
-// Swagger documentation
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+// Swagger documentation with enhanced CORS support
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: "Travello API Documentation",
+  swaggerOptions: {
+    persistAuthorization: true,
+    displayRequestDuration: true,
+    filter: true,
+    showExtensions: true,
+    showCommonExtensions: true,
+    docExpansion: "none",
+    defaultModelsExpandDepth: 2,
+    defaultModelExpandDepth: 2,
+    tryItOutEnabled: true
+  }
+}));
 
 // Session middleware for Passport
 app.use(session({
@@ -33,8 +47,24 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Middleware
-app.use(cors({ origin: process.env.CORS_ORIGIN || "*", credentials: true }));
+// Middleware - Enhanced CORS for Swagger UI
+app.use(cors({ 
+  origin: [
+    process.env.CORS_ORIGIN || "http://localhost:5173",
+    "http://localhost:5000",
+    "http://127.0.0.1:5000",
+    "http://localhost:5000/api-docs",
+    "http://127.0.0.1:5000/api-docs",
+    /^http:\/\/localhost:\d+$/,
+    /^http:\/\/127\.0\.0\.1:\d+$/
+  ], 
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With', 'X-API-Key'],
+  exposedHeaders: ['Set-Cookie', 'X-Total-Count'],
+  maxAge: 86400
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -60,6 +90,16 @@ app.get('/auth.html', (req, res) => {
 // Explicit route for dashboard
 app.get('/dashboard.html', (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'dashboard.html'));
+});
+
+// Explicit route for payment
+app.get('/payment.html', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'payment.html'));
+});
+
+// Explicit route for shop/payment
+app.get('/shop/payment', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'payment.html'));
 });
 
 // Default route redirect to auth
@@ -94,6 +134,14 @@ app.get("/api", (req, res) => {
                 uploadPicture: "PUT /api/profile/picture - Upload profile picture",
                 delete: "DELETE /api/profile - Delete account"
             },
+            payments: {
+                process: "POST /api/payments/process - Process payment",
+                methods: "GET /api/payments/methods - Get payment methods",
+                history: "GET /api/payments/history - Get payment history",
+                details: "GET /api/payments/details/:paymentId - Get payment details",
+                refund: "POST /api/payments/refund/:paymentId - Refund payment",
+                verify: "GET /api/payments/verify/:paymentId - Verify payment status"
+            },
             health: "GET /health - Health check"
         }
     });
@@ -127,8 +175,8 @@ app.get("/works", (req, res) => {
 // API routes
 app.use("/api/chat", chatRoutes);
 app.use("/api/auth", authRoutes);
-app.use("/api/auth", googleAuthRoutes);
 app.use("/api/profile", profileRoutes);
+app.use("/api/payments", paymentRoutes);
 
 // Error handling
 app.use(errorHandler);

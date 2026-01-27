@@ -5,9 +5,22 @@ import { User } from '../models/User.model.js';
 
 const router = Router();
 
+console.log('Google Auth Routes loaded');
+
 // Google OAuth login endpoint
 router.get('/google', (req: Request, res: Response) => {
+  console.log('Google OAuth endpoint hit:', req.path, req.method);
+  
   try {
+    // Check if Google OAuth is configured
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CALLBACK_URL) {
+      return res.status(500).json({
+        success: false,
+        message: 'Google OAuth not configured',
+        error: 'Missing Google OAuth credentials'
+      });
+    }
+
     const redirectUrl = `https://accounts.google.com/oauth/authorize?` +
       `client_id=${process.env.GOOGLE_CLIENT_ID}&` +
       `redirect_uri=${encodeURIComponent(process.env.GOOGLE_CALLBACK_URL!)}&` +
@@ -25,7 +38,9 @@ router.get('/google', (req: Request, res: Response) => {
         message: 'Google OAuth URL generated',
         data: {
           authUrl: redirectUrl,
-          instructions: 'Visit the authUrl above to authenticate with Google'
+          instructions: 'Visit the authUrl above to authenticate with Google',
+          clientId: process.env.GOOGLE_CLIENT_ID ? 'Configured' : 'Not configured',
+          callbackUrl: process.env.GOOGLE_CALLBACK_URL
         }
       });
     } else {

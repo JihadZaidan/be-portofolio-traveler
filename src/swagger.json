@@ -536,6 +536,115 @@
           }
         }
       }
+    },
+    "/api/payments/process": {
+      "post": {
+        "summary": "Process payment",
+        "description": "Process a new payment with various payment methods",
+        "tags": ["Payments"],
+        "security": [{"bearerAuth": []}],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["method", "amount", "description"],
+                "properties": {
+                  "method": {
+                    "type": "string",
+                    "enum": ["credit_card", "bank_transfer", "ewallet", "virtual_account"],
+                    "example": "credit_card"
+                  },
+                  "amount": {
+                    "type": "number",
+                    "format": "decimal",
+                    "minimum": 1000,
+                    "example": 150000
+                  },
+                  "currency": {
+                    "type": "string",
+                    "default": "IDR",
+                    "example": "IDR"
+                  },
+                  "description": {
+                    "type": "string",
+                    "example": "Hotel booking - Bali Resort"
+                  },
+                  "bookingId": {
+                    "type": "string",
+                    "example": "booking_12345"
+                  },
+                  "customerInfo": {
+                    "type": "object",
+                    "properties": {
+                      "name": {"type": "string"},
+                      "email": {"type": "string"},
+                      "phone": {"type": "string"}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Payment processed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Payment processed successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "paymentId": {
+                          "type": "string",
+                          "example": "pay_1234567890"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": ["pending", "processing", "completed", "failed"],
+                          "example": "completed"
+                        },
+                        "amount": {
+                          "type": "number",
+                          "example": 150000
+                        },
+                        "currency": {
+                          "type": "string",
+                          "example": "IDR"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "credit_card"
+                        },
+                        "gatewayResponse": {
+                          "type": "object",
+                          "properties": {
+                            "transactionId": {"type": "string"},
+                            "approvalCode": {"type": "string"},
+                            "maskedCard": {"type": "string"}
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {

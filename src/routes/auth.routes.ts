@@ -12,81 +12,102 @@ router.post('/login', AuthController.login);
 router.post('/logout', AuthController.logout);
 router.get('/me', AuthController.getMe);
 
-// Google OAuth - Direct implementation
-router.get('/google', (req: Request, res: Response) => {
-  console.log('Google OAuth endpoint hit:', req.path, req.method);
-  
-  try {
-    // Check if Google OAuth is configured
-    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CALLBACK_URL) {
-      return res.status(500).json({
-        success: false,
-        message: 'Google OAuth not configured',
-        error: 'Missing Google OAuth credentials'
-      });
-    }
+// Google OAuth - Using Passport Strategy
+router.get('/google', passport.authenticate('google', { 
+  scope: ['profile', 'email'],
+  session: false
+}));
 
-    const redirectUrl = `https://accounts.google.com/oauth/authorize?` +
-      `client_id=${process.env.GOOGLE_CLIENT_ID}&` +
-      `redirect_uri=${encodeURIComponent(process.env.GOOGLE_CALLBACK_URL!)}&` +
-      `response_type=code&` +
-      `scope=${encodeURIComponent('profile email')}&` +
-      `access_type=offline&` +
-      `prompt=consent`;
-    
-    console.log('Redirecting to Google OAuth:', redirectUrl);
-    
-    // For Swagger UI and API clients, return JSON with the URL
-    if (req.headers.accept?.includes('application/json')) {
-      res.json({
-        success: true,
-        message: 'Google OAuth URL generated',
-        data: {
-          authUrl: redirectUrl,
-          instructions: 'Visit the authUrl above to authenticate with Google',
-          clientId: process.env.GOOGLE_CLIENT_ID ? 'Configured' : 'Not configured',
-          callbackUrl: process.env.GOOGLE_CALLBACK_URL
-        }
+// Google OAuth callback - Using Passport Strategy
+router.get('/google/callback', 
+  passport.authenticate('google', { 
+    session: false,
+    failureRedirect: '/api/auth/google/failure'
+  }),
+  (req: Request, res: Response) => {
+    try {
+      const user = req.user as any;
+      
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: 'Google OAuth authentication failed',
+          error: 'No user data received'
+        });
+      }
+
+      // Generate JWT token
+      const token = generateToken(user);
+
+      // For Swagger UI and API clients, return JSON response
+      if (req.headers.accept?.includes('application/json')) {
+        res.json({
+          success: true,
+          message: 'Google OAuth authentication successful',
+          data: {
+            user: {
+              id: user.id,
+              username: user.username,
+              email: user.email,
+              displayName: user.displayName,
+              profilePicture: user.profilePicture,
+              role: user.role,
+              isEmailVerified: user.isEmailVerified
+            },
+            token,
+            instructions: 'Use this token for authenticated requests'
+          }
+        });
+      } else {
+        // For web browsers, redirect to frontend with token
+        const redirectUrl = `${process.env.CORS_ORIGIN || 'http://localhost:5173'}?auth=success&token=${token}`;
+        res.redirect(redirectUrl);
+      }
+    } catch (error) {
+      console.error('Google OAuth callback processing error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to process Google OAuth callback',
+        error: error instanceof Error ? error.message : 'Unknown error'
       });
-    } else {
-      // For web browsers, redirect directly
-      res.redirect(redirectUrl);
     }
-  } catch (error) {
-    console.error('Google OAuth initiation error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to initiate Google OAuth',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
   }
+);
+
+// Google OAuth failure handler
+router.get('/google/failure', (req: Request, res: Response) => {
+  res.status(401).json({
+    success: false,
+    message: 'Google OAuth authentication failed',
+    error: 'User denied access or authentication failed'
+  });
 });
 
-// Google OAuth callback - Direct implementation
-router.get('/google/callback', (req: Request, res: Response) => {
-  console.log('Google OAuth callback endpoint hit:', req.path, req.method);
-  
+// Check OAuth configuration
+router.get('/config', (req: Request, res: Response) => {
   try {
-    // For Swagger UI and API clients, return JSON response
-    if (req.headers.accept?.includes('application/json')) {
-      res.json({
-        success: true,
-        message: 'Google OAuth callback endpoint',
-        data: {
-          instructions: 'This endpoint handles Google OAuth callback',
-          note: 'In production, this would process the OAuth code and return user data with token'
-        }
-      });
-    } else {
-      // For web browsers, redirect to frontend
-      const redirectUrl = `${process.env.CORS_ORIGIN || 'http://localhost:5173'}?auth=callback_received`;
-      res.redirect(redirectUrl);
-    }
+    const config = {
+      clientId: process.env.GOOGLE_CLIENT_ID ? 'Configured' : 'Not configured',
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET ? 'Configured' : 'Not configured',
+      callbackUrl: process.env.GOOGLE_CALLBACK_URL || 'Not set',
+      corsOrigin: process.env.CORS_ORIGIN || 'Not set',
+      geminiApiKey: process.env.GEMINI_API_KEY ? 'Configured' : 'Not configured',
+      jwtSecret: process.env.JWT_SECRET ? 'Configured' : 'Not configured',
+      sessionSecret: process.env.SESSION_SECRET ? 'Configured' : 'Not configured'
+    };
+
+    res.json({
+      success: true,
+      data: {
+        config,
+        message: 'Google OAuth configuration check'
+      }
+    });
   } catch (error) {
-    console.error('Google OAuth callback error:', error);
+    console.error('Config check error:', error);
     res.status(500).json({
       success: false,
-      message: 'Google OAuth callback failed',
+      message: 'Failed to check configuration',
       error: error instanceof Error ? error.message : 'Unknown error'
     });
   }

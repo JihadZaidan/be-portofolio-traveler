@@ -7,6 +7,7 @@ interface UserAttributes {
   email: string;
   password?: string;
   googleId?: string;
+  githubId?: string;
   displayName?: string;
   profilePicture?: string;
   role: 'user' | 'admin';
@@ -24,6 +25,7 @@ class User {
   public email!: string;
   public password?: string;
   public googleId?: string;
+  public githubId?: string;
   public displayName?: string;
   public profilePicture?: string;
   public role!: 'user' | 'admin';
@@ -37,7 +39,7 @@ class User {
   }
 
   // Static methods
-  static async findOne(options: { where?: { id?: string; googleId?: string; email?: string } }): Promise<User | null> {
+  static async findOne(options: { where?: { id?: string; googleId?: string; githubId?: string; email?: string } }): Promise<User | null> {
     await db.read();
     const users = db.data?.users || [];
     
@@ -47,6 +49,10 @@ class User {
     }
     if (options.where?.googleId) {
       const user = users.find(u => u.googleId === options.where!.googleId);
+      return user ? new User(user) : null;
+    }
+    if (options.where?.githubId) {
+      const user = users.find(u => u.githubId === options.where!.githubId);
       return user ? new User(user) : null;
     }
     if (options.where?.email) {
@@ -155,6 +161,7 @@ class User {
       email: this.email,
       password: this.password,
       googleId: this.googleId,
+      githubId: this.githubId,
       displayName: this.displayName,
       profilePicture: this.profilePicture,
       role: this.role,
@@ -169,6 +176,10 @@ class User {
 // Static methods
 const findByGoogleId = async (googleId: string): Promise<User | null> => {
   return await User.findOne({ where: { googleId } });
+};
+
+const findByGitHubId = async (githubId: string): Promise<User | null> => {
+  return await User.findOne({ where: { githubId } });
 };
 
 const findByEmail = async (email: string): Promise<User | null> => {
@@ -189,4 +200,4 @@ const initUser = async (): Promise<void> => {
   }
 };
 
-export { User, UserAttributes, findByGoogleId, findByEmail, create, initUser };
+export { User, UserAttributes, findByGoogleId, findByGitHubId, findByEmail, create, initUser };

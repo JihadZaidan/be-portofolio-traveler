@@ -19,6 +19,7 @@ const initializeApp = async () => {
             console.log(`🚀 Server running on port ${PORT}`);
             console.log(`📝 Environment: ${process.env.NODE_ENV}`);
             console.log(`🏥 Health check: http://localhost:${PORT}/health`);
+            console.log(`📚 API Documentation: http://localhost:${PORT}/api-docs`);
             console.log(`💬 Chat API: http://localhost:${PORT}/api/chat`);
             console.log(`🔐 Google OAuth: http://localhost:${PORT}/api/auth/google`);
         });

@@ -26,6 +26,7 @@
     "lowdb": "^6.1.0",
     "mysql2": "^3.16.1",
     "passport": "^0.7.0",
+    "passport-github2": "^0.1.12",
     "passport-google-oauth20": "^2.0.0",
     "sequelize": "^6.37.7",
     "sqlite": "^5.1.1",
@@ -34,6 +35,7 @@
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/cookie-parser": "^1.4.10",
+    "@types/passport-github2": "^1.2.9",
     "@types/swagger-ui-express": "^4.1.8",
     "ts-node-dev": "^2.0.0"
   }
