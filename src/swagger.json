@@ -1,22 +1,18 @@
 {
   "openapi": "3.0.0",
   "info": {
-    "title": "Rizzworld API",
+    "title": "Travello API",
     "version": "1.0.0",
-    "description": "API documentation for Rizzworld application",
+    "description": "API documentation for Travello application",
     "contact": {
       "name": "API Support",
-      "email": "support@rizzworld.com"
+      "email": "support@travello.com"
     }
   },
   "servers": [
     {
       "url": "http://localhost:5000",
       "description": "Development server"
-    },
-    {
-      "url": "https://api.rizzworld.com",
-      "description": "Production server"
     }
   ],
   "paths": {
@@ -65,72 +61,10 @@
                   "properties": {
                     "message": {
                       "type": "string",
-                      "example": "RIZZWORLD API"
+                      "example": "TRAVELLO API"
                     },
                     "endpoints": {
                       "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/chat": {
-      "post": {
-        "summary": "Chat with AI",
-        "description": "Send a message to the AI chatbot",
-        "tags": ["Chat"],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "message": {
-                    "type": "string",
-                    "description": "Message to send to the AI"
-                  },
-                  "sessionId": {
-                    "type": "string",
-                    "description": "Session ID for conversation context"
-                  }
-                },
-                "required": ["message"]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "AI response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
-                    },
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "response": {
-                          "type": "string",
-                          "description": "AI response message"
-                        },
-                        "timestamp": {
-                          "type": "string",
-                          "format": "date-time"
-                        },
-                        "sessionId": {
-                          "type": "string"
-                        }
-                      }
                     }
                   }
                 }
@@ -155,11 +89,13 @@
                   "email": {
                     "type": "string",
                     "format": "email",
-                    "description": "User email"
+                    "description": "User email",
+                    "example": "test@example.com"
                   },
                   "password": {
                     "type": "string",
-                    "description": "User password"
+                    "description": "User password",
+                    "example": "password123"
                   }
                 },
                 "required": ["email", "password"]
@@ -178,6 +114,10 @@
                     "success": {
                       "type": "boolean",
                       "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Login successful! Welcome back."
                     },
                     "data": {
                       "type": "object",
@@ -219,20 +159,24 @@
                 "properties": {
                   "username": {
                     "type": "string",
-                    "description": "Unique username"
+                    "description": "Unique username",
+                    "example": "testuser"
                   },
                   "email": {
                     "type": "string",
                     "format": "email",
-                    "description": "User email"
+                    "description": "User email",
+                    "example": "test@example.com"
                   },
                   "password": {
                     "type": "string",
-                    "description": "User password"
+                    "description": "User password",
+                    "example": "password123"
                   },
                   "displayName": {
                     "type": "string",
-                    "description": "Display name (optional)"
+                    "description": "Display name (optional)",
+                    "example": "Test User"
                   }
                 },
                 "required": ["username", "email", "password"]
@@ -252,6 +196,10 @@
                       "type": "boolean",
                       "example": true
                     },
+                    "message": {
+                      "type": "string",
+                      "example": "Registration successful! You are now logged in."
+                    },
                     "data": {
                       "type": "object",
                       "properties": {
@@ -263,7 +211,8 @@
                             "username": {"type": "string"},
                             "displayName": {"type": "string"}
                           }
-                        }
+                        },
+                        "token": {"type": "string"}
                       }
                     }
                   }
@@ -299,6 +248,10 @@
                       "type": "boolean",
                       "example": true
                     },
+                    "message": {
+                      "type": "string",
+                      "example": "User retrieved successfully"
+                    },
                     "data": {
                       "type": "object",
                       "properties": {
@@ -309,7 +262,7 @@
                             "email": {"type": "string"},
                             "username": {"type": "string"},
                             "displayName": {"type": "string"},
-                            "profilePicture": {"type": "string"}
+                            "role": {"type": "string"}
                           }
                         }
                       }
@@ -352,10 +305,6 @@
                         "authUrl": {
                           "type": "string",
                           "example": "https://accounts.google.com/oauth/authorize?..."
-                        },
-                        "instructions": {
-                          "type": "string",
-                          "example": "Visit the authUrl above to authenticate with Google"
                         }
                       }
                     }
@@ -367,14 +316,14 @@
         }
       }
     },
-    "/api/auth/google/callback": {
+    "/api/auth/github": {
       "get": {
-        "summary": "Google OAuth callback",
-        "description": "Handle Google OAuth callback",
+        "summary": "GitHub OAuth login",
+        "description": "Initiate GitHub OAuth authentication",
         "tags": ["Authentication", "OAuth"],
         "responses": {
           "200": {
-            "description": "Google OAuth authentication successful",
+            "description": "GitHub OAuth URL generated",
             "content": {
               "application/json": {
                 "schema": {
@@ -386,7 +335,56 @@
                     },
                     "message": {
                       "type": "string",
-                      "example": "Google OAuth authentication successful"
+                      "example": "GitHub OAuth URL generated"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "authUrl": {
+                          "type": "string",
+                          "example": "https://github.com/login/oauth/authorize?..."
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/github/callback": {
+      "get": {
+        "summary": "GitHub OAuth callback",
+        "description": "Handle GitHub OAuth callback",
+        "tags": ["Authentication", "OAuth"],
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "description": "Authorization code from GitHub",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "GitHub OAuth authentication successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "GitHub OAuth successful"
                     },
                     "data": {
                       "type": "object",
@@ -404,10 +402,64 @@
                         "token": {
                           "type": "string",
                           "example": "jwt_token_here"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/google/callback": {
+      "get": {
+        "summary": "Google OAuth callback",
+        "description": "Handle Google OAuth callback",
+        "tags": ["Authentication", "OAuth"],
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "description": "Authorization code from Google",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Google OAuth authentication successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Google OAuth successful"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "user": {
+                          "type": "object",
+                          "properties": {
+                            "id": {"type": "string"},
+                            "email": {"type": "string"},
+                            "username": {"type": "string"},
+                            "displayName": {"type": "string"}
+                          }
                         },
-                        "instructions": {
+                        "token": {
                           "type": "string",
-                          "example": "Use this token for authenticated requests"
+                          "example": "jwt_token_here"
                         }
                       }
                     }
@@ -439,15 +491,6 @@
                     "message": {
                       "type": "string",
                       "example": "Logged out successfully"
-                    },
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "instructions": {
-                          "type": "string",
-                          "example": "Token has been cleared from cookies"
-                        }
-                      }
                     }
                   }
                 }
@@ -481,124 +524,7 @@
                           "type": "object",
                           "properties": {
                             "clientId": {"type": "string"},
-                            "clientSecret": {"type": "string"},
-                            "callbackUrl": {"type": "string"},
-                            "corsOrigin": {"type": "string"}
-                          }
-                        },
-                        "message": {
-                          "type": "string",
-                          "example": "Google OAuth configuration check"
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/chat/health": {
-      "get": {
-        "summary": "Chat health check",
-        "description": "Check if chat service is healthy",
-        "tags": ["Chat"],
-        "responses": {
-          "200": {
-            "description": "Chat service health",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
-                    },
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "status": {
-                          "type": "string",
-                          "example": "Healthy"
-                        },
-                        "timestamp": {
-                          "type": "string",
-                          "format": "date-time"
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/auto-chat": {
-      "post": {
-        "summary": "Auto chat with travel bot",
-        "description": "Send a message to the auto travel chatbot",
-        "tags": ["Chat"],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "message": {
-                    "type": "string",
-                    "description": "Message to send to the travel bot"
-                  },
-                  "sessionId": {
-                    "type": "string",
-                    "description": "Session ID for conversation context"
-                  }
-                },
-                "required": ["message"]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Auto chat response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
-                    },
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "response": {
-                          "type": "string",
-                          "description": "Travel bot response"
-                        },
-                        "timestamp": {
-                          "type": "string",
-                          "format": "date-time"
-                        },
-                        "sessionId": {
-                          "type": "string"
-                        },
-                        "suggestions": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
+                            "callbackUrl": {"type": "string"}
                           }
                         }
                       }
@@ -607,97 +533,6 @@
                 }
               }
             }
-          }
-        }
-      }
-    },
-    "/api/profile": {
-      "get": {
-        "summary": "Get user profile",
-        "description": "Get detailed user profile information",
-        "tags": ["Profile"],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Profile information",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
-                    },
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "user": {
-                          "type": "object",
-                          "properties": {
-                            "id": {"type": "string"},
-                            "email": {"type": "string"},
-                            "username": {"type": "string"},
-                            "displayName": {"type": "string"},
-                            "profilePicture": {"type": "string"},
-                            "bio": {"type": "string"},
-                            "location": {"type": "string"},
-                            "company": {"type": "string"}
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      "put": {
-        "summary": "Update user profile",
-        "description": "Update user profile information",
-        "tags": ["Profile"],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "displayName": {
-                    "type": "string",
-                    "description": "Display name"
-                  },
-                  "bio": {
-                    "type": "string",
-                    "description": "User bio"
-                  },
-                  "location": {
-                    "type": "string",
-                    "description": "User location"
-                  },
-                  "company": {
-                    "type": "string",
-                    "description": "User company"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Profile updated successfully"
           }
         }
       }
@@ -722,20 +557,12 @@
       "description": "API information endpoints"
     },
     {
-      "name": "Chat",
-      "description": "AI chat endpoints"
-    },
-    {
       "name": "Authentication",
       "description": "User authentication endpoints"
     },
     {
       "name": "OAuth",
       "description": "OAuth authentication endpoints"
-    },
-    {
-      "name": "Profile",
-      "description": "User profile management"
     }
   ]
 }
