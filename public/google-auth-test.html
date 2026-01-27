@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Auth Test - TRAVELLO</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-md mx-auto bg-white rounded-lg shadow-lg p-8">
+            <div class="text-center mb-8">
+                <h1 class="text-3xl font-bold text-gray-800 mb-2">TRAVELLO</h1>
+                <p class="text-gray-600">Google Authentication Test</p>
+            </div>
+
+            <!-- Status Display -->
+            <div id="status" class="mb-6 p-4 rounded-lg hidden">
+                <div id="statusMessage" class="text-sm"></div>
+            </div>
+
+            <!-- User Info (when logged in) -->
+            <div id="userInfo" class="mb-6 p-4 bg-gray-50 rounded-lg hidden">
+                <div class="flex items-center space-x-4">
+                    <img id="userAvatar" src="" alt="Avatar" class="w-12 h-12 rounded-full">
+                    <div>
+                        <div id="userName" class="font-semibold"></div>
+                        <div id="userEmail" class="text-sm text-gray-600"></div>
+                        <div id="userRole" class="text-xs text-blue-600"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Login Buttons -->
+            <div class="space-y-4">
+                <button onclick="handleGoogleLogin()" 
+                        class="w-full bg-white border-2 border-gray-300 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-50 transition duration-200 flex items-center justify-center space-x-3">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                    </svg>
+                    <span>Continue with Google</span>
+                </button>
+
+                <button onclick="checkConfig()" 
+                        class="w-full bg-blue-500 text-white py-3 px-4 rounded-lg hover:bg-blue-600 transition duration-200">
+                    <i class="fas fa-cog mr-2"></i>
+                    Check Google OAuth Config
+                </button>
+
+                <button onclick="checkAuthStatus()" 
+                        class="w-full bg-green-500 text-white py-3 px-4 rounded-lg hover:bg-green-600 transition duration-200">
+                    <i class="fas fa-user-check mr-2"></i>
+                    Check Auth Status
+                </button>
+
+                <button onclick="handleLogout()" 
+                        class="w-full bg-red-500 text-white py-3 px-4 rounded-lg hover:bg-red-600 transition duration-200 hidden" id="logoutBtn">
+                    <i class="fas fa-sign-out-alt mr-2"></i>
+                    Logout
+                </button>
+            </div>
+
+            <!-- Instructions -->
+            <div class="mt-8 p-4 bg-blue-50 rounded-lg">
+                <h3 class="font-semibold text-blue-800 mb-2">📋 Setup Instructions:</h3>
+                <ol class="text-sm text-blue-700 space-y-1">
+                    <li>1. Get Google OAuth credentials from <a href="https://console.cloud.google.com/apis/credentials" target="_blank" class="underline">Google Cloud Console</a></li>
+                    <li>2. Update .env file with your credentials</li>
+                    <li>3. Make sure redirect URI is: <code class="bg-blue-100 px-1">http://localhost:5000/api/auth/google/callback</code></li>
+                    <li>4. Click "Check Config" to verify setup</li>
+                    <li>5. Test Google login</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000';
+
+        // Check URL parameters for OAuth callback
+        function checkOAuthCallback() {
+            const params = new URLSearchParams(window.location.search);
+            const auth = params.get('auth');
+            const token = params.get('token');
+            const message = params.get('message');
+
+            if (auth === 'success' && token) {
+                localStorage.setItem('token', token);
+                showStatus('Login successful! Redirecting...', 'success');
+                setTimeout(() => {
+                    window.location.search = ''; // Clear URL params
+                    checkAuthStatus();
+                }, 2000);
+            } else if (auth === 'error') {
+                showStatus(`Google auth failed: ${message}`, 'error');
+            }
+        }
+
+        function showStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            const statusMessage = document.getElementById('statusMessage');
+            
+            status.classList.remove('hidden', 'bg-green-100', 'bg-red-100', 'bg-blue-100', 'text-green-700', 'text-red-700', 'text-blue-700');
+            
+            if (type === 'success') {
+                status.classList.add('bg-green-100', 'text-green-700');
+            } else if (type === 'error') {
+                status.classList.add('bg-red-100', 'text-red-700');
+            } else {
+                status.classList.add('bg-blue-100', 'text-blue-700');
+            }
+            
+            statusMessage.textContent = message;
+            
+            setTimeout(() => {
+                status.classList.add('hidden');
+            }, 5000);
+        }
+
+        function handleGoogleLogin() {
+            window.location.href = `${API_BASE}/api/auth/google`;
+        }
+
+        function handleLogout() {
+            localStorage.removeItem('token');
+            document.getElementById('userInfo').classList.add('hidden');
+            document.getElementById('logoutBtn').classList.add('hidden');
+            showStatus('Logged out successfully', 'success');
+        }
+
+        async function checkConfig() {
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/config`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const { config } = data.data;
+                    let message = 'Google OAuth Configuration:\n';
+                    message += `• Client ID: ${config.clientId}\n`;
+                    message += `• Client Secret: ${config.clientSecret}\n`;
+                    message += `• Callback URL: ${config.callbackUrl}\n`;
+                    message += `• CORS Origin: ${config.corsOrigin}`;
+                    
+                    showStatus(message, 'info');
+                } else {
+                    showStatus('Failed to check configuration', 'error');
+                }
+            } catch (error) {
+                showStatus(`Error checking config: ${error.message}`, 'error');
+            }
+        }
+
+        async function checkAuthStatus() {
+            const token = localStorage.getItem('token');
+            
+            if (!token) {
+                showStatus('No token found. Please login first.', 'info');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/me`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    const { user } = data.data;
+                    displayUserInfo(user);
+                    showStatus('Authentication successful!', 'success');
+                } else {
+                    localStorage.removeItem('token');
+                    showStatus('Invalid token. Please login again.', 'error');
+                }
+            } catch (error) {
+                showStatus(`Error checking auth status: ${error.message}`, 'error');
+            }
+        }
+
+        function displayUserInfo(user) {
+            document.getElementById('userInfo').classList.remove('hidden');
+            document.getElementById('logoutBtn').classList.remove('hidden');
+            document.getElementById('userName').textContent = user.displayName || user.username;
+            document.getElementById('userEmail').textContent = user.email;
+            document.getElementById('userRole').textContent = `Role: ${user.role}`;
+            
+            if (user.profilePicture) {
+                document.getElementById('userAvatar').src = user.profilePicture;
+            } else {
+                document.getElementById('userAvatar').src = `https://ui-avatars.com/api/?name=${user.displayName || user.username}&background=random`;
+            }
+        }
+
+        // Check OAuth callback on page load
+        checkOAuthCallback();
+    </script>
+</body>
+</html>

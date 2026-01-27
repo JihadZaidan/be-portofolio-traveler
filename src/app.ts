@@ -1,0 +1,147 @@
+import express, { Application, Request, Response, NextFunction } from "express";
+import cors from "cors";
+import session from "express-session";
+import passport from "./config/passport.config.js";
+import chatRoutes from "./routes/chat.routes.js";
+import improvedChatRoutes from "./routes/improved-chat.routes.js";
+import autoChatRoutes from "./routes/auto-chat.routes.js";
+import authRoutes from "./routes/auth.routes.js";
+import googleAuthRoutes from "./routes/google-auth.routes.js";
+import cookieParser from "cookie-parser";
+import { errorHandler } from "./middlewares/error.middleware.js";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const app: Application = express();
+
+// Session middleware for Passport
+app.use(session({
+  secret: process.env.SESSION_SECRET!,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+  }
+}));
+
+// Initialize Passport
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Middleware
+app.use(cors({ 
+  origin: process.env.CORS_ORIGIN || "*", 
+  credentials: true // Allow cookies for auth
+}));
+app.use(express.json());
+app.use(cookieParser());
+
+// Serve static files
+app.use(express.static(path.join(__dirname, '../public')));
+
+// Health check endpoint
+app.get("/health", (req: Request, res: Response) => {
+    res.status(200).json({ status: "OK", timestamp: new Date().toISOString() });
+});
+
+// API info endpoint
+app.get("/api", (req: Request, res: Response) => {
+    res.status(200).json({ 
+        message: "Gemini Chatbot API",
+        endpoints: {
+            chat: "POST /api/chat - Chat with Gemini AI",
+            auth: {
+                login: "POST /api/auth/login - User login",
+                logout: "POST /api/auth/logout - User logout",
+                me: "GET /api/auth/me - Get current user",
+                users: "GET /api/auth/users - Get all users (admin)"
+            },
+            googleAuth: {
+                google: "GET /api/auth/google - Initiate Google OAuth",
+                callback: "GET /api/auth/google/callback - Google OAuth callback",
+                me: "GET /api/auth/me - Get current user",
+                logout: "POST /api/auth/logout - Logout"
+            },
+            health: "GET /health - Health check"
+        }
+    });
+});
+
+// Works endpoint (portfolio/projects)
+app.get("/works", (req: Request, res: Response) => {
+    res.status(200).json({ 
+        message: "Portfolio Works API",
+        data: {
+            projects: [
+                {
+                    id: 1,
+                    title: "AI Chatbot",
+                    description: "Interactive chatbot powered by Gemini AI",
+                    technology: ["React", "Node.js", "Gemini API"],
+                    status: "completed"
+                },
+                {
+                    id: 2,
+                    title: "Portfolio Website",
+                    description: "Personal portfolio and travel blog",
+                    technology: ["React", "Vite", "Tailwind CSS"],
+                    status: "in-progress"
+                }
+            ]
+        }
+    });
+});
+
+// API routes
+app.use("/api/chat", improvedChatRoutes); // Use improved chat routes
+app.use("/api/chat/legacy", chatRoutes); // Keep legacy routes for compatibility
+app.use("/api/auto-chat", autoChatRoutes); // Auto chat bot routes
+app.use("/api/auth", authRoutes);
+app.use("/api/auth", googleAuthRoutes); // Google auth routes
+
+// Serve frontend routes
+app.get("/", (req: Request, res: Response) => {
+  res.sendFile(path.join(__dirname, '../public/auth.html'));
+});
+
+app.get("/google-auth-test", (req: Request, res: Response) => {
+  res.sendFile(path.join(__dirname, '../public/google-auth-test.html'));
+});
+
+app.get("/chat", (req: Request, res: Response) => {
+  res.sendFile(path.join(__dirname, '../public/chat.html'));
+});
+
+app.get("/auto-chat", (req: Request, res: Response) => {
+  res.sendFile(path.join(__dirname, '../public/auto-chat.html'));
+});
+
+// Error handling
+app.use(errorHandler);
+
+// Catch-all handler for undefined routes (must be last)
+app.use((req: Request, res: Response) => {
+    res.status(404).json({ 
+        error: "Route not found",
+        message: `Cannot ${req.method} ${req.originalUrl}`,
+        availableRoutes: {
+            "GET /health": "Health check",
+            "GET /api": "API information",
+            "GET /works": "Portfolio works",
+            "POST /api/chat": "Chat with AI",
+            "POST /api/auth/login": "User login",
+            "POST /api/auth/logout": "User logout",
+            "GET /api/auth/me": "Get current user",
+            "GET /api/auth/users": "Get all users",
+            "GET /api/auth/google": "Google OAuth login",
+            "GET /api/auth/google/callback": "Google OAuth callback"
+        }
+    });
+});
+
+export default app;

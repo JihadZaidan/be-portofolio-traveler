@@ -1,0 +1,27 @@
+import { Request, Response, NextFunction } from 'express';
+import { verifyToken } from '../config/passport.config.js';
+import { User } from '../models/User.model.js';
+
+export const isAuthenticated = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const token = req.cookies.token || req.headers.authorization?.replace('Bearer ', '');
+
+    if (!token) {
+      res.status(401).json({ success: false, message: 'Unauthorized: No token provided' });
+      return;
+    }
+
+    const decoded = verifyToken(token);
+    const user = await User.findByPk(decoded.id);
+
+    if (!user) {
+      res.status(401).json({ success: false, message: 'Unauthorized: User not found' });
+      return;
+    }
+
+    req.user = user.toJSON();
+    next();
+  } catch (error) {
+    res.status(401).json({ success: false, message: 'Unauthorized: Invalid token' });
+  }
+};
