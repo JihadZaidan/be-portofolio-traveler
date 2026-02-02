@@ -1,0 +1,16 @@
+{
+  "users": [
+    {
+      "id": "5473f6a2-8e8c-4889-8f28-713b0468e8de",
+      "username": "wrm23r13rn",
+      "email": "wrm23r13rn@yahoo.com",
+      "password": "$2b$12$kqWnDewpn3KqkWHNnEYB5eRzeYD0vnUVWNspojrMYo4ND5wXZ5xsG",
+      "role": "user",
+      "isEmailVerified": true,
+      "createdAt": "2026-01-21T13:56:39.735Z",
+      "updatedAt": "2026-01-21T14:15:27.201Z",
+      "lastLogin": "2026-01-21T14:15:27.200Z"
+    }
+  ],
+  "chatMessages": []
+}

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Swagger OAuth2 Redirect</title>
+</head>
+<body>
+    <script>
+        // Parse the URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        const state = urlParams.get('state');
+        
+        // Send the authorization code to the parent window (Swagger UI)
+        if (code && state) {
+            // Send message to parent window with the authorization code
+            window.opener.postMessage({
+                type: 'authorization_code',
+                code: code,
+                state: state
+            }, '*'); // Use '*' for cross-origin communication
+            
+            // Close the popup window
+            window.close();
+        } else {
+            // Handle error case
+            const error = urlParams.get('error');
+            if (error) {
+                window.opener.postMessage({
+                    type: 'authorization_error',
+                    error: error,
+                    error_description: urlParams.get('error_description')
+                }, '*');
+                window.close();
+            } else {
+                document.body.innerHTML = '<h1>OAuth2 Redirect</h1><p>Processing authorization...</p>';
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,55 @@
+{
+  "users": [
+    {
+      "id": "fa029540-14ae-4054-945d-12f0d0fa5fa9",
+      "username": "testuser",
+      "email": "test@example.com",
+      "password": "$2b$12$36K1ayZtQVfe3MPEJSzxXeqD5ZMGlFli4ac2P9oKtjZrYam0vlW9e",
+      "role": "user",
+      "isEmailVerified": true,
+      "displayName": "Test User",
+      "createdAt": "2026-01-26T03:05:44.747Z",
+      "updatedAt": "2026-01-26T03:06:13.645Z",
+      "lastLogin": "2026-01-26T03:06:13.644Z"
+    },
+    {
+      "id": "7cb3664b-40ac-4baa-a55e-e60f0944a69c",
+      "username": "wrm23r13rn",
+      "email": "wrm23r13rn@yahoo.com",
+      "password": "$2b$12$BeUAN5HWobBV0obhgli.8.2eA4DdGdCPUKNELmNAv7sfSu9il7l4y",
+      "role": "user",
+      "isEmailVerified": true,
+      "displayName": "Revo Admj",
+      "createdAt": "2026-01-26T03:06:56.346Z",
+      "updatedAt": "2026-01-26T03:06:57.254Z",
+      "lastLogin": "2026-01-26T03:06:57.253Z"
+    },
+    {
+      "id": "c65fd650-3603-44ab-b37c-f2770cedfff2",
+      "username": "imanueladmojo",
+      "email": "admjrevo@gmail.com",
+      "password": "$2b$12$wuxVMStYMe316GFnBqTocuZjwah.njlMjDhm.9jJaKN/e90dtLRi2",
+      "role": "user",
+      "isEmailVerified": true,
+      "displayName": "Imanuel Admojo",
+      "createdAt": "2026-01-26T04:21:37.772Z",
+      "updatedAt": "2026-01-27T00:14:08.093Z",
+      "lastLogin": "2026-01-27T00:14:08.085Z"
+    },
+    {
+      "id": "25f07f20-a810-4971-9891-fd0d660a94b7",
+      "username": "string",
+      "email": "user@example.com",
+      "password": "$2b$12$jNGgcD9V8.DGKzqJehr34u5fWyw0vwC2vCLdRwMsfPA8A9uqr6aAu",
+      "role": "user",
+      "isEmailVerified": true,
+      "displayName": "string",
+      "createdAt": "2026-01-27T03:02:27.937Z",
+      "updatedAt": "2026-01-27T03:02:27.953Z",
+      "lastLogin": "2026-01-27T03:02:27.951Z"
+    }
+  ],
+  "chatMessages": [],
+  "userSessions": [],
+  "travelKnowledge": []
+}
