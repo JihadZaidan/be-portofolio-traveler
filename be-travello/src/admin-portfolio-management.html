@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portfolio Management - Admin</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: #f8fafc;
+            color: #1e293b;
+        }
+        
+        .header {
+            background: white;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+        
+        .nav-buttons {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+        
+        .btn-secondary {
+            background: #64748b;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #475569;
+        }
+        
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+        
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #059669;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .stat-card h3 {
+            font-size: 0.875rem;
+            color: #64748b;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+        
+        .controls {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 2rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .search-box {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .search-box input {
+            width: 100%;
+            padding: 0.5rem 1rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+        }
+        
+        .filter-select {
+            padding: 0.5rem 1rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+        }
+        
+        .portfolio-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+        
+        .portfolio-card {
+            background: white;
+            border-radius: 0.75rem;
+            border: 1px solid #e2e8f0;
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .portfolio-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .portfolio-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            background: #f1f5f9;
+        }
+        
+        .portfolio-content {
+            padding: 1.5rem;
+        }
+        
+        .portfolio-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 1rem;
+        }
+        
+        .portfolio-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 0.25rem;
+        }
+        
+        .portfolio-category {
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+        
+        .category-web { background: #dbeafe; color: #1e40af; }
+        .category-mobile { background: #dcfce7; color: #166534; }
+        .category-design { background: #fef3c7; color: #92400e; }
+        .category-photography { background: #ede9fe; color: #6d28d9; }
+        .category-video { background: #fce7f3; color: #be185d; }
+        .category-other { background: #f3f4f6; color: #374151; }
+        
+        .portfolio-description {
+            color: #475569;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            margin-bottom: 1rem;
+        }
+        
+        .portfolio-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .meta-item {
+            font-size: 0.75rem;
+            color: #64748b;
+        }
+        
+        .meta-item strong {
+            color: #374151;
+        }
+        
+        .portfolio-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.25rem;
+            margin-bottom: 1rem;
+        }
+        
+        .tag {
+            padding: 0.25rem 0.5rem;
+            background: #f1f5f9;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            color: #475569;
+        }
+        
+        .portfolio-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 1rem;
+            border-top: 1px solid #e2e8f0;
+        }
+        
+        .portfolio-status {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .status-featured { background: #fef3c7; color: #92400e; }
+        .status-published { background: #dcfce7; color: #166534; }
+        .status-draft { background: #fee2e2; color: #dc2626; }
+        
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .btn-sm {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 1rem;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+        
+        .close-btn {
+            width: 2rem;
+            height: 2rem;
+            border: none;
+            background: #f1f5f9;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .close-btn:hover {
+            background: #e2e8f0;
+        }
+        
+        .modal-body {
+            padding: 1.5rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #374151;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+        }
+        
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        .modal-footer {
+            padding: 1.5rem;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #64748b;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #64748b;
+        }
+        
+        .empty-state h3 {
+            margin-bottom: 1rem;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .checkbox-group label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: normal;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎨 Portfolio Management</h1>
+        <div class="nav-buttons">
+            <button class="btn btn-secondary" onclick="window.location.href='/admin/users'">← Back to Admin</button>
+            <button class="btn btn-primary" onclick="openModal()">+ Add Portfolio</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Statistics -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>Total Portfolios</h3>
+                <div class="value" id="totalCount">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Published</h3>
+                <div class="value" id="publishedCount">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Featured</h3>
+                <div class="value" id="featuredCount">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Categories</h3>
+                <div class="value" id="categoryCount">0</div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Search portfolios...">
+            </div>
+            <select class="filter-select" id="categoryFilter">
+                <option value="">All Categories</option>
+                <option value="web">Web</option>
+                <option value="mobile">Mobile</option>
+                <option value="design">Design</option>
+                <option value="photography">Photography</option>
+                <option value="video">Video</option>
+                <option value="other">Other</option>
+            </select>
+            <select class="filter-select" id="statusFilter">
+                <option value="">All Status</option>
+                <option value="true">Published</option>
+                <option value="false">Draft</option>
+            </select>
+            <select class="filter-select" id="featuredFilter">
+                <option value="">Featured Filter</option>
+                <option value="true">Featured Only</option>
+                <option value="false">Not Featured</option>
+            </select>
+            <button class="btn btn-secondary" onclick="loadPortfolios()">Refresh</button>
+        </div>
+
+        <!-- Portfolio Grid -->
+        <div id="portfolioGrid" class="portfolio-grid">
+            <div class="loading">Loading portfolios...</div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="portfolioModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalTitle">Add Portfolio</h2>
+                <button class="close-btn" onclick="closeModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <form id="portfolioForm">
+                    <div class="form-group">
+                        <label for="title">Title *</label>
+                        <input type="text" id="title" name="title" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="description">Description</label>
+                        <textarea id="description" name="description"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="category">Category *</label>
+                        <select id="category" name="category" required>
+                            <option value="">Select Category</option>
+                            <option value="web">Web</option>
+                            <option value="mobile">Mobile</option>
+                            <option value="design">Design</option>
+                            <option value="photography">Photography</option>
+                            <option value="video">Video</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="imageUrl">Image URL</label>
+                        <input type="text" id="imageUrl" name="imageUrl">
+                    </div>
+                    <div class="form-group">
+                        <label for="thumbnailUrl">Thumbnail URL</label>
+                        <input type="text" id="thumbnailUrl" name="thumbnailUrl">
+                    </div>
+                    <div class="form-group">
+                        <label for="projectUrl">Project URL</label>
+                        <input type="text" id="projectUrl" name="projectUrl">
+                    </div>
+                    <div class="form-group">
+                        <label for="githubUrl">GitHub URL</label>
+                        <input type="text" id="githubUrl" name="githubUrl">
+                    </div>
+                    <div class="form-group">
+                        <label for="clientName">Client Name</label>
+                        <input type="text" id="clientName" name="clientName">
+                    </div>
+                    <div class="form-group">
+                        <label for="completionDate">Completion Date</label>
+                        <input type="date" id="completionDate" name="completionDate">
+                    </div>
+                    <div class="form-group">
+                        <label for="technologies">Technologies (comma-separated)</label>
+                        <input type="text" id="technologies" name="technologies" placeholder="React, Node.js, MongoDB">
+                    </div>
+                    <div class="form-group">
+                        <label for="tags">Tags (comma-separated)</label>
+                        <input type="text" id="tags" name="tags" placeholder="frontend, web, responsive">
+                    </div>
+                    <div class="form-group">
+                        <label for="orderIndex">Order Index</label>
+                        <input type="number" id="orderIndex" name="orderIndex" value="0">
+                    </div>
+                    <div class="form-group checkbox-group">
+                        <label>
+                            <input type="checkbox" id="featured" name="featured">
+                            Featured
+                        </label>
+                        <label>
+                            <input type="checkbox" id="published" name="published" checked>
+                            Published
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="savePortfolio()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentEditId = null;
+        let allPortfolios = [];
+
+        // Load portfolios on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadPortfolios();
+            
+            // Add event listeners
+            document.getElementById('searchInput').addEventListener('input', filterPortfolios);
+            document.getElementById('categoryFilter').addEventListener('change', filterPortfolios);
+            document.getElementById('statusFilter').addEventListener('change', filterPortfolios);
+            document.getElementById('featuredFilter').addEventListener('change', filterPortfolios);
+        });
+
+        // Load all portfolios
+        async function loadPortfolios() {
+            try {
+                const response = await fetch('/api/portfolios?includeUser=true');
+                const result = await response.json();
+                
+                if (result.success) {
+                    allPortfolios = result.data.portfolios;
+                    displayPortfolios(allPortfolios);
+                    updateStats(allPortfolios);
+                } else {
+                    showError('Failed to load portfolios');
+                }
+            } catch (error) {
+                showError('Error loading portfolios: ' + error.message);
+            }
+        }
+
+        // Display portfolios
+        function displayPortfolios(portfolios) {
+            const grid = document.getElementById('portfolioGrid');
+            
+            if (portfolios.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No portfolios found</h3>
+                        <p>Start by adding your first portfolio project.</p>
+                        <button class="btn btn-primary" onclick="openModal()">Add Portfolio</button>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = portfolios.map(item => `
+                <div class="portfolio-card">
+                    ${item.imageUrl ? `<img src="${item.imageUrl}" alt="${item.title}" class="portfolio-image">` : '<div class="portfolio-image"></div>'}
+                    <div class="portfolio-content">
+                        <div class="portfolio-header">
+                            <div>
+                                <h3 class="portfolio-title">${item.title}</h3>
+                                ${item.clientName ? `<p class="meta-item">Client: <strong>${item.clientName}</strong></p>` : ''}
+                            </div>
+                            <span class="portfolio-category category-${item.category}">${item.category}</span>
+                        </div>
+                        ${item.description ? `<p class="portfolio-description">${item.description}</p>` : ''}
+                        
+                        <div class="portfolio-meta">
+                            ${item.completionDate ? `<span class="meta-item">Completed: <strong>${new Date(item.completionDate).toLocaleDateString()}</strong></span>` : ''}
+                            ${item.orderIndex !== undefined ? `<span class="meta-item">Order: <strong>${item.orderIndex}</strong></span>` : ''}
+                        </div>
+                        
+                        ${item.technologies && item.technologies.length > 0 ? `
+                            <div class="portfolio-tags">
+                                ${item.technologies.map(tech => `<span class="tag">${tech}</span>`).join('')}
+                            </div>
+                        ` : ''}
+                        
+                        ${item.tags && item.tags.length > 0 ? `
+                            <div class="portfolio-tags">
+                                ${item.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+                            </div>
+                        ` : ''}
+                        
+                        <div class="portfolio-footer">
+                            <div class="portfolio-status">
+                                ${item.featured ? '<span class="status-badge status-featured">Featured</span>' : ''}
+                                ${item.published ? '<span class="status-badge status-published">Published</span>' : '<span class="status-badge status-draft">Draft</span>'}
+                            </div>
+                            <div class="action-buttons">
+                                <button class="btn btn-sm btn-secondary" onclick="editPortfolio('${item.id}')">Edit</button>
+                                <button class="btn btn-sm btn-danger" onclick="deletePortfolio('${item.id}')">Delete</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Update statistics
+        function updateStats(portfolios) {
+            document.getElementById('totalCount').textContent = portfolios.length;
+            document.getElementById('publishedCount').textContent = portfolios.filter(item => item.published).length;
+            document.getElementById('featuredCount').textContent = portfolios.filter(item => item.featured).length;
+            
+            const categories = new Set(portfolios.map(item => item.category));
+            document.getElementById('categoryCount').textContent = categories.size;
+        }
+
+        // Filter portfolios
+        function filterPortfolios() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const categoryFilter = document.getElementById('categoryFilter').value;
+            const statusFilter = document.getElementById('statusFilter').value;
+            const featuredFilter = document.getElementById('featuredFilter').value;
+
+            const filtered = allPortfolios.filter(item => {
+                const matchesSearch = !searchTerm || 
+                    item.title.toLowerCase().includes(searchTerm) ||
+                    item.description?.toLowerCase().includes(searchTerm) ||
+                    item.clientName?.toLowerCase().includes(searchTerm) ||
+                    item.technologies?.some(tech => tech.toLowerCase().includes(searchTerm)) ||
+                    item.tags?.some(tag => tag.toLowerCase().includes(searchTerm));
+                
+                const matchesCategory = !categoryFilter || item.category === categoryFilter;
+                const matchesStatus = !statusFilter || item.published.toString() === statusFilter;
+                const matchesFeatured = !featuredFilter || item.featured.toString() === featuredFilter;
+
+                return matchesSearch && matchesCategory && matchesStatus && matchesFeatured;
+            });
+
+            displayPortfolios(filtered);
+        }
+
+        // Open modal
+        function openModal(id = null) {
+            currentEditId = id;
+            const modal = document.getElementById('portfolioModal');
+            const form = document.getElementById('portfolioForm');
+            const title = document.getElementById('modalTitle');
+
+            if (id) {
+                title.textContent = 'Edit Portfolio';
+                // Load existing data
+                const item = allPortfolios.find(item => item.id === id);
+                if (item) {
+                    form.title.value = item.title;
+                    form.description.value = item.description || '';
+                    form.category.value = item.category;
+                    form.imageUrl.value = item.imageUrl || '';
+                    form.thumbnailUrl.value = item.thumbnailUrl || '';
+                    form.projectUrl.value = item.projectUrl || '';
+                    form.githubUrl.value = item.githubUrl || '';
+                    form.clientName.value = item.clientName || '';
+                    form.completionDate.value = item.completionDate ? item.completionDate.split('T')[0] : '';
+                    form.technologies.value = item.technologies ? item.technologies.join(', ') : '';
+                    form.tags.value = item.tags ? item.tags.join(', ') : '';
+                    form.orderIndex.value = item.orderIndex || 0;
+                    form.featured.checked = item.featured || false;
+                    form.published.checked = item.published !== false;
+                }
+            } else {
+                title.textContent = 'Add Portfolio';
+                form.reset();
+                form.published.checked = true;
+                form.orderIndex.value = allPortfolios.length;
+            }
+
+            modal.classList.add('active');
+        }
+
+        // Close modal
+        function closeModal() {
+            document.getElementById('portfolioModal').classList.remove('active');
+            currentEditId = null;
+        }
+
+        // Save portfolio
+        async function savePortfolio() {
+            const form = document.getElementById('portfolioForm');
+            const formData = new FormData(form);
+            
+            const data = {
+                title: formData.get('title'),
+                description: formData.get('description'),
+                category: formData.get('category'),
+                imageUrl: formData.get('imageUrl'),
+                thumbnailUrl: formData.get('thumbnailUrl'),
+                projectUrl: formData.get('projectUrl'),
+                githubUrl: formData.get('githubUrl'),
+                clientName: formData.get('clientName'),
+                completionDate: formData.get('completionDate') || null,
+                technologies: formData.get('technologies') ? formData.get('technologies').split(',').map(t => t.trim()).filter(t => t) : [],
+                tags: formData.get('tags') ? formData.get('tags').split(',').map(t => t.trim()).filter(t => t) : [],
+                orderIndex: parseInt(formData.get('orderIndex')),
+                featured: formData.get('featured') === 'on',
+                published: formData.get('published') === 'on',
+                createdBy: 'admin-001' // In real app, get from logged-in user
+            };
+
+            try {
+                const url = currentEditId ? `/api/portfolios/${currentEditId}` : '/api/portfolios';
+                const method = currentEditId ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showSuccess(currentEditId ? 'Portfolio updated successfully' : 'Portfolio created successfully');
+                    closeModal();
+                    loadPortfolios();
+                } else {
+                    showError(result.message);
+                }
+            } catch (error) {
+                showError('Error saving portfolio: ' + error.message);
+            }
+        }
+
+        // Edit portfolio
+        function editPortfolio(id) {
+            openModal(id);
+        }
+
+        // Delete portfolio
+        async function deletePortfolio(id) {
+            if (!confirm('Are you sure you want to delete this portfolio?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/portfolios/${id}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showSuccess('Portfolio deleted successfully');
+                    loadPortfolios();
+                } else {
+                    showError(result.message);
+                }
+            } catch (error) {
+                showError('Error deleting portfolio: ' + error.message);
+            }
+        }
+
+        // Show success message
+        function showSuccess(message) {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #10b981;
+                color: white;
+                padding: 1rem;
+                border-radius: 0.5rem;
+                z-index: 2000;
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+
+        // Show error message
+        function showError(message) {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #ef4444;
+                color: white;
+                padding: 1rem;
+                border-radius: 0.5rem;
+                z-index: 2000;
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

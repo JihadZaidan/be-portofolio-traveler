@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Travello API - Enhanced Swagger UI with OAuth2</title>
+    
+    <!-- Swagger UI CSS -->
+    <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@5.10.5/swagger-ui.css" />
+    
+    <!-- Custom Styles -->
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+        }
+        
+        .header {
+            background: #4285f4;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        
+        .header p {
+            margin: 5px 0 0 0;
+            opacity: 0.9;
+        }
+        
+        .instructions {
+            background: #f8f9fa;
+            padding: 20px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .instructions h3 {
+            margin: 0 0 10px 0;
+            color: #495057;
+        }
+        
+        .instructions ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        
+        .instructions li {
+            margin-bottom: 5px;
+        }
+        
+        .instructions code {
+            background: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        }
+        
+        #swagger-ui {
+            margin: 0;
+        }
+        
+        .swagger-notification {
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1>🚀 Travello API Documentation</h1>
+        <p>Enhanced Swagger UI with Google OAuth2 Authentication</p>
+    </div>
+    
+    <!-- Instructions -->
+    <div class="instructions">
+        <h3>📖 How to Use OAuth2 Authentication:</h3>
+        <ul>
+            <li>Click the <strong>"Authorize"</strong> button in Swagger UI below</li>
+            <li>Select <strong>"googleOAuth"</strong> and click <strong>"Authorize"</strong></li>
+            <li>Complete Google authentication in the popup window</li>
+            <li>The popup will close automatically and token will be stored</li>
+            <li>Use <strong>"Try it out"</strong> features with authenticated endpoints</li>
+        </ul>
+        
+        <h3>⌨️ Keyboard Shortcuts:</h3>
+        <ul>
+            <li><code>Ctrl+Shift+O</code> - Open OAuth2 dialog</li>
+            <li><code>Ctrl+Shift+L</code> - Logout/Clear authorization</li>
+        </ul>
+        
+        <h3>🔧 Helper Functions:</h3>
+        <ul>
+            <li><code>window.swaggerOAuth2Helper.getAuthorization()</code> - Get current auth status</li>
+            <li><code>window.swaggerOAuth2Helper.clearAuthorization()</code> - Clear auth tokens</li>
+            <li><code>window.swaggerOAuth2Helper.testOAuth2()</code> - Test OAuth2 flow</li>
+        </ul>
+    </div>
+    
+    <!-- Swagger UI Container -->
+    <div id="swagger-ui"></div>
+    
+    <!-- Swagger UI Scripts -->
+    <script src="https://unpkg.com/swagger-ui-dist@5.10.5/swagger-ui-bundle.js"></script>
+    <script src="https://unpkg.com/swagger-ui-dist@5.10.5/swagger-ui-standalone-preset.js"></script>
+    
+    <!-- Enhanced OAuth2 Configuration -->
+    <script src="src/swagger-oauth2-improved.js"></script>
+</body>
+</html>

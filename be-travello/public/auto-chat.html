@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRAVELLO - Auto Chat Bot</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #667eea;
+            --secondary: #764ba2;
+            --dark: #1a202c;
+            --darker: #0f1419;
+            --light: #e2e8f0;
+            --accent: #48bb78;
+        }
+
+        body {
+            background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        .sidebar {
+            background: rgba(26, 32, 44, 0.95);
+            backdrop-filter: blur(10px);
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .chat-container {
+            background: rgba(45, 55, 72, 0.95);
+            backdrop-filter: blur(10px);
+        }
+
+        .message-bubble {
+            max-width: 70%;
+            word-wrap: break-word;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        .user-message {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            border-radius: 18px 18px 4px 18px;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .ai-message {
+            background: rgba(255, 255, 255, 0.1);
+            color: #e2e8f0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 18px 18px 18px 4px;
+            backdrop-filter: blur(10px);
+        }
+
+        .typing-indicator {
+            display: inline-flex;
+            align-items: center;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 18px 18px 18px 4px;
+            backdrop-filter: blur(10px);
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #48bb78;
+            margin: 0 2px;
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); opacity: 1; }
+            30% { transform: translateY(-10px); opacity: 0.5; }
+        }
+
+        .suggestion-chip {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #e2e8f0;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .suggestion-chip:hover {
+            background: rgba(102, 126, 234, 0.2);
+            border-color: var(--primary);
+            transform: translateY(-2px);
+        }
+
+        .nav-item {
+            transition: all 0.3s ease;
+            border-radius: 8px;
+            margin: 4px 8px;
+        }
+
+        .nav-item:hover {
+            background: rgba(102, 126, 234, 0.1);
+            transform: translateX(4px);
+        }
+
+        .nav-item.active {
+            background: rgba(102, 126, 234, 0.2);
+            border-left: 3px solid var(--primary);
+        }
+
+        .input-area {
+            background: rgba(26, 32, 44, 0.95);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .input-focus {
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .input-focus:focus {
+            border-color: var(--primary);
+            background: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .send-button {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            transition: all 0.3s ease;
+        }
+
+        .send-button:hover:not(:disabled) {
+            transform: scale(1.05);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .send-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(-100%); }
+            to { transform: translateX(0); }
+        }
+
+        .chat-item {
+            transition: all 0.3s ease;
+            border-radius: 8px;
+            margin: 4px 8px;
+            padding: 12px;
+            cursor: pointer;
+        }
+
+        .chat-item:hover {
+            background: rgba(102, 126, 234, 0.1);
+            transform: translateX(4px);
+        }
+
+        .chat-item.active {
+            background: rgba(102, 126, 234, 0.2);
+            border-left: 3px solid var(--primary);
+        }
+
+        .header-image {
+            height: 200px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header-image::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('https://images.unsplash.com/photo-1488646953014-85cb44e25828?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80') center/cover;
+            opacity: 0.3;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #48bb78;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(72, 187, 120, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(72, 187, 120, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(72, 187, 120, 0); }
+        }
+
+        .markdown-content {
+            line-height: 1.6;
+        }
+
+        .markdown-content strong {
+            color: #48bb78;
+            font-weight: 600;
+        }
+
+        .markdown-content ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .markdown-content li {
+            padding: 4px 0;
+            position: relative;
+            padding-left: 20px;
+        }
+
+        .markdown-content li::before {
+            content: '•';
+            position: absolute;
+            left: 0;
+            color: var(--primary);
+        }
+    </style>
+</head>
+<body class="min-h-screen text-gray-100">
+    <div class="flex h-screen">
+        <!-- Sidebar -->
+        <aside class="sidebar w-64 flex flex-col">
+            <!-- Logo -->
+            <div class="p-4 border-b border-gray-700">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-plane text-white"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-lg font-bold text-white">TRAVELLO</h1>
+                        <p class="text-xs text-gray-400">Auto Chat Bot</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation -->
+            <nav class="flex-1 p-4">
+                <div class="space-y-2">
+                    <div class="nav-item active px-3 py-2 flex items-center space-x-3 cursor-pointer">
+                        <i class="fas fa-comments text-blue-400"></i>
+                        <span>Chat</span>
+                    </div>
+                    <div class="nav-item px-3 py-2 flex items-center space-x-3 cursor-pointer">
+                        <i class="fas fa-blog text-gray-400"></i>
+                        <span>Explore Blog</span>
+                    </div>
+                    <div class="nav-item px-3 py-2 flex items-center space-x-3 cursor-pointer">
+                        <i class="fas fa-store text-gray-400"></i>
+                        <span>Store</span>
+                    </div>
+                </div>
+
+                <!-- Recent Chats -->
+                <div class="mt-8">
+                    <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Recent Chats</h3>
+                    <div id="recentChats" class="space-y-1">
+                        <div class="chat-item active">
+                            <div class="flex items-center justify-between">
+                                <div class="flex-1">
+                                    <p class="text-sm font-medium text-white">Travel Assistant</p>
+                                    <p class="text-xs text-gray-400 truncate">Hi, apakah ada recom...</p>
+                                </div>
+                                <div class="status-indicator ml-2"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- User Profile -->
+            <div class="p-4 border-t border-gray-700">
+                <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center">
+                        <i class="fas fa-user text-white text-xs"></i>
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-sm font-medium text-white" id="userEmail">user@example.com</p>
+                        <p class="text-xs text-gray-400">Online</p>
+                    </div>
+                    <button onclick="logout()" class="text-gray-400 hover:text-white transition">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Chat Area -->
+        <main class="flex-1 flex flex-col">
+            <!-- Header Image -->
+            <div class="header-image flex items-center justify-center">
+                <div class="text-center z-10">
+                    <div class="inline-flex items-center justify-center w-16 h-16 bg-white bg-opacity-20 rounded-full mb-4 backdrop-filter backdrop-blur-lg">
+                        <i class="fas fa-robot text-white text-2xl"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-white mb-2">AI Travel Assistant</h2>
+                    <p class="text-white text-opacity-80">Your intelligent travel companion</p>
+                </div>
+            </div>
+
+            <!-- Chat Messages -->
+            <div id="chatMessages" class="chat-container flex-1 overflow-y-auto p-6 space-y-4">
+                <!-- Welcome Message -->
+                <div class="text-center py-8">
+                    <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full mb-4">
+                        <i class="fas fa-robot text-white text-2xl"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-white mb-2">Halo! Saya TRAVELLO</h2>
+                    <p class="text-gray-400">Asisten travel pintar yang siap membantu perjalanan Anda</p>
+                </div>
+            </div>
+
+            <!-- Suggestions -->
+            <div id="suggestions" class="hidden border-t border-gray-700 p-4 bg-gray-800 bg-opacity-50">
+                <p class="text-sm text-gray-400 mb-3">💡 Saran pertanyaan:</p>
+                <div id="suggestionChips" class="flex flex-wrap gap-2">
+                    <!-- Suggestions will be added here -->
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="input-area p-4">
+                <div class="flex items-end space-x-3">
+                    <div class="flex-1">
+                        <textarea id="messageInput" 
+                                  placeholder="What would you like to know?" 
+                                  rows="1"
+                                  class="w-full px-4 py-3 rounded-lg input-focus outline-none resize-none text-gray-100 placeholder-gray-400"
+                                  onkeypress="handleKeyPress(event)"></textarea>
+                    </div>
+                    <button onclick="sendMessage()" 
+                            id="sendButton"
+                            class="send-button px-6 py-3 rounded-lg text-white font-medium">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+                <div class="flex items-center justify-between mt-2 text-xs text-gray-500">
+                    <span>Tekan Enter untuk kirim, Shift+Enter untuk baris baru</span>
+                    <span id="charCount">0 / 1000</span>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000/api';
+        let currentSessionId = null;
+        let isLoading = false;
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            checkAuth();
+            loadSuggestions();
+            setupAutoResize();
+        });
+        
+        // Check authentication
+        function checkAuth() {
+            const token = localStorage.getItem('token');
+            const user = localStorage.getItem('user');
+            
+            if (!token || !user) {
+                window.location.href = '/auth.html';
+                return;
+            }
+            
+            const userData = JSON.parse(user);
+            document.getElementById('userEmail').textContent = userData.email;
+            
+            // Generate session ID
+            currentSessionId = `auto_session_${userData.id}_${Date.now()}`;
+        }
+        
+        // Setup auto-resize textarea
+        function setupAutoResize() {
+            const textarea = document.getElementById('messageInput');
+            textarea.addEventListener('input', () => {
+                textarea.style.height = 'auto';
+                textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+                
+                // Update character count
+                const charCount = textarea.value.length;
+                document.getElementById('charCount').textContent = `${charCount} / 1000`;
+                
+                // Disable send button if too long
+                document.getElementById('sendButton').disabled = charCount > 1000 || charCount === 0;
+            });
+        }
+        
+        // Send message
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message || isLoading) return;
+            
+            // Add user message to chat
+            addMessage(message, 'user');
+            input.value = '';
+            input.style.height = 'auto';
+            document.getElementById('charCount').textContent = '0 / 1000';
+            
+            // Show typing indicator
+            showTypingIndicator();
+            isLoading = true;
+            document.getElementById('sendButton').disabled = true;
+            
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch(`${API_BASE}/auto-chat`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        message,
+                        sessionId: currentSessionId
+                    })
+                });
+                
+                const data = await response.json();
+                
+                removeTypingIndicator();
+                
+                if (response.ok && data.success) {
+                    addMessage(data.data.response, 'ai');
+                    // Update session ID if new
+                    if (data.data.sessionId) {
+                        currentSessionId = data.data.sessionId;
+                    }
+                    // Load new suggestions
+                    if (data.data.suggestions) {
+                        showSuggestions(data.data.suggestions);
+                    } else {
+                        loadSuggestions();
+                    }
+                } else {
+                    addMessage('Maaf, terjadi kesalahan. Silakan coba lagi.', 'ai', true);
+                }
+            } catch (error) {
+                removeTypingIndicator();
+                addMessage('Koneksi gagal. Periksa koneksi internet Anda.', 'ai', true);
+                console.error('Send message error:', error);
+            } finally {
+                isLoading = false;
+                document.getElementById('sendButton').disabled = false;
+            }
+        }
+        
+        // Add message to chat
+        function addMessage(content, sender, isError = false) {
+            const messagesContainer = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `flex ${sender === 'user' ? 'justify-end' : 'justify-start'} fade-in`;
+            
+            const bubbleClass = `message-bubble px-4 py-3 ${sender === 'user' ? 'user-message' : isError ? 'bg-red-900 bg-opacity-50 text-red-300' : 'ai-message'}`;
+            
+            // Process markdown-like content
+            const processedContent = processMarkdown(content);
+            
+            messageDiv.innerHTML = `
+                <div class="${bubbleClass}">
+                    <div class="markdown-content">${processedContent}</div>
+                    <p class="text-xs ${sender === 'user' ? 'text-blue-100' : 'text-gray-500'} mt-2">
+                        ${new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                </div>
+            `;
+            
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+        
+        // Process simple markdown
+        function processMarkdown(content) {
+            return content
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/^- (.*$)/gim, '<li>$1</li>')
+                .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
+                .replace(/\n/g, '<br>');
+        }
+        
+        // Typing indicator
+        function showTypingIndicator() {
+            const messagesContainer = document.getElementById('chatMessages');
+            const typingDiv = document.createElement('div');
+            typingDiv.id = 'typingIndicator';
+            typingDiv.className = 'flex justify-start fade-in';
+            typingDiv.innerHTML = `
+                <div class="typing-indicator">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                </div>
+            `;
+            messagesContainer.appendChild(typingDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+        
+        function removeTypingIndicator() {
+            const indicator = document.getElementById('typingIndicator');
+            if (indicator) {
+                indicator.remove();
+            }
+        }
+        
+        // Load suggestions
+        async function loadSuggestions() {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch(`${API_BASE}/auto-chat/suggestions?sessionId=${currentSessionId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    showSuggestions(data.data.suggestions);
+                }
+            } catch (error) {
+                console.error('Load suggestions error:', error);
+            }
+        }
+        
+        // Show suggestions
+        function showSuggestions(suggestions) {
+            const suggestionsDiv = document.getElementById('suggestions');
+            const chipsContainer = document.getElementById('suggestionChips');
+            
+            if (suggestions && suggestions.length > 0) {
+                chipsContainer.innerHTML = suggestions.map(suggestion => `
+                    <button onclick="useSuggestion('${suggestion.replace(/'/g, "\\'")}')" 
+                            class="suggestion-chip px-3 py-2 rounded-full text-sm cursor-pointer">
+                        ${suggestion}
+                    </button>
+                `).join('');
+                suggestionsDiv.classList.remove('hidden');
+            } else {
+                suggestionsDiv.classList.add('hidden');
+            }
+        }
+        
+        // Use suggestion
+        function useSuggestion(suggestion) {
+            document.getElementById('messageInput').value = suggestion;
+            document.getElementById('messageInput').focus();
+            
+            // Trigger input event to update char count
+            const event = new Event('input', { bubbles: true });
+            document.getElementById('messageInput').dispatchEvent(event);
+        }
+        
+        // Handle key press
+        function handleKeyPress(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+        
+        // Logout
+        function logout() {
+            if (confirm('Apakah Anda yakin ingin logout?')) {
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                window.location.href = '/auth.html';
+            }
+        }
+    </script>
+</body>
+</html>

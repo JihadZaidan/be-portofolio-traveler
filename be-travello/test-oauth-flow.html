@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google OAuth Flow Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .btn {
+            background: #4285f4;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 5px;
+            display: inline-block;
+            margin: 10px 5px;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .btn:hover {
+            background: #357ae8;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        .flow-step {
+            background: #f8f9fa;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #4285f4;
+            border-radius: 4px;
+        }
+        .flow-step h4 {
+            margin: 0 0 10px 0;
+            color: #4285f4;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Google OAuth Flow Test</h1>
+        
+        <div class="flow-step">
+            <h4>Step 1: Initiate OAuth Flow</h4>
+            <p>Click the button below to start the Google OAuth authentication process.</p>
+            <button class="btn" onclick="testOAuthFlow()">Test Google OAuth Flow</button>
+        </div>
+
+        <div class="flow-step">
+            <h4>Step 2: Google Authentication</h4>
+            <p>You will be redirected to Google's login page. Complete the authentication there.</p>
+        </div>
+
+        <div class="flow-step">
+            <h4>Step 3: Callback Processing</h4>
+            <p>After authentication, Google will redirect back to our callback endpoint with the authorization code.</p>
+        </div>
+
+        <div class="flow-step">
+            <h4>Step 4: Token Generation</h4>
+            <p>The backend will exchange the authorization code for an access token and generate a JWT.</p>
+        </div>
+
+        <div id="result"></div>
+
+        <div class="info">
+            <h3>📋 OAuth Flow Details:</h3>
+            <p><strong>Authorization URL:</strong> http://localhost:5000/api/auth/google</p>
+            <p><strong>Callback URL:</strong> http://localhost:5000/api/auth/google/callback</p>
+            <p><strong>Client ID:</strong> 858988102830-p3lbl3dlnqcht246c3huji4nplk2s9in.apps.googleusercontent.com</p>
+            <p><strong>Scopes:</strong> profile, email</p>
+        </div>
+    </div>
+
+    <script>
+        function testOAuthFlow() {
+            showResult('Starting OAuth Flow...', 'info');
+            
+            // Open Google OAuth in a new window
+            const oauthUrl = 'http://localhost:5000/api/auth/google?mode=login';
+            const popup = window.open(
+                oauthUrl,
+                'google-oauth',
+                'width=500,height=600,scrollbars=yes,resizable=yes'
+            );
+
+            // Listen for messages from the popup
+            const messageHandler = (event) => {
+                // Verify origin for security
+                if (event.origin !== 'http://localhost:5000') return;
+                
+                if (event.data.success && event.data.data) {
+                    showResult('OAuth Authentication Successful!', {
+                        message: event.data.message,
+                        user: event.data.data.user,
+                        token: event.data.data.token.substring(0, 50) + '...',
+                        mode: event.data.data.mode
+                    }, 'success');
+                    popup.close();
+                } else if (event.data.error) {
+                    showResult('OAuth Authentication Failed', event.data, 'error');
+                    popup.close();
+                }
+            };
+
+            window.addEventListener('message', messageHandler);
+
+            // Check if popup was closed manually
+            const checkPopup = setInterval(() => {
+                if (popup.closed) {
+                    clearInterval(checkPopup);
+                    window.removeEventListener('message', messageHandler);
+                    showResult('OAuth Flow', 'Popup was closed without completing authentication', 'info');
+                }
+            }, 1000);
+        }
+
+        function showResult(title, data, type) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = `
+                <div class="result ${type}">
+                    <h3>${title}</h3>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

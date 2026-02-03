@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Travello Assistant Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        h1 {
+            color: #4a5568;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        
+        .chat-container {
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            background: #f7fafc;
+            min-height: 300px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            border-radius: 10px;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+        
+        .user-message {
+            background: #4299e1;
+            color: white;
+            margin-left: auto;
+            text-align: right;
+        }
+        
+        .ai-message {
+            background: #48bb78;
+            color: white;
+            margin-right: auto;
+        }
+        
+        .input-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        #messageInput {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        #messageInput:focus {
+            outline: none;
+            border-color: #4299e1;
+        }
+        
+        .button {
+            padding: 15px 25px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        .send-button {
+            background: #4299e1;
+            color: white;
+        }
+        
+        .send-button:hover {
+            background: #3182ce;
+            transform: translateY(-2px);
+        }
+        
+        .send-button:disabled {
+            background: #a0aec0;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .stream-button {
+            background: #9f7aea;
+            color: white;
+        }
+        
+        .stream-button:hover {
+            background: #805ad5;
+            transform: translateY(-2px);
+        }
+        
+        .status {
+            text-align: center;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        
+        .status.success {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+        
+        .status.error {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+        
+        .status.info {
+            background: #bee3f8;
+            color: #2c5282;
+        }
+        
+        .suggestions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .suggestion {
+            background: #edf2f7;
+            border: 1px solid #cbd5e0;
+            border-radius: 20px;
+            padding: 8px 15px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        .suggestion:hover {
+            background: #e2e8f0;
+            transform: translateY(-1px);
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4299e1;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌴 Travello Assistant Test</h1>
+        
+        <div id="status" class="status info">
+            Siap membantu perjalanan Anda! ✈️
+        </div>
+        
+        <div class="chat-container" id="chatContainer">
+            <div class="message ai-message">
+                Halo! Saya adalah Travello Assistant, asisten wisata profesional Anda. 
+                Saya siap membantu memberikan informasi tentang destinasi, tips perjalanan, 
+                kuliner lokal, dan semua yang Anda butuhkan untuk liburan yang sempurna! 🏝️
+            </div>
+        </div>
+        
+        <div class="suggestions">
+            <div class="suggestion" onclick="sendSuggestion('Destinasi pantai terbaik di Indonesia?')">
+                🏖️ Destinasi pantai terbaik
+            </div>
+            <div class="suggestion" onclick="sendSuggestion('Tips hemat saat liburan ke Bali')">
+                💰 Tips hemat liburan
+            </div>
+            <div class="suggestion" onclick="sendSuggestion('Kuliner khas Yogyakarta')">
+                🍜 Kuliner khas
+            </div>
+            <div class="suggestion" onclick="sendSuggestion('Packing list untuk liburan 3 hari')">
+                🎒 Packing list
+            </div>
+            <div class="suggestion" onclick="sendSuggestion('Hotel murah di Jakarta')">
+                🏨 Rekomendasi hotel
+            </div>
+        </div>
+        
+        <div class="input-container">
+            <input 
+                type="text" 
+                id="messageInput" 
+                placeholder="Tanyakan tentang perjalanan Anda..." 
+                onkeypress="handleKeyPress(event)"
+            >
+            <button class="button send-button" onclick="sendMessage()" id="sendBtn">
+                Kirim
+            </button>
+            <button class="button stream-button" onclick="sendStreamMessage()" id="streamBtn">
+                Stream
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000/api/chat';
+        let sessionId = `session_${Date.now()}`;
+        
+        function updateStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+        }
+        
+        function addMessage(content, isUser = false) {
+            const container = document.getElementById('chatContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user-message' : 'ai-message'}`;
+            messageDiv.textContent = content;
+            container.appendChild(messageDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        function setLoading(loading) {
+            const sendBtn = document.getElementById('sendBtn');
+            const streamBtn = document.getElementById('streamBtn');
+            
+            if (loading) {
+                sendBtn.disabled = true;
+                streamBtn.disabled = true;
+                sendBtn.innerHTML = '<div class="loading"></div>';
+                streamBtn.innerHTML = '<div class="loading"></div>';
+            } else {
+                sendBtn.disabled = false;
+                streamBtn.disabled = false;
+                sendBtn.textContent = 'Kirim';
+                streamBtn.textContent = 'Stream';
+            }
+        }
+        
+        function sendSuggestion(message) {
+            document.getElementById('messageInput').value = message;
+            sendMessage();
+        }
+        
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+        
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            addMessage(message, true);
+            input.value = '';
+            setLoading(true);
+            updateStatus('Travello Assistant sedang berpikir... 🤔');
+            
+            try {
+                const response = await fetch(API_BASE, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message,
+                        sessionId
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    addMessage(data.data.response);
+                    updateStatus('Respons berhasil diterima! ✅', 'success');
+                } else {
+                    addMessage(`Error: ${data.error}`);
+                    updateStatus(`Error: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                addMessage('Maaf, terjadi kesalahan koneksi. Silakan coba lagi.');
+                updateStatus('Koneksi error ❌', 'error');
+            } finally {
+                setLoading(false);
+            }
+        }
+        
+        async function sendStreamMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            addMessage(message, true);
+            input.value = '';
+            setLoading(true);
+            updateStatus('Travello Assistant sedang mengetis... ⌨️');
+            
+            // Create AI message placeholder
+            const container = document.getElementById('chatContainer');
+            const aiMessageDiv = document.createElement('div');
+            aiMessageDiv.className = 'message ai-message';
+            aiMessageDiv.textContent = '';
+            container.appendChild(aiMessageDiv);
+            
+            try {
+                const response = await fetch(`${API_BASE}/stream`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message,
+                        sessionId
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    const chunk = decoder.decode(value);
+                    aiMessageDiv.textContent += chunk;
+                    container.scrollTop = container.scrollHeight;
+                }
+                
+                updateStatus('Streaming selesai! ✅', 'success');
+            } catch (error) {
+                console.error('Stream Error:', error);
+                aiMessageDiv.textContent = 'Maaf, terjadi kesalahan saat streaming. Silakan coba lagi.';
+                updateStatus('Streaming error ❌', 'error');
+            } finally {
+                setLoading(false);
+            }
+        }
+        
+        // Test health check on load
+        async function checkHealth() {
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateStatus('Travello Assistant siap membantu! ✈️', 'success');
+                } else {
+                    updateStatus('Service tidak tersedia', 'error');
+                }
+            } catch (error) {
+                updateStatus('Tidak dapat terhubung ke server', 'error');
+            }
+        }
+        
+        // Check health on page load
+        checkHealth();
+    </script>
+</body>
+</html>

@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Data Management</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 0;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 16px;
+        }
+        
+        .main-content {
+            padding: 40px 0;
+        }
+        
+        .controls-section {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            margin-bottom: 30px;
+        }
+        
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .control-group label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #495057;
+            font-size: 14px;
+        }
+        
+        .control-group input,
+        .control-group select {
+            padding: 10px 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+        
+        .control-group input:focus,
+        .control-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #218838;
+        }
+        
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+        
+        .btn-warning:hover {
+            background: #e0a800;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            text-align: center;
+            border-left: 4px solid #667eea;
+            transition: transform 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .stat-number {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 8px;
+        }
+        
+        .stat-label {
+            color: #6c757d;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .table-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+        
+        .table-header {
+            background: #f8f9fa;
+            padding: 20px 25px;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .table-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .table-wrapper {
+            overflow-x: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1000px;
+        }
+        
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        td {
+            font-size: 14px;
+            color: #333;
+        }
+        
+        tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .user-cell {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 16px;
+        }
+        
+        .user-info {
+            flex: 1;
+        }
+        
+        .user-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 2px;
+        }
+        
+        .user-email {
+            color: #6c757d;
+            font-size: 13px;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .badge-google {
+            background: #e8f0fe;
+            color: #1967d2;
+            border: 1px solid #d2e3fc;
+        }
+        
+        .badge-manual {
+            background: #e6f4ea;
+            color: #137333;
+            border: 1px solid #ceead6;
+        }
+        
+        .badge-github {
+            background: #f6f8fa;
+            color: #24292e;
+            border: 1px solid #d1d5da;
+        }
+        
+        .badge-verified {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .badge-unverified {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .badge-admin {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .badge-user {
+            background: #e2e3e5;
+            color: #383d41;
+        }
+        
+        .date-cell {
+            font-size: 13px;
+            color: #6c757d;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .btn-action {
+            padding: 6px 12px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            background: white;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-action:hover {
+            background: #f8f9fa;
+            border-color: #adb5bd;
+        }
+        
+        .btn-action.edit {
+            color: #007bff;
+            border-color: #007bff;
+        }
+        
+        .btn-action.edit:hover {
+            background: #007bff;
+            color: white;
+        }
+        
+        .btn-action.delete {
+            color: #dc3545;
+            border-color: #dc3545;
+        }
+        
+        .btn-action.delete:hover {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6c757d;
+        }
+        
+        .empty-state h3 {
+            margin-bottom: 10px;
+            color: #495057;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+        }
+        
+        .modal-content {
+            background: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            position: relative;
+        }
+        
+        .close {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            font-size: 28px;
+            cursor: pointer;
+            color: #adb5bd;
+        }
+        
+        .close:hover {
+            color: #495057;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 25px;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <h1>👥 User Data Management</h1>
+            <p>Manage users from signup, login, OAuth authentication and manual registration</p>
+        </div>
+    </header>
+    
+    <main class="main-content">
+        <div class="container">
+            <!-- Statistics Cards -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalUsers">0</div>
+                    <div class="stat-label">Total Users</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="googleUsers">0</div>
+                    <div class="stat-label">Google OAuth</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="githubUsers">0</div>
+                    <div class="stat-label">GitHub OAuth</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="manualUsers">0</div>
+                    <div class="stat-label">Manual Signup</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="verifiedUsers">0</div>
+                    <div class="stat-label">Verified Users</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="recentUsers">0</div>
+                    <div class="stat-label">Recent (24h)</div>
+                </div>
+            </div>
+            
+            <!-- Controls Section -->
+            <div class="controls-section">
+                <div class="controls-grid">
+                    <div class="control-group">
+                        <label for="searchInput">Search Users</label>
+                        <input type="text" id="searchInput" placeholder="Search by name, email...">
+                    </div>
+                    <div class="control-group">
+                        <label for="providerFilter">Filter by Provider</label>
+                        <select id="providerFilter">
+                            <option value="">All Providers</option>
+                            <option value="google">Google OAuth</option>
+                            <option value="github">GitHub OAuth</option>
+                            <option value="manual">Manual Signup</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label for="roleFilter">Filter by Role</label>
+                        <select id="roleFilter">
+                            <option value="">All Roles</option>
+                            <option value="user">User</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label for="statusFilter">Filter by Status</label>
+                        <select id="statusFilter">
+                            <option value="">All Status</option>
+                            <option value="verified">Verified</option>
+                            <option value="unverified">Unverified</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="button-group">
+                    <button class="btn btn-primary" onclick="loadUsers()">
+                        <span>🔄</span> Refresh Data
+                    </button>
+                    <button class="btn btn-success" onclick="showAddUserModal()">
+                        <span>➕</span> Add User
+                    </button>
+                    <button class="btn btn-warning" onclick="exportData()">
+                        <span>📊</span> Export CSV
+                    </button>
+                    <button class="btn btn-secondary" onclick="resetFilters()">
+                        <span>🔄</span> Reset Filters
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Users Table -->
+            <div class="table-container">
+                <div class="table-header">
+                    <h2 class="table-title">All Users</h2>
+                    <div id="recordCount">Loading...</div>
+                </div>
+                
+                <div id="tableContent">
+                    <div class="loading">Loading user data...</div>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <!-- Add/Edit User Modal -->
+    <div id="userModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2 id="modalTitle">Add New User</h2>
+            <form id="userForm">
+                <div class="form-group">
+                    <label for="userName">Username *</label>
+                    <input type="text" id="userName" required>
+                </div>
+                <div class="form-group">
+                    <label for="userEmail">Email *</label>
+                    <input type="email" id="userEmail" required>
+                </div>
+                <div class="form-group">
+                    <label for="userProvider">Provider</label>
+                    <select id="userProvider">
+                        <option value="manual">Manual</option>
+                        <option value="google">Google OAuth</option>
+                        <option value="github">GitHub OAuth</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="userRole">Role</label>
+                    <select id="userRole">
+                        <option value="user">User</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="userPassword">Password (for manual users)</label>
+                    <input type="password" id="userPassword" placeholder="Leave empty for OAuth users">
+                </div>
+                <div class="modal-buttons">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        let allUsers = [];
+        let filteredUsers = [];
+        let editingUserId = null;
+        
+        // Load users from API
+        async function loadUsers() {
+            try {
+                const response = await fetch('http://localhost:5000/api/admin/users');
+                const result = await response.json();
+                
+                if (result.success) {
+                    allUsers = result.data.users || [];
+                    filteredUsers = [...allUsers];
+                    displayUsers(filteredUsers);
+                    updateStatistics(allUsers);
+                } else {
+                    showError('Failed to load users: ' + result.message);
+                }
+            } catch (error) {
+                showError('Error loading users: ' + error.message);
+            }
+        }
+        
+        // Display users in table
+        function displayUsers(users) {
+            const contentDiv = document.getElementById('tableContent');
+            const recordCount = document.getElementById('recordCount');
+            
+            recordCount.textContent = `Showing ${users.length} of ${allUsers.length} users`;
+            
+            if (users.length === 0) {
+                contentDiv.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No users found</h3>
+                        <p>No users match the current filters.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const tableHTML = `
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Provider</th>
+                                <th>Role</th>
+                                <th>Email Status</th>
+                                <th>Last Login</th>
+                                <th>Created Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${users.map(user => createUserRow(user)).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            contentDiv.innerHTML = tableHTML;
+        }
+        
+        // Create user row HTML
+        function createUserRow(user) {
+            const initials = (user.displayName || user.username || user.email).charAt(0).toUpperCase();
+            const lastLogin = user.lastLogin ? new Date(user.lastLogin).toLocaleString('id-ID') : 'Never';
+            const createdAt = user.createdAt ? new Date(user.createdAt).toLocaleDateString('id-ID') : 'Unknown';
+            
+            const providerBadge = getProviderBadge(user.provider);
+            const roleBadge = getRoleBadge(user.role);
+            const statusBadge = getStatusBadge(user.isEmailVerified);
+            
+            return `
+                <tr>
+                    <td>
+                        <div class="user-cell">
+                            <div class="user-avatar">${initials}</div>
+                            <div class="user-info">
+                                <div class="user-name">${user.displayName || user.username || 'N/A'}</div>
+                                <div class="user-email">${user.email}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>${providerBadge}</td>
+                    <td>${roleBadge}</td>
+                    <td>${statusBadge}</td>
+                    <td class="date-cell">${lastLogin}</td>
+                    <td class="date-cell">${createdAt}</td>
+                    <td>
+                        <div class="actions">
+                            <button class="btn-action edit" onclick="editUser('${user.id}')">Edit</button>
+                            <button class="btn-action delete" onclick="deleteUser('${user.id}')">Delete</button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+        
+        // Get provider badge HTML
+        function getProviderBadge(provider) {
+            const badges = {
+                'google': '<span class="badge badge-google">Google</span>',
+                'github': '<span class="badge badge-github">GitHub</span>',
+                'manual': '<span class="badge badge-manual">Manual</span>'
+            };
+            return badges[provider] || '<span class="badge badge-manual">Unknown</span>';
+        }
+        
+        // Get role badge HTML
+        function getRoleBadge(role) {
+            const badges = {
+                'admin': '<span class="badge badge-admin">Admin</span>',
+                'user': '<span class="badge badge-user">User</span>'
+            };
+            return badges[role] || '<span class="badge badge-user">User</span>';
+        }
+        
+        // Get status badge HTML
+        function getStatusBadge(isVerified) {
+            return isVerified ? 
+                '<span class="badge badge-verified">Verified</span>' : 
+                '<span class="badge badge-unverified">Unverified</span>';
+        }
+        
+        // Update statistics
+        function updateStatistics(users) {
+            const totalUsers = users.length;
+            const googleUsers = users.filter(u => u.provider === 'google').length;
+            const githubUsers = users.filter(u => u.provider === 'github').length;
+            const manualUsers = users.filter(u => u.provider === 'manual').length;
+            const verifiedUsers = users.filter(u => u.isEmailVerified).length;
+            
+            // Calculate recent users (last 24 hours)
+            const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+            const recentUsers = users.filter(u => {
+                const createdAt = new Date(u.createdAt);
+                return createdAt > oneDayAgo;
+            }).length;
+            
+            document.getElementById('totalUsers').textContent = totalUsers;
+            document.getElementById('googleUsers').textContent = googleUsers;
+            document.getElementById('githubUsers').textContent = githubUsers;
+            document.getElementById('manualUsers').textContent = manualUsers;
+            document.getElementById('verifiedUsers').textContent = verifiedUsers;
+            document.getElementById('recentUsers').textContent = recentUsers;
+        }
+        
+        // Filter users
+        function filterUsers() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const providerFilter = document.getElementById('providerFilter').value;
+            const roleFilter = document.getElementById('roleFilter').value;
+            const statusFilter = document.getElementById('statusFilter').value;
+            
+            filteredUsers = allUsers.filter(user => {
+                // Search filter
+                const matchesSearch = !searchTerm || 
+                    (user.displayName && user.displayName.toLowerCase().includes(searchTerm)) ||
+                    (user.username && user.username.toLowerCase().includes(searchTerm)) ||
+                    user.email.toLowerCase().includes(searchTerm);
+                
+                // Provider filter
+                const matchesProvider = !providerFilter || user.provider === providerFilter;
+                
+                // Role filter
+                const matchesRole = !roleFilter || user.role === roleFilter;
+                
+                // Status filter
+                const matchesStatus = !statusFilter || 
+                    (statusFilter === 'verified' && user.isEmailVerified) ||
+                    (statusFilter === 'unverified' && !user.isEmailVerified);
+                
+                return matchesSearch && matchesProvider && matchesRole && matchesStatus;
+            });
+            
+            displayUsers(filteredUsers);
+        }
+        
+        // Reset filters
+        function resetFilters() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('providerFilter').value = '';
+            document.getElementById('roleFilter').value = '';
+            document.getElementById('statusFilter').value = '';
+            filteredUsers = [...allUsers];
+            displayUsers(filteredUsers);
+        }
+        
+        // Show add user modal
+        function showAddUserModal() {
+            editingUserId = null;
+            document.getElementById('modalTitle').textContent = 'Add New User';
+            document.getElementById('userForm').reset();
+            document.getElementById('userModal').style.display = 'block';
+        }
+        
+        // Edit user
+        function editUser(userId) {
+            const user = allUsers.find(u => u.id === userId);
+            if (!user) return;
+            
+            editingUserId = userId;
+            document.getElementById('modalTitle').textContent = 'Edit User';
+            document.getElementById('userName').value = user.username || user.displayName || '';
+            document.getElementById('userEmail').value = user.email;
+            document.getElementById('userProvider').value = user.provider || 'manual';
+            document.getElementById('userRole').value = user.role || 'user';
+            document.getElementById('userPassword').value = '';
+            document.getElementById('userModal').style.display = 'block';
+        }
+        
+        // Delete user
+        async function deleteUser(userId) {
+            if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`http://localhost:5000/api/admin/users/${userId}`, {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('User deleted successfully');
+                    loadUsers();
+                } else {
+                    alert('Failed to delete user: ' + result.message);
+                }
+            } catch (error) {
+                alert('Error deleting user: ' + error.message);
+            }
+        }
+        
+        // Close modal
+        function closeModal() {
+            document.getElementById('userModal').style.display = 'none';
+            editingUserId = null;
+        }
+        
+        // Export data to CSV
+        function exportData() {
+            const csvContent = generateCSV(filteredUsers);
+            downloadCSV(csvContent, 'users_data.csv');
+        }
+        
+        // Generate CSV content
+        function generateCSV(users) {
+            const headers = ['ID', 'Username', 'Email', 'Provider', 'Role', 'Verified', 'Last Login', 'Created Date'];
+            const rows = users.map(user => [
+                user.id,
+                user.displayName || user.username || '',
+                user.email,
+                user.provider || 'manual',
+                user.role || 'user',
+                user.isEmailVerified ? 'Yes' : 'No',
+                user.lastLogin ? new Date(user.lastLogin).toLocaleString() : 'Never',
+                user.createdAt ? new Date(user.createdAt).toLocaleString() : 'Unknown'
+            ]);
+            
+            const csvContent = [headers, ...rows]
+                .map(row => row.map(cell => `"${cell}"`).join(','))
+                .join('\n');
+            
+            return csvContent;
+        }
+        
+        // Download CSV file
+        function downloadCSV(content, filename) {
+            const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+        
+        // Show error message
+        function showError(message) {
+            const contentDiv = document.getElementById('tableContent');
+            contentDiv.innerHTML = `
+                <div class="empty-state">
+                    <h3>Error</h3>
+                    <p>${message}</p>
+                    <button class="btn btn-primary" onclick="loadUsers()">Try Again</button>
+                </div>
+            `;
+        }
+        
+        // Handle form submission
+        document.getElementById('userForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const userData = {
+                username: document.getElementById('userName').value,
+                email: document.getElementById('userEmail').value,
+                provider: document.getElementById('userProvider').value,
+                role: document.getElementById('userRole').value,
+                password: document.getElementById('userPassword').value
+            };
+            
+            try {
+                const url = editingUserId ? 
+                    `http://localhost:5000/api/admin/users/${editingUserId}` : 
+                    'http://localhost:5000/api/admin/users';
+                const method = editingUserId ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(userData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(editingUserId ? 'User updated successfully' : 'User added successfully');
+                    closeModal();
+                    loadUsers();
+                } else {
+                    alert('Failed to save user: ' + result.message);
+                }
+            } catch (error) {
+                alert('Error saving user: ' + error.message);
+            }
+        });
+        
+        // Event listeners for filters
+        document.getElementById('searchInput').addEventListener('input', filterUsers);
+        document.getElementById('providerFilter').addEventListener('change', filterUsers);
+        document.getElementById('roleFilter').addEventListener('change', filterUsers);
+        document.getElementById('statusFilter').addEventListener('change', filterUsers);
+        
+        // Close modal when clicking outside
+        window.addEventListener('click', function(event) {
+            const modal = document.getElementById('userModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        });
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            loadUsers();
+            
+            // Auto-refresh every 30 seconds
+            setInterval(loadUsers, 30000);
+        });
+    </script>
+</body>
+</html>
