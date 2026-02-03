@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Tourism AI Chatbot Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .chat-container {
+            height: 600px;
+            max-height: 80vh;
+        }
+        .messages-container {
+            height: calc(100% - 80px);
+            overflow-y: auto;
+        }
+        .message {
+            animation: fadeIn 0.3s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .typing-indicator {
+            display: inline-flex;
+            gap: 4px;
+        }
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #3b82f6;
+            animation: typing 1.4s infinite;
+        }
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typing {
+            0%, 60%, 100% { transform: scale(1); opacity: 0.5; }
+            30% { transform: scale(1.2); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto p-4 max-w-4xl">
+        <div class="bg-white rounded-lg shadow-lg">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-4 rounded-t-lg">
+                <h1 class="text-2xl font-bold">🌏 Enhanced Tourism AI Chatbot</h1>
+                <p class="text-sm opacity-90">Database Pariwisata Lengkap Indonesia</p>
+            </div>
+
+            <!-- Chat Container -->
+            <div class="chat-container bg-gray-50">
+                <div class="messages-container p-4 space-y-4" id="messagesContainer">
+                    <!-- Welcome Message -->
+                    <div class="message flex justify-start">
+                        <div class="bg-blue-500 text-white rounded-lg p-3 max-w-md">
+                            <p class="text-sm">🌏 Halo! Saya adalah TRAVELLO, asisten travel pintar dengan database pariwisata lengkap Indonesia.</p>
+                            <p class="text-sm mt-2">🎯 Saya bisa membantu Anda dengan:</p>
+                            <ul class="text-sm mt-1 space-y-1">
+                                <li>• 📍 Destinasi wisata di seluruh Indonesia</li>
+                                <li>• 🏨 Hotel, villa, resort, dan penginapan</li>
+                                <li>• 🍜 Restoran dan kuliner khas daerah</li>
+                                <li>• 🚗 Info transportasi dan rute perjalanan</li>
+                                <li>• 💰 Tips budget traveling</li>
+                            </ul>
+                            <p class="text-sm mt-2 font-semibold">Apa yang ingin Anda ketahui? 😊</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Input Area -->
+                <div class="border-t border-gray-200 p-4 bg-white">
+                    <div class="flex gap-2">
+                        <input 
+                            type="text" 
+                            id="messageInput" 
+                            placeholder="Tanya tentang wisata Indonesia..."
+                            class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            onkeypress="if(event.key === 'Enter') sendMessage()"
+                        >
+                        <button 
+                            onclick="sendMessage()"
+                            class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                        >
+                            Kirim
+                        </button>
+                    </div>
+                    
+                    <!-- Quick Actions -->
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        <button onclick="quickQuery('Wisata pantai di Bali')" class="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm hover:bg-gray-200 transition-colors">
+                            🏝️ Pantai Bali
+                        </button>
+                        <button onclick="quickQuery('Hotel murah di Yogyakarta')" class="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm hover:bg-gray-200 transition-colors">
+                            🏨 Hotel Jogja
+                        </button>
+                        <button onclick="quickQuery('Restoran halal di Jakarta')" class="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm hover:bg-gray-200 transition-colors">
+                            🍜 Restoran Jakarta
+                        </button>
+                        <button onclick="quickQuery('Transportasi Jakarta ke Surabaya')" class="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm hover:bg-gray-200 transition-colors">
+                            🚗 Jakarta-Surabaya
+                        </button>
+                        <button onclick="quickQuery('Tips backpacker Indonesia')" class="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm hover:bg-gray-200 transition-colors">
+                            💰 Tips Backpacker
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status Bar -->
+            <div class="bg-gray-100 px-4 py-2 rounded-b-lg flex justify-between items-center text-sm">
+                <div class="flex items-center gap-2">
+                    <div id="statusIndicator" class="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span id="statusText">Connected</span>
+                </div>
+                <div class="text-gray-600">
+                    <span id="messageCount">0</span> messages
+                </div>
+            </div>
+        </div>
+
+        <!-- Test Results -->
+        <div class="mt-6 bg-white rounded-lg shadow p-4">
+            <h2 class="text-lg font-semibold mb-3">🧪 Test Results</h2>
+            <div id="testResults" class="space-y-2 text-sm">
+                <div class="text-gray-500">Click the quick actions or type your own queries to test the chatbot...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let messageCount = 0;
+        let isTyping = false;
+
+        // Mock API endpoint - replace with actual backend URL
+        const API_BASE_URL = 'http://localhost:3000/api/tourism-chat';
+
+        function updateStatus(status, isConnected = true) {
+            const indicator = document.getElementById('statusIndicator');
+            const statusText = document.getElementById('statusText');
+            
+            if (isConnected) {
+                indicator.className = 'w-2 h-2 bg-green-500 rounded-full';
+                statusText.textContent = status;
+            } else {
+                indicator.className = 'w-2 h-2 bg-red-500 rounded-full';
+                statusText.textContent = status;
+            }
+        }
+
+        function addMessage(content, isUser = false, suggestions = []) {
+            const container = document.getElementById('messagesContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message flex ${isUser ? 'justify-end' : 'justify-start'}`;
+            
+            const messageContent = document.createElement('div');
+            messageContent.className = `rounded-lg p-3 max-w-md ${isUser ? 'bg-gray-800 text-white' : 'bg-blue-500 text-white'}`;
+            messageContent.innerHTML = content.replace(/\n/g, '<br>');
+            
+            messageDiv.appendChild(messageContent);
+            container.appendChild(messageDiv);
+            
+            // Add suggestions if available
+            if (suggestions && suggestions.length > 0 && !isUser) {
+                const suggestionsDiv = document.createElement('div');
+                suggestionsDiv.className = 'flex flex-wrap gap-2 mt-2 ml-2';
+                
+                suggestions.forEach(suggestion => {
+                    const btn = document.createElement('button');
+                    btn.className = 'px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs hover:bg-blue-200 transition-colors';
+                    btn.textContent = suggestion;
+                    btn.onclick = () => quickQuery(suggestion);
+                    suggestionsDiv.appendChild(btn);
+                });
+                
+                container.appendChild(suggestionsDiv);
+            }
+            
+            container.scrollTop = container.scrollHeight;
+            messageCount++;
+            document.getElementById('messageCount').textContent = messageCount;
+        }
+
+        function showTypingIndicator() {
+            if (isTyping) return;
+            isTyping = true;
+            
+            const container = document.getElementById('messagesContainer');
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'message flex justify-start typing-message';
+            typingDiv.innerHTML = `
+                <div class="bg-gray-200 rounded-lg p-3">
+                    <div class="typing-indicator">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(typingDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function hideTypingIndicator() {
+            const typingMessage = document.querySelector('.typing-message');
+            if (typingMessage) {
+                typingMessage.remove();
+            }
+            isTyping = false;
+        }
+
+        function addTestResult(query, success, response, error = null) {
+            const resultsDiv = document.getElementById('testResults');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `p-2 rounded ${success ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`;
+            
+            const timestamp = new Date().toLocaleTimeString();
+            resultDiv.innerHTML = `
+                <div class="font-semibold">[${timestamp}] Query: "${query}"</div>
+                ${success ? 
+                    `<div class="text-sm mt-1">✅ Success - Response length: ${response.length} chars</div>` :
+                    `<div class="text-sm mt-1">❌ Error: ${error}</div>`
+                }
+            `;
+            
+            resultsDiv.appendChild(resultDiv);
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            // Add user message
+            addMessage(message, true);
+            input.value = '';
+            
+            // Show typing indicator
+            showTypingIndicator();
+            updateStatus('Processing...');
+            
+            try {
+                // Mock response for testing (replace with actual API call)
+                const response = await simulateAPIResponse(message);
+                
+                hideTypingIndicator();
+                addMessage(response.response, false, response.suggestions);
+                addTestResult(message, true, response.response);
+                updateStatus('Connected');
+                
+            } catch (error) {
+                hideTypingIndicator();
+                addMessage('❌ Maaf, terjadi kesalahan. Silakan coba lagi.', false);
+                addTestResult(message, false, null, error.message);
+                updateStatus('Error', false);
+            }
+        }
+
+        function quickQuery(query) {
+            document.getElementById('messageInput').value = query;
+            sendMessage();
+        }
+
+        // Mock API response function (replace with actual API call)
+        async function simulateAPIResponse(message) {
+            // Simulate API delay
+            await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
+            
+            const lowerMessage = message.toLowerCase();
+            
+            // Mock responses based on keywords
+            if (lowerMessage.includes('bali') && lowerMessage.includes('pantai')) {
+                return {
+                    response: `🏝️ **Destinasi Wisata Ditemukan:**\n\n1. **Pantai Kuta** (Badung, Bali)\n   📍 Pantai paling terkenal di Bali dengan pasir putih dan ombak sempurna untuk berselancar\n   ⭐ Rating: 4.2/5 | 💰 Tiket: Rp 0\n   🕐 Best time: April - Oktober | ⏱️ Durasi: 2-3 jam\n   🏗️ Fasilitas: parkir, restoran, toilet, shower\n\n2. **Pantai Seminyak** (Badung, Bali)\n   📍 Pantai eksklusif dengan sunset view dan beach club mewah\n   ⭐ Rating: 4.5/5 | 💰 Tiket: Rp 0\n   🕐 Best time: All year | ⏱️ Durasi: 3-4 jam\n   🏗️ Fasilitas: beach club, restoran, parkir\n\n💬 *Ada pertanyaan lain tentang pantai di Bali?*`,
+                    suggestions: ['Hotel murah di Bali', 'Transportasi di Bali', 'Makanan halal Bali']
+                };
+            }
+            
+            if (lowerMessage.includes('hotel') && lowerMessage.includes('yogyakarta')) {
+                return {
+                    response: `🏨 **Penginapan Ditemukan:**\n\n1. **Malioboro Palace Hotel** (hotel, 3⭐)\n   📍 Yogyakarta, DIY\n   💰 Rp 350,000/malam | ⭐ Rating: 4.0/5\n   🏗️ Fasilitas: Sarapan, WiFi, Parkir\n\n2. **Hotel Santika Borobudur** (hotel, 4⭐)\n   📍 Magelang, Jawa Tengah\n   💰 Rp 850,000/malam | ⭐ Rating: 4.3/5\n   🏗️ Fasilitas: Sarapan, WiFi, Parkir, Kolam Renang, Restoran\n\n💬 *Ada pertanyaan lain tentang hotel di Yogyakarta?*`,
+                    suggestions: ['Candi Borobudur', 'Hotel dekat Malioboro', 'Makanan khas Jogja']
+                };
+            }
+            
+            if (lowerMessage.includes('restoran') && lowerMessage.includes('jakarta')) {
+                return {
+                    response: `🍜 **Restoran Ditemukan:**\n\n1. **Sate Klathak Pak Budi** (Indonesian)\n   📍 Bantul, DIY\n   🍽️ Spesial: Sate Kambing\n   💰 Budget | 📊 Rp 35,000 | ⭐ 4.5/5\n   ✅ Halal Certified\n\n2. **Nasi Padang Sederhana** (Indonesian)\n   📍 Padang, Sumatera Barat\n   🍽️ Spesial: Rendang\n   💰 Budget | 📊 Rp 40,000 | ⭐ 4.3/5\n   ✅ Halal Certified\n\n💬 *Ada pertanyaan lain tentang restoran di Jakarta?*`,
+                    suggestions: ['Makanan halal', 'Kuliner khas', 'Restoran keluarga']
+                };
+            }
+            
+            if (lowerMessage.includes('transportasi') && lowerMessage.includes('jakarta') && lowerMessage.includes('surabaya')) {
+                return {
+                    response: `🚗 **Transportasi Ditemukan:**\n\n1. **Garuda Indonesia GA-123** (flight)\n   🛣️ Jakarta → Surabaya\n   ⏱️ Durasi: 2 jam | 💰 Rp 1,200,000\n   🏢 Garuda Indonesia\n\n2. **Kereta Api Argo Bromo** (train)\n   🛣️ Surabaya → Probolinggo\n   ⏱️ Durasi: 1.5 jam | 💰 Rp 150,000\n   🏢 KAI\n\n3. **Travel X** (bus)\n   🛣️ Jakarta → Bogor\n   ⏱️ Durasi: 3 jam | 💰 Rp 75,000\n   🏢 Travel X\n\n💬 *Ada pertanyaan lain tentang transportasi?*`,
+                    suggestions: ['Sewa mobil', 'Tiket pesawat murah', 'Kereta api']
+                };
+            }
+            
+            if (lowerMessage.includes('tips') && lowerMessage.includes('backpacker')) {
+                return {
+                    response: `💡 **Tips Perjalanan:**\n\n1. **Tips Packing ke Bali**\n   Bawa pakaian tipis, sunscreen, dan kamera waterproof\n\n2. **Budget Traveling di Indonesia**\n   Gunakan transportasi umum dan makan di warung lokal\n\n3. **Safety Tips untuk Solo Traveler**\n   Selalu informasikan itinerary ke keluarga dan simpan nomor darurat\n\n💰 **Budget Backpacker Indonesia:**\n• Hostel: Rp 50,000-100,000/malam\n• Makanan: Rp 20,000-30,000/meal\n• Transportasi lokal: Rp 10,000-50,000/trip\n• Total daily: Rp 300,000-500,000\n\n💬 *Ada pertanyaan lain tentang backpacking?*`,
+                    suggestions: ['Tips hemat traveling', 'Paket wisata murah', 'Hostel terbaik']
+                };
+            }
+            
+            // Default response
+            return {
+                response: `🌏 Saya adalah TRAVELLO, asisten travel pintar dengan database pariwisata lengkap Indonesia.\n\n🎯 *Saya bisa membantu Anda dengan:*\n• 📍 Destinasi wisata di seluruh Indonesia\n• 🏨 Hotel, villa, resort, dan penginapan\n• 🍜 Restoran dan kuliner khas daerah\n• 🚗 Info transportasi dan rute perjalanan\n• 💰 Tips budget traveling\n• 📅 Info cuaca dan waktu terbaik berkunjung\n\n**Cara tanya:**\n• "Wisata di Bali"\n• "Hotel murah di Yogyakarta"\n• "Restoran halal di Jakarta"\n• "Transportasi Jakarta ke Surabaya"\n• "Tips backpacker Indonesia"\n\nApa yang ingin Anda ketahui tentang traveling di Indonesia? 🌏`,
+                    suggestions: ['Destinasi populer', 'Hotel terdekat', 'Tips traveling']
+                };
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            updateStatus('Connected');
+            document.getElementById('messageInput').focus();
+        });
+    </script>
+</body>
+</html>

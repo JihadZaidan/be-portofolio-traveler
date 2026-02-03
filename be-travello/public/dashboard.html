@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRAVELLO - Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body class="gradient-bg min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0 flex items-center">
+                        <i class="fas fa-plane text-blue-600 text-2xl mr-3"></i>
+                        <span class="text-xl font-bold text-gray-800">TRAVELLO</span>
+                    </div>
+                    <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
+                        <a href="#" class="border-blue-500 text-gray-900 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            Dashboard
+                        </a>
+                        <a href="#" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            Profile
+                        </a>
+                        <a href="#" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            Settings
+                        </a>
+                    </div>
+                </div>
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <button onclick="handleLogout()" class="relative inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700">
+                            <i class="fas fa-sign-out-alt mr-2"></i>
+                            Logout
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <!-- User Info Card -->
+        <div class="card rounded-lg shadow-lg p-6 mb-8">
+            <div class="flex items-center space-x-4">
+                <img id="userAvatar" src="" alt="User Avatar" class="w-20 h-20 rounded-full">
+                <div>
+                    <h2 id="userName" class="text-2xl font-bold text-gray-800"></h2>
+                    <p id="userEmail" class="text-gray-600"></p>
+                    <p id="userRole" class="text-sm text-blue-600"></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="card rounded-lg shadow-lg p-6">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0 bg-blue-500 rounded-md p-3">
+                        <i class="fas fa-map-marked-alt text-white text-xl"></i>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">Destinasi</dt>
+                            <dd class="text-lg font-medium text-gray-900">12</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card rounded-lg shadow-lg p-6">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0 bg-green-500 rounded-md p-3">
+                        <i class="fas fa-calendar-check text-white text-xl"></i>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">Trip Selesai</dt>
+                            <dd class="text-lg font-medium text-gray-900">8</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card rounded-lg shadow-lg p-6">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0 bg-purple-500 rounded-md p-3">
+                        <i class="fas fa-star text-white text-xl"></i>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">Rating</dt>
+                            <dd class="text-lg font-medium text-gray-900">4.8</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card rounded-lg shadow-lg p-6">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Quick Actions</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <button class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                    <i class="fas fa-plus mr-2"></i>New Trip
+                </button>
+                <button class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+                    <i class="fas fa-search mr-2"></i>Explore
+                </button>
+                <button class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">
+                    <i class="fas fa-users mr-2"></i>Community
+                </button>
+                <button class="bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded">
+                    <i class="fas fa-cog mr-2"></i>Settings
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000';
+
+        async function checkAuth() {
+            const token = localStorage.getItem('token');
+            
+            if (!token) {
+                window.location.href = '/auth.html';
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/me`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayUserInfo(data.data.user);
+                } else {
+                    localStorage.removeItem('token');
+                    window.location.href = '/auth.html';
+                }
+            } catch (error) {
+                localStorage.removeItem('token');
+                window.location.href = '/auth.html';
+            }
+        }
+
+        function displayUserInfo(user) {
+            document.getElementById('userName').textContent = user.displayName || user.username;
+            document.getElementById('userEmail').textContent = user.email;
+            document.getElementById('userRole').textContent = `Role: ${user.role}`;
+            
+            if (user.profilePicture) {
+                document.getElementById('userAvatar').src = user.profilePicture;
+            } else {
+                document.getElementById('userAvatar').src = `https://ui-avatars.com/api/?name=${user.displayName || user.username}&background=random`;
+            }
+        }
+
+        async function handleLogout() {
+            const token = localStorage.getItem('token');
+            
+            try {
+                await fetch(`${API_BASE}/api/auth/logout`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+            } catch (error) {
+                console.log('Logout error:', error);
+            }
+            
+            localStorage.removeItem('token');
+            window.location.href = '/auth.html';
+        }
+
+        // Check authentication on page load
+        checkAuth();
+    </script>
+</body>
+</html>

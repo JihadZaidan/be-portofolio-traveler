@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>OAuth Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        .result { background: #f5f5f5; padding: 10px; margin: 10px 0; }
+        .success { background: #d4edda; }
+        .error { background: #f8d7da; }
+        button { margin: 5px; padding: 10px 20px; }
+    </style>
+</head>
+<body>
+    <h1>OAuth Authentication Test</h1>
+    
+    <div class="test-section">
+        <h2>Google OAuth</h2>
+        <button onclick="testGoogleOAuth()">Test Google OAuth</button>
+        <div id="googleResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>GitHub OAuth</h2>
+        <button onclick="testGithubOAuth()">Test GitHub OAuth</button>
+        <div id="githubResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>OAuth Configuration</h2>
+        <button onclick="testOAuthConfig()">Check Configuration</button>
+        <div id="configResult" class="result"></div>
+    </div>
+
+    <script>
+        async function testGoogleOAuth() {
+            try {
+                const response = await fetch('http://localhost:5000/api/auth/google', {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                const resultDiv = document.getElementById('googleResult');
+                
+                if (response.ok && result.success) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `
+                        <h3>✅ Google OAuth URL Generated!</h3>
+                        <p><strong>Message:</strong> ${result.message}</p>
+                        <p><strong>Auth URL:</strong> <a href="${result.data.authUrl}" target="_blank">${result.data.authUrl}</a></p>
+                        <p><strong>Client ID:</strong> ${result.data.clientId}</p>
+                        <p><strong>Callback URL:</strong> ${result.data.callbackUrl}</p>
+                        <pre>${JSON.stringify(result, null, 2)}</pre>
+                    `;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `
+                        <h3>❌ Google OAuth Failed</h3>
+                        <pre>${JSON.stringify(result, null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('googleResult').innerHTML = `
+                    <div class="result error">
+                        <h3>❌ Network Error</h3>
+                        <pre>${error.message}</pre>
+                    </div>
+                `;
+            }
+        }
+
+        async function testGithubOAuth() {
+            try {
+                const response = await fetch('http://localhost:5000/api/auth/github', {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                const resultDiv = document.getElementById('githubResult');
+                
+                if (response.ok && result.success) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `
+                        <h3>✅ GitHub OAuth URL Generated!</h3>
+                        <p><strong>Message:</strong> ${result.message}</p>
+                        <p><strong>Auth URL:</strong> <a href="${result.data.authUrl}" target="_blank">${result.data.authUrl}</a></p>
+                        <pre>${JSON.stringify(result, null, 2)}</pre>
+                    `;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `
+                        <h3>❌ GitHub OAuth Failed</h3>
+                        <pre>${JSON.stringify(result, null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('githubResult').innerHTML = `
+                    <div class="result error">
+                        <h3>❌ Network Error</h3>
+                        <pre>${error.message}</pre>
+                    </div>
+                `;
+            }
+        }
+
+        async function testOAuthConfig() {
+            try {
+                const response = await fetch('http://localhost:5000/api/auth/config', {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                const resultDiv = document.getElementById('configResult');
+                
+                if (response.ok && result.success) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `
+                        <h3>✅ OAuth Configuration</h3>
+                        <pre>${JSON.stringify(result, null, 2)}</pre>
+                    `;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `
+                        <h3>❌ Configuration Check Failed</h3>
+                        <pre>${JSON.stringify(result, null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('configResult').innerHTML = `
+                    <div class="result error">
+                        <h3>❌ Network Error</h3>
+                        <pre>${error.message}</pre>
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

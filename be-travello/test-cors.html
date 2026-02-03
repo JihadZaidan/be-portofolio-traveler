@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CORS Test</title>
+</head>
+<body>
+    <h1>CORS Test for Travello API</h1>
+    <button onclick="testHealth()">Test Health Endpoint</button>
+    <button onclick="testSwagger()">Test Swagger Docs</button>
+    <button onclick="testOAuthRedirect()">Test OAuth Redirect</button>
+    <div id="results"></div>
+
+    <script>
+        async function testHealth() {
+            try {
+                const response = await fetch('http://localhost:5001/health');
+                const data = await response.json();
+                document.getElementById('results').innerHTML = 
+                    '<h3>Health Test: ✅ Success</h3><pre>' + JSON.stringify(data, null, 2) + '</pre>';
+            } catch (error) {
+                document.getElementById('results').innerHTML = 
+                    '<h3>Health Test: ❌ Error</h3><pre>' + error.message + '</pre>';
+            }
+        }
+
+        async function testSwagger() {
+            try {
+                const response = await fetch('http://localhost:5001/api-docs');
+                const text = await response.text();
+                document.getElementById('results').innerHTML = 
+                    '<h3>Swagger Test: ✅ Success</h3><p>Response length: ' + text.length + ' characters</p>';
+            } catch (error) {
+                document.getElementById('results').innerHTML = 
+                    '<h3>Swagger Test: ❌ Error</h3><pre>' + error.message + '</pre>';
+            }
+        }
+
+        async function testOAuthRedirect() {
+            try {
+                const response = await fetch('http://localhost:5001/swagger-oauth2-redirect');
+                const text = await response.text();
+                document.getElementById('results').innerHTML = 
+                    '<h3>OAuth Redirect Test: ✅ Success</h3><p>Response length: ' + text.length + ' characters</p>';
+            } catch (error) {
+                document.getElementById('results').innerHTML = 
+                    '<h3>OAuth Redirect Test: ❌ Error</h3><pre>' + error.message + '</pre>';
+            }
+        }
+    </script>
+</body>
+</html>

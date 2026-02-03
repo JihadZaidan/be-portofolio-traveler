@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shop Management - Admin</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 0;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 16px;
+        }
+        
+        .main-content {
+            padding: 40px 0;
+        }
+        
+        .controls-section {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            margin-bottom: 30px;
+        }
+        
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .control-group label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #495057;
+            font-size: 14px;
+        }
+        
+        .control-group input,
+        .control-group select {
+            padding: 10px 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+        
+        .control-group input:focus,
+        .control-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            text-align: center;
+            border-left: 4px solid #667eea;
+            transition: transform 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .stat-number {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 8px;
+        }
+        
+        .stat-label {
+            color: #6c757d;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .table-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+        
+        .table-header {
+            background: #f8f9fa;
+            padding: 20px 25px;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .table-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .table-wrapper {
+            overflow-x: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1000px;
+        }
+        
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        td {
+            font-size: 14px;
+            color: #333;
+        }
+        
+        tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .shop-image {
+            width: 60px;
+            height: 60px;
+            border-radius: 8px;
+            object-fit: cover;
+            margin-right: 12px;
+        }
+        
+        .shop-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .shop-details {
+            flex: 1;
+        }
+        
+        .shop-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+        
+        .shop-category {
+            color: #6c757d;
+            font-size: 13px;
+        }
+        
+        .price {
+            font-weight: 600;
+            color: #28a745;
+            font-size: 16px;
+        }
+        
+        .rating {
+            color: #ffc107;
+            font-weight: 600;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .badge-active {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .badge-inactive {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .badge-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .btn-action {
+            padding: 6px 12px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            background: white;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-action:hover {
+            background: #f8f9fa;
+            border-color: #adb5bd;
+        }
+        
+        .btn-action.edit {
+            color: #007bff;
+            border-color: #007bff;
+        }
+        
+        .btn-action.edit:hover {
+            background: #007bff;
+            color: white;
+        }
+        
+        .btn-action.delete {
+            color: #dc3545;
+            border-color: #dc3545;
+        }
+        
+        .btn-action.delete:hover {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6c757d;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+        }
+        
+        .modal-content {
+            background: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            position: relative;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .close {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            font-size: 28px;
+            cursor: pointer;
+            color: #adb5bd;
+        }
+        
+        .close:hover {
+            color: #495057;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 25px;
+        }
+        
+        .nav-tabs {
+            display: flex;
+            border-bottom: 1px solid #e9ecef;
+            margin-bottom: 30px;
+        }
+        
+        .nav-tab {
+            padding: 12px 24px;
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            color: #6c757d;
+            transition: all 0.3s ease;
+        }
+        
+        .nav-tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+        
+        .nav-tab:hover {
+            color: #667eea;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <h1>🏪 Shop Management</h1>
+            <p>Manage shops, products, and services</p>
+        </div>
+    </header>
+    
+    <main class="main-content">
+        <div class="container">
+            <!-- Statistics Cards -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalShops">0</div>
+                    <div class="stat-label">Total Shops</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="activeShops">0</div>
+                    <div class="stat-label">Active Shops</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="totalCategories">0</div>
+                    <div class="stat-label">Categories</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="recentShops">0</div>
+                    <div class="stat-label">Recent (24h)</div>
+                </div>
+            </div>
+            
+            <!-- Navigation Tabs -->
+            <div class="nav-tabs">
+                <button class="nav-tab active" onclick="showTab('shops')">Shops</button>
+                <button class="nav-tab" onclick="showTab('categories')">Categories</button>
+                <button class="nav-tab" onclick="showTab('analytics')">Analytics</button>
+            </div>
+            
+            <!-- Shops Tab -->
+            <div id="shops-tab" class="tab-content active">
+                <!-- Controls Section -->
+                <div class="controls-section">
+                    <div class="controls-grid">
+                        <div class="control-group">
+                            <label for="searchInput">Search Shops</label>
+                            <input type="text" id="searchInput" placeholder="Search by name, category, location...">
+                        </div>
+                        <div class="control-group">
+                            <label for="categoryFilter">Filter by Category</label>
+                            <select id="categoryFilter">
+                                <option value="">All Categories</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label for="statusFilter">Filter by Status</label>
+                            <select id="statusFilter">
+                                <option value="">All Status</option>
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                                <option value="pending">Pending</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="button-group">
+                        <button class="btn btn-primary" onclick="loadShops()">
+                            <span>🔄</span> Refresh
+                        </button>
+                        <button class="btn btn-success" onclick="showAddShopModal()">
+                            <span>➕</span> Add Shop
+                        </button>
+                        <button class="btn btn-warning" onclick="exportData()">
+                            <span>📊</span> Export CSV
+                        </button>
+                        <button class="btn btn-secondary" onclick="resetFilters()">
+                            <span>🔄</span> Reset Filters
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Shops Table -->
+                <div class="table-container">
+                    <div class="table-header">
+                        <h2 class="table-title">All Shops</h2>
+                        <div id="shopRecordCount">Loading...</div>
+                    </div>
+                    
+                    <div id="shopsTableContent">
+                        <div class="loading">Loading shop data...</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Categories Tab -->
+            <div id="categories-tab" class="tab-content">
+                <div class="controls-section">
+                    <h3>Shop Categories</h3>
+                    <div id="categoriesContent">
+                        <div class="loading">Loading categories...</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Analytics Tab -->
+            <div id="analytics-tab" class="tab-content">
+                <div class="controls-section">
+                    <h3>Shop Analytics</h3>
+                    <div id="analyticsContent">
+                        <div class="loading">Loading analytics...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <!-- Add/Edit Shop Modal -->
+    <div id="shopModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeShopModal()">&times;</span>
+            <h2 id="shopModalTitle">Add New Shop</h2>
+            <form id="shopForm">
+                <div class="form-group">
+                    <label for="shopName">Shop Name *</label>
+                    <input type="text" id="shopName" required>
+                </div>
+                <div class="form-group">
+                    <label for="shopCategory">Category *</label>
+                    <select id="shopCategory" required>
+                        <option value="">Select Category</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="shopDescription">Description</label>
+                    <textarea id="shopDescription" placeholder="Describe the shop, products, services..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="shopPrice">Price Range</label>
+                    <input type="text" id="shopPrice" placeholder="e.g., 100-500, 50+, etc.">
+                </div>
+                <div class="form-group">
+                    <label for="shopLocation">Location</label>
+                    <input type="text" id="shopLocation" placeholder="City, Address">
+                </div>
+                <div class="form-group">
+                    <label for="shopContact">Contact</label>
+                    <input type="text" id="shopContact" placeholder="Phone, Email">
+                </div>
+                <div class="form-group">
+                    <label for="shopWebsite">Website</label>
+                    <input type="url" id="shopWebsite" placeholder="https://example.com">
+                </div>
+                <div class="form-group">
+                    <label for="shopImageUrl">Image URL</label>
+                    <input type="url" id="shopImageUrl" placeholder="https://example.com/image.jpg">
+                </div>
+                <div class="form-group">
+                    <label for="shopStatus">Status</label>
+                    <select id="shopStatus">
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                        <option value="pending">Pending</option>
+                    </select>
+                </div>
+                <div class="modal-buttons">
+                    <button type="button" class="btn btn-secondary" onclick="closeShopModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Shop</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        let allShops = [];
+        let filteredShops = [];
+        let categories = [];
+        let editingShopId = null;
+        
+        // Load shops from API
+        async function loadShops() {
+            try {
+                const response = await fetch('http://localhost:5000/api/shops?includeUser=true');
+                const result = await response.json();
+                
+                if (result.success) {
+                    allShops = result.data.shops;
+                    filteredShops = [...allShops];
+                    displayShops(filteredShops);
+                    updateStatistics(allShops);
+                } else {
+                    showError('Failed to load shops: ' + result.message);
+                }
+            } catch (error) {
+                showError('Error loading shops: ' + error.message);
+            }
+        }
+        
+        // Load categories
+        async function loadCategories() {
+            try {
+                const response = await fetch('http://localhost:5000/api/shops/categories');
+                const result = await response.json();
+                
+                if (result.success) {
+                    categories = result.data.categories;
+                    updateCategoryFilters();
+                    displayCategories();
+                }
+            } catch (error) {
+                console.error('Error loading categories:', error);
+            }
+        }
+        
+        // Display shops in table
+        function displayShops(shops) {
+            const contentDiv = document.getElementById('shopsTableContent');
+            const recordCount = document.getElementById('shopRecordCount');
+            
+            recordCount.textContent = `Showing ${shops.length} of ${allShops.length} shops`;
+            
+            if (shops.length === 0) {
+                contentDiv.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No shops found</h3>
+                        <p>No shops match the current filters.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const tableHTML = `
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Shop</th>
+                                <th>Category</th>
+                                <th>Price</th>
+                                <th>Rating</th>
+                                <th>Location</th>
+                                <th>Status</th>
+                                <th>Created By</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${shops.map(shop => createShopRow(shop)).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            contentDiv.innerHTML = tableHTML;
+        }
+        
+        // Create shop row HTML
+        function createShopRow(shop) {
+            const imageUrl = shop.imageUrl || 'https://via.placeholder.com/60x60?text=Shop';
+            const statusBadge = getStatusBadge(shop.status);
+            const price = shop.price ? `Rp ${shop.price}` : 'N/A';
+            const rating = shop.rating ? `${shop.rating} ⭐` : 'N/A';
+            const createdBy = shop.User ? shop.User.displayName || shop.User.username : 'Unknown';
+            
+            return `
+                <tr>
+                    <td>
+                        <div class="shop-info">
+                            <img src="${imageUrl}" alt="${shop.name}" class="shop-image">
+                            <div class="shop-details">
+                                <div class="shop-name">${shop.name}</div>
+                                <div class="shop-category">${shop.description || 'No description'}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>${shop.category}</td>
+                    <td class="price">${price}</td>
+                    <td class="rating">${rating}</td>
+                    <td>${shop.location || 'N/A'}</td>
+                    <td>${statusBadge}</td>
+                    <td>${createdBy}</td>
+                    <td>
+                        <div class="actions">
+                            <button class="btn-action edit" onclick="editShop('${shop.id}')">Edit</button>
+                            <button class="btn-action delete" onclick="deleteShop('${shop.id}')">Delete</button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+        
+        // Get status badge HTML
+        function getStatusBadge(status) {
+            const badges = {
+                'active': '<span class="badge badge-active">Active</span>',
+                'inactive': '<span class="badge badge-inactive">Inactive</span>',
+                'pending': '<span class="badge badge-pending">Pending</span>'
+            };
+            return badges[status] || '<span class="badge badge-pending">Unknown</span>';
+        }
+        
+        // Update statistics
+        function updateStatistics(shops) {
+            const totalShops = shops.length;
+            const activeShops = shops.filter(s => s.status === 'active').length;
+            const totalCategories = new Set(shops.map(s => s.category)).size;
+            
+            // Calculate recent shops (last 24 hours)
+            const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+            const recentShops = shops.filter(s => {
+                const createdAt = new Date(s.createdAt);
+                return createdAt > oneDayAgo;
+            }).length;
+            
+            document.getElementById('totalShops').textContent = totalShops;
+            document.getElementById('activeShops').textContent = activeShops;
+            document.getElementById('totalCategories').textContent = totalCategories;
+            document.getElementById('recentShops').textContent = recentShops;
+        }
+        
+        // Update category filters
+        function updateCategoryFilters() {
+            const categoryFilter = document.getElementById('categoryFilter');
+            const shopCategory = document.getElementById('shopCategory');
+            
+            // Update filter dropdown
+            categoryFilter.innerHTML = '<option value="">All Categories</option>';
+            categories.forEach(category => {
+                categoryFilter.innerHTML += `<option value="${category}">${category}</option>`;
+            });
+            
+            // Update form dropdown
+            shopCategory.innerHTML = '<option value="">Select Category</option>';
+            categories.forEach(category => {
+                shopCategory.innerHTML += `<option value="${category}">${category}</option>`;
+            });
+        }
+        
+        // Display categories
+        function displayCategories() {
+            const contentDiv = document.getElementById('categoriesContent');
+            
+            if (categories.length === 0) {
+                contentDiv.innerHTML = '<p>No categories found.</p>';
+                return;
+            }
+            
+            const categoryStats = categories.map(category => {
+                const count = allShops.filter(s => s.category === category).length;
+                return { category, count };
+            });
+            
+            contentDiv.innerHTML = `
+                <div class="stats-grid">
+                    ${categoryStats.map(stat => `
+                        <div class="stat-card">
+                            <div class="stat-number">${stat.count}</div>
+                            <div class="stat-label">${stat.category}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+        
+        // Filter shops
+        function filterShops() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const categoryFilter = document.getElementById('categoryFilter').value;
+            const statusFilter = document.getElementById('statusFilter').value;
+            
+            filteredShops = allShops.filter(shop => {
+                // Search filter
+                const matchesSearch = !searchTerm || 
+                    shop.name.toLowerCase().includes(searchTerm) ||
+                    shop.category.toLowerCase().includes(searchTerm) ||
+                    (shop.location && shop.location.toLowerCase().includes(searchTerm)) ||
+                    (shop.description && shop.description.toLowerCase().includes(searchTerm));
+                
+                // Category filter
+                const matchesCategory = !categoryFilter || shop.category === categoryFilter;
+                
+                // Status filter
+                const matchesStatus = !statusFilter || shop.status === statusFilter;
+                
+                return matchesSearch && matchesCategory && matchesStatus;
+            });
+            
+            displayShops(filteredShops);
+        }
+        
+        // Reset filters
+        function resetFilters() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('categoryFilter').value = '';
+            document.getElementById('statusFilter').value = '';
+            filteredShops = [...allShops];
+            displayShops(filteredShops);
+        }
+        
+        // Show add shop modal
+        function showAddShopModal() {
+            editingShopId = null;
+            document.getElementById('shopModalTitle').textContent = 'Add New Shop';
+            document.getElementById('shopForm').reset();
+            document.getElementById('shopModal').style.display = 'block';
+        }
+        
+        // Edit shop
+        function editShop(shopId) {
+            const shop = allShops.find(s => s.id === shopId);
+            if (!shop) return;
+            
+            editingShopId = shopId;
+            document.getElementById('shopModalTitle').textContent = 'Edit Shop';
+            document.getElementById('shopName').value = shop.name;
+            document.getElementById('shopCategory').value = shop.category;
+            document.getElementById('shopDescription').value = shop.description || '';
+            document.getElementById('shopPrice').value = shop.price || '';
+            document.getElementById('shopLocation').value = shop.location || '';
+            document.getElementById('shopContact').value = shop.contact || '';
+            document.getElementById('shopWebsite').value = shop.website || '';
+            document.getElementById('shopImageUrl').value = shop.imageUrl || '';
+            document.getElementById('shopStatus').value = shop.status;
+            document.getElementById('shopModal').style.display = 'block';
+        }
+        
+        // Delete shop
+        async function deleteShop(shopId) {
+            if (!confirm('Are you sure you want to delete this shop? This action cannot be undone.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`http://localhost:5000/api/shops/${shopId}`, {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('Shop deleted successfully');
+                    loadShops();
+                } else {
+                    alert('Failed to delete shop: ' + result.message);
+                }
+            } catch (error) {
+                alert('Error deleting shop: ' + error.message);
+            }
+        }
+        
+        // Close shop modal
+        function closeShopModal() {
+            document.getElementById('shopModal').style.display = 'none';
+            editingShopId = null;
+        }
+        
+        // Export data to CSV
+        function exportData() {
+            const csvContent = generateShopCSV(filteredShops);
+            downloadCSV(csvContent, 'shops_data.csv');
+        }
+        
+        // Generate CSV content
+        function generateShopCSV(shops) {
+            const headers = ['ID', 'Name', 'Category', 'Description', 'Price', 'Location', 'Contact', 'Website', 'Status', 'Created By', 'Created Date'];
+            const rows = shops.map(shop => [
+                shop.id,
+                shop.name,
+                shop.category,
+                shop.description || '',
+                shop.price || '',
+                shop.location || '',
+                shop.contact || '',
+                shop.website || '',
+                shop.status,
+                shop.User ? (shop.User.displayName || shop.User.username) : 'Unknown',
+                shop.createdAt ? new Date(shop.createdAt).toLocaleString() : 'Unknown'
+            ]);
+            
+            const csvContent = [headers, ...rows]
+                .map(row => row.map(cell => `"${cell}"`).join(','))
+                .join('\n');
+            
+            return csvContent;
+        }
+        
+        // Download CSV file
+        function downloadCSV(content, filename) {
+            const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+        
+        // Show error message
+        function showError(message) {
+            const contentDiv = document.getElementById('shopsTableContent');
+            contentDiv.innerHTML = `
+                <div class="empty-state">
+                    <h3>Error</h3>
+                    <p>${message}</p>
+                    <button class="btn btn-primary" onclick="loadShops()">Try Again</button>
+                </div>
+            `;
+        }
+        
+        // Tab navigation
+        function showTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Remove active class from all nav tabs
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+            
+            // Add active class to clicked nav tab
+            event.target.classList.add('active');
+            
+            // Load tab-specific content
+            if (tabName === 'categories') {
+                displayCategories();
+            } else if (tabName === 'analytics') {
+                loadAnalytics();
+            }
+        }
+        
+        // Load analytics
+        function loadAnalytics() {
+            const contentDiv = document.getElementById('analyticsContent');
+            
+            // Calculate analytics data
+            const categoryStats = {};
+            categories.forEach(category => {
+                categoryStats[category] = allShops.filter(s => s.category === category).length;
+            });
+            
+            const statusStats = {
+                active: allShops.filter(s => s.status === 'active').length,
+                inactive: allShops.filter(s => s.status === 'inactive').length,
+                pending: allShops.filter(s => s.status === 'pending').length
+            };
+            
+            contentDiv.innerHTML = `
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3>Shops by Category</h3>
+                        ${Object.entries(categoryStats).map(([category, count]) => `
+                            <div style="margin: 10px 0;">
+                                <strong>${category}:</strong> ${count} shops
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="stat-card">
+                        <h3>Shops by Status</h3>
+                        <div style="margin: 10px 0;">
+                            <strong>Active:</strong> ${statusStats.active} shops
+                        </div>
+                        <div style="margin: 10px 0;">
+                            <strong>Inactive:</strong> ${statusStats.inactive} shops
+                        </div>
+                        <div style="margin: 10px 0;">
+                            <strong>Pending:</strong> ${statusStats.pending} shops
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Handle form submission
+        document.getElementById('shopForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const shopData = {
+                name: document.getElementById('shopName').value,
+                category: document.getElementById('shopCategory').value,
+                description: document.getElementById('shopDescription').value,
+                price: document.getElementById('shopPrice').value,
+                location: document.getElementById('shopLocation').value,
+                contact: document.getElementById('shopContact').value,
+                website: document.getElementById('shopWebsite').value,
+                imageUrl: document.getElementById('shopImageUrl').value,
+                status: document.getElementById('shopStatus').value,
+                createdBy: 'admin-001' // Default admin user
+            };
+            
+            try {
+                const url = editingShopId ? 
+                    `http://localhost:5000/api/shops/${editingShopId}` : 
+                    'http://localhost:5000/api/shops';
+                const method = editingShopId ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(shopData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(editingShopId ? 'Shop updated successfully' : 'Shop added successfully');
+                    closeShopModal();
+                    loadShops();
+                    loadCategories();
+                } else {
+                    alert('Failed to save shop: ' + result.message);
+                }
+            } catch (error) {
+                alert('Error saving shop: ' + error.message);
+            }
+        });
+        
+        // Event listeners for filters
+        document.getElementById('searchInput').addEventListener('input', filterShops);
+        document.getElementById('categoryFilter').addEventListener('change', filterShops);
+        document.getElementById('statusFilter').addEventListener('change', filterShops);
+        
+        // Close modal when clicking outside
+        window.addEventListener('click', function(event) {
+            const modal = document.getElementById('shopModal');
+            if (event.target === modal) {
+                closeShopModal();
+            }
+        });
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            loadShops();
+            loadCategories();
+            
+            // Auto-refresh every 30 seconds
+            setInterval(loadShops, 30000);
+        });
+    </script>
+</body>
+</html>

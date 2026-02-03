@@ -1,0 +1,772 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Travello API",
+    "version": "1.0.0",
+    "description": "API documentation for Travello application",
+    "contact": {
+      "name": "API Support",
+      "email": "support@travello.com"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5000",
+      "description": "Development server"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health check endpoint",
+        "description": "Check if the API is running",
+        "tags": ["Health"],
+        "responses": {
+          "200": {
+            "description": "API is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "OK"
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "format": "date-time",
+                      "example": "2026-01-27T00:00:00.000Z"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api": {
+      "get": {
+        "summary": "API information",
+        "description": "Get information about available API endpoints",
+        "tags": ["Info"],
+        "responses": {
+          "200": {
+            "description": "API information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "TRAVELLO API"
+                    },
+                    "endpoints": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "summary": "User login",
+        "description": "Authenticate user with email and password",
+        "tags": ["Authentication"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "description": "User email",
+                    "example": "test@example.com"
+                  },
+                  "password": {
+                    "type": "string",
+                    "description": "User password",
+                    "example": "password123"
+                  }
+                },
+                "required": ["email", "password"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Login successful! Welcome back."
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "user": {
+                          "type": "object",
+                          "properties": {
+                            "id": {"type": "string"},
+                            "email": {"type": "string"},
+                            "username": {"type": "string"},
+                            "displayName": {"type": "string"}
+                          }
+                        },
+                        "token": {"type": "string"}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials"
+          }
+        }
+      }
+    },
+    "/api/auth/register": {
+      "post": {
+        "summary": "User registration",
+        "description": "Register a new user account",
+        "tags": ["Authentication"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": {
+                    "type": "string",
+                    "description": "Unique username",
+                    "example": "testuser"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "description": "User email",
+                    "example": "test@example.com"
+                  },
+                  "password": {
+                    "type": "string",
+                    "description": "User password",
+                    "example": "password123"
+                  },
+                  "displayName": {
+                    "type": "string",
+                    "description": "Display name (optional)",
+                    "example": "Test User"
+                  }
+                },
+                "required": ["username", "email", "password"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Registration successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Registration successful! You are now logged in."
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "user": {
+                          "type": "object",
+                          "properties": {
+                            "id": {"type": "string"},
+                            "email": {"type": "string"},
+                            "username": {"type": "string"},
+                            "displayName": {"type": "string"}
+                          }
+                        },
+                        "token": {"type": "string"}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "User already exists or invalid data"
+          }
+        }
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "summary": "Get current user",
+        "description": "Get information about the currently authenticated user",
+        "tags": ["Authentication"],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "googleOAuth": ["profile", "email"]
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "User retrieved successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "user": {
+                          "type": "object",
+                          "properties": {
+                            "id": {"type": "string"},
+                            "email": {"type": "string"},
+                            "username": {"type": "string"},
+                            "displayName": {"type": "string"},
+                            "role": {"type": "string"}
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated"
+          }
+        }
+      }
+    },
+    "/api/auth/google/test": {
+      "get": {
+        "summary": "Test Google OAuth configuration",
+        "description": "Test if Google OAuth is properly configured (no redirect)",
+        "tags": ["Authentication", "OAuth"],
+        "responses": {
+          "200": {
+            "description": "Google OAuth configuration test",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Google OAuth is configured"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "clientId": {
+                          "type": "string",
+                          "example": "858988102830-p3lbl3dlnqcht246c3huji4nplk2s9in.apps.googleusercontent.com"
+                        },
+                        "callbackUrl": {
+                          "type": "string",
+                          "example": "http://localhost:5000/api/auth/google/callback"
+                        },
+                        "testUrl": {
+                          "type": "string",
+                          "example": "http://localhost:5000/api/auth/google?mode=signup"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/google": {
+      "get": {
+        "summary": "Google OAuth login",
+        "description": "Initiate Google OAuth authentication with mode parameter. This endpoint redirects to Google OAuth.",
+        "tags": ["Authentication", "OAuth"],
+        "parameters": [
+          {
+            "name": "mode",
+            "in": "query",
+            "description": "Authentication mode (signup or login)",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["signup", "login"],
+              "default": "login"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirect to Google OAuth - Copy the Location header URL and paste in browser",
+            "headers": {
+              "Location": {
+                "description": "Google OAuth URL - Copy this URL and paste in your browser",
+                "schema": {
+                  "type": "string",
+                  "example": "https://accounts.google.com/oauth/authorize?client_id=858988102830-p3lbl3dlnqcht246c3huji4nplk2s9in.apps.googleusercontent.com&redirect_uri=http://localhost:5000/api/auth/google/callback&response_type=code&scope=profile%20email&access_type=offline&prompt=select_account"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - Invalid parameters"
+          }
+        }
+      }
+    },
+    "/api/auth/google/callback": {
+      "get": {
+        "summary": "Google OAuth callback",
+        "description": "Handle Google OAuth callback and redirect to frontend with authentication data",
+        "tags": ["Authentication", "OAuth"],
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "description": "Authorization code from Google (automatically provided)",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "4/0AX4XfWh..."
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "description": "OAuth state parameter (automatically provided)",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "signup"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirect to frontend with authentication data",
+            "headers": {
+              "Location": {
+                "description": "Frontend callback URL with token and user data",
+                "schema": {
+                  "type": "string",
+                  "example": "http://localhost:5173/auth/callback?token=google_signup_token_1234567890&user=%7B%22id%22%3A%221234567890%22%2C%22email%22%3A%22user%40gmail.com%22%2C%22displayName%22%3A%22John%20Doe%22%7D&action=signup"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "OAuth callback error - Invalid code or state"
+          }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "summary": "User logout",
+        "description": "Logout user and clear token",
+        "tags": ["Authentication"],
+        "responses": {
+          "200": {
+            "description": "Logout successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Logged out successfully"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/config": {
+      "get": {
+        "summary": "Check Google OAuth configuration",
+        "description": "Check if Google OAuth is properly configured",
+        "tags": ["Authentication"],
+        "responses": {
+          "200": {
+            "description": "Configuration status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "config": {
+                          "type": "object",
+                          "properties": {
+                            "clientId": {"type": "string"},
+                            "callbackUrl": {"type": "string"}
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/payments/process": {
+      "post": {
+        "summary": "Process payment",
+        "description": "Process a new payment with various payment methods",
+        "tags": ["Payments"],
+        "security": [
+          {"bearerAuth": []},
+          {"googleOAuth": ["profile", "email"]}
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["method", "amount", "description"],
+                "properties": {
+                  "method": {
+                    "type": "string",
+                    "enum": ["credit_card", "bank_transfer", "ewallet", "virtual_account"],
+                    "example": "credit_card"
+                  },
+                  "amount": {
+                    "type": "number",
+                    "format": "decimal",
+                    "minimum": 1000,
+                    "example": 150000
+                  },
+                  "currency": {
+                    "type": "string",
+                    "default": "IDR",
+                    "example": "IDR"
+                  },
+                  "description": {
+                    "type": "string",
+                    "example": "Hotel booking - Bali Resort"
+                  },
+                  "bookingId": {
+                    "type": "string",
+                    "example": "booking_12345"
+                  },
+                  "customerInfo": {
+                    "type": "object",
+                    "properties": {
+                      "name": {"type": "string", "example": "John Doe"},
+                      "email": {"type": "string", "format": "email", "example": "john@example.com"},
+                      "phone": {"type": "string", "example": "+1234567890"},
+                      "cardDetails": {
+                        "type": "object",
+                        "description": "Required for credit card payments",
+                        "properties": {
+                          "cardNumber": {
+                            "type": "string",
+                            "pattern": "^\\d{16}$",
+                            "description": "16-digit card number without spaces",
+                            "example": "4532015112830366"
+                          },
+                          "expiryDate": {
+                            "type": "string",
+                            "pattern": "^(0[1-9]|1[0-2])\\\\/\\\\d{2}$",
+                            "description": "Expiry date in MM/YY format",
+                            "example": "12/25"
+                          },
+                          "securityCode": {
+                            "type": "string",
+                            "pattern": "^\\d{3,4}$",
+                            "description": "3 or 4-digit CVV/CVC code",
+                            "example": "123"
+                          },
+                          "cardholderName": {
+                            "type": "string",
+                            "description": "Cardholder's full name",
+                            "example": "John Doe"
+                          },
+                          "nameOnCard": {
+                            "type": "string",
+                            "description": "Name exactly as written on card",
+                            "example": "JOHN DOE"
+                          },
+                          "saveCard": {
+                            "type": "boolean",
+                            "description": "Whether to save card for future payments",
+                            "example": false
+                          }
+                        },
+                        "required": ["cardNumber", "expiryDate", "securityCode", "cardholderName", "nameOnCard"]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Payment processed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Payment processed successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "paymentId": {
+                          "type": "string",
+                          "example": "pay_1234567890"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": ["pending", "processing", "completed", "failed"],
+                          "example": "completed"
+                        },
+                        "amount": {
+                          "type": "number",
+                          "example": 150000
+                        },
+                        "currency": {
+                          "type": "string",
+                          "example": "IDR"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "credit_card"
+                        },
+                        "gatewayResponse": {
+                          "type": "object",
+                          "properties": {
+                            "transactionId": {"type": "string", "example": "CC_1643745800000"},
+                            "approvalCode": {"type": "string", "example": "APPROV_ABC123XYZ"},
+                            "maskedCard": {"type": "string", "example": "****-****-****-0366"},
+                            "cardType": {"type": "string", "enum": ["visa", "mastercard", "amex", "discover", "unknown"], "example": "visa"},
+                            "authResponse": {"type": "string", "example": "Approved"},
+                            "avsResponse": {"type": "string", "example": "Y"},
+                            "cvvResponse": {"type": "string", "example": "M"}
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - Invalid input data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {"type": "boolean", "example": false},
+                    "message": {"type": "string", "example": "Invalid card details"},
+                    "errors": {
+                      "type": "array",
+                      "items": {"type": "string"},
+                      "example": [
+                        "Card number must be exactly 16 digits",
+                        "Card has expired",
+                        "Security code must be 3 or 4 digits"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {"type": "boolean", "example": false},
+                    "message": {"type": "string", "example": "Authentication required"}
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {"type": "boolean", "example": false},
+                    "message": {"type": "string", "example": "Failed to process payment"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/payments/methods": {
+      "get": {
+        "summary": "Get available payment methods",
+        "description": "Retrieve list of supported payment methods with their details",
+        "tags": ["Payments"],
+        "security": [
+          {"bearerAuth": []},
+          {"googleOAuth": ["profile", "email"]}
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment methods retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {"type": "boolean", "example": true},
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {"type": "string", "example": "credit_card"},
+                          "name": {"type": "string", "example": "Credit Card"},
+                          "description": {"type": "string", "example": "Visa, Mastercard, JCB"},
+                          "icon": {"type": "string", "example": "💳"},
+                          "fees": {"type": "number", "example": 2.9},
+                          "available": {"type": "boolean", "example": true}
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      },
+      "googleOAuth": {
+        "type": "oauth2",
+        "description": "Google OAuth2 authentication with redirect/popup flow",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://accounts.google.com/oauth/authorize",
+            "tokenUrl": "http://localhost:5000/api/auth/google/callback",
+            "scopes": {
+              "profile": "View basic profile information",
+              "email": "View email address"
+            }
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Health",
+      "description": "Health check endpoints"
+    },
+    {
+      "name": "Info",
+      "description": "API information endpoints"
+    },
+    {
+      "name": "Authentication",
+      "description": "User authentication endpoints"
+    },
+    {
+      "name": "OAuth",
+      "description": "OAuth authentication endpoints"
+    },
+    {
+      "name": "Payments",
+      "description": "Payment processing and management endpoints"
+    }
+  ]
+}

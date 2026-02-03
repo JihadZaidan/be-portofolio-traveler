@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat API Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .container {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        .input-group {
+            margin: 15px 0;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .response {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Gemini Chat API Test</h1>
+        
+        <div class="input-group">
+            <label for="message">Message:</label>
+            <textarea id="message" rows="3" placeholder="Enter your message here...">Hello, how are you?</textarea>
+        </div>
+        
+        <button id="sendButton" onclick="sendMessage()">Send Message</button>
+        <button onclick="clearChat()">Clear</button>
+        
+        <div id="response" class="response" style="display: none;"></div>
+    </div>
+
+    <script>
+        async function sendMessage() {
+            const message = document.getElementById('message').value;
+            const responseDiv = document.getElementById('response');
+            const sendButton = document.getElementById('sendButton');
+            
+            if (!message.trim()) {
+                alert('Please enter a message');
+                return;
+            }
+            
+            // Disable button and show loading
+            sendButton.disabled = true;
+            sendButton.textContent = 'Sending...';
+            responseDiv.style.display = 'block';
+            responseDiv.className = 'response';
+            responseDiv.textContent = 'Sending...';
+            
+            try {
+                const response = await fetch('http://localhost:3000/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: message })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    responseDiv.className = 'response';
+                    responseDiv.innerHTML = `<strong>Reply:</strong><br>${data.data.reply.replace(/\n/g, '<br>')}`;
+                } else {
+                    responseDiv.className = 'response error';
+                    responseDiv.innerHTML = `<strong>Error:</strong><br>${data.message || 'Unknown error'}`;
+                }
+            } catch (error) {
+                responseDiv.className = 'response error';
+                responseDiv.innerHTML = `<strong>Network Error:</strong><br>${error.message}`;
+            } finally {
+                // Re-enable button
+                sendButton.disabled = false;
+                sendButton.textContent = 'Send Message';
+            }
+        }
+        
+        function clearChat() {
+            document.getElementById('message').value = '';
+            document.getElementById('response').style.display = 'none';
+        }
+        
+        // Allow Enter key to send message (Ctrl+Enter for new line)
+        document.getElementById('message').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.ctrlKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
