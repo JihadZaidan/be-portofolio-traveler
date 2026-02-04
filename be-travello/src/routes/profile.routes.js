@@ -1,5 +1,5 @@
-import { Router } from 'express';
-import ProfileController from '../controllers/profile.controller.js';
+const { Router } = require('express');
+const ProfileController = require('../controllers/profile.controller.js');
 
 const router = Router();
 
@@ -21,4 +21,4 @@ router.put('/picture', ProfileController.uploadProfilePicture);
 // Delete user account
 router.delete('/', ProfileController.deleteAccount);
 
-export default router;
+module.exports = router;

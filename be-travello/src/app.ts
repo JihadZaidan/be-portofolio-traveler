@@ -15,6 +15,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import swaggerUi from 'swagger-ui-express';
 import { createRequire } from 'module';
+import { initUser } from './models/User.model.js';
 const require = createRequire(import.meta.url);
 const swaggerDocument = require('./swagger.json');
 
@@ -22,6 +23,19 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app: Application = express();
+
+// Initialize database models
+const initializeDatabase = async () => {
+  try {
+    await initUser();
+    console.log('✅ Database initialized successfully');
+  } catch (error) {
+    console.error('❌ Database initialization failed:', error);
+  }
+};
+
+// Initialize database on startup
+initializeDatabase();
 
 // Swagger documentation with enhanced CORS support
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {

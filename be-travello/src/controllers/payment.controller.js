@@ -23,7 +23,7 @@ class PaymentController {
             }
 
             // Validate payment method
-            const validMethods = ['credit_card', 'bank_transfer', 'ewallet', 'virtual_account'];
+            const validMethods = ['credit_card', 'bank_transfer', 'ewallet', 'virtual_account', 'paypal'];
             if (!validMethods.includes(method)) {
                 return res.status(400).json({
                     success: false,
@@ -39,6 +39,16 @@ class PaymentController {
                         success: false,
                         message: 'Invalid card details',
                         errors: cardValidation.errors
+                    });
+                }
+            }
+
+            // PayPal-specific validation
+            if (method === 'paypal') {
+                if (!customerInfo?.paypalPaymentId) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'PayPal payment ID is required'
                     });
                 }
             }
@@ -123,6 +133,14 @@ class PaymentController {
                     description: 'Visa, Mastercard, JCB',
                     icon: '💳',
                     fees: 2.9, // percentage
+                    available: true
+                },
+                {
+                    id: 'paypal',
+                    name: 'PayPal',
+                    description: 'Fast and secure PayPal payment',
+                    icon: '🅿️',
+                    fees: 3.4, // percentage
                     available: true
                 },
                 {
@@ -465,6 +483,13 @@ class PaymentController {
                 authResponse: 'Approved',
                 avsResponse: 'Y',
                 cvvResponse: 'M'
+            },
+            paypal: {
+                transactionId: customerInfo?.paypalPaymentId || `PP_${Date.now()}`,
+                paypalOrderId: `ORDER_${Math.random().toString(36).substr(2, 12).toUpperCase()}`,
+                paymentStatus: 'COMPLETED',
+                payerId: `PAYER_${Math.random().toString(36).substr(2, 8).toUpperCase()}`,
+                paymentEmail: customerInfo?.email || 'payer@example.com'
             },
             bank_transfer: {
                 virtualAccount: `${Math.random().toString(36).substr(2, 8).toUpperCase()}${Math.random().toString(36).substr(2, 8).toUpperCase()}`,

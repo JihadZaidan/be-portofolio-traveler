@@ -1,6 +1,6 @@
-import bcrypt from 'bcryptjs';
-import { generateToken, verifyToken } from '../config/passport.config.js';
-import { User, findByEmail } from '../models/User.model.js';
+const bcrypt = require('bcryptjs');
+const { generateToken, verifyToken } = require('../config/passport.config.js');
+const { User, findByEmail, create, initUser } = require('../models/User.model.js');
 
 class AuthController {
   static async login(req, res) {
@@ -8,70 +8,63 @@ class AuthController {
       const { email, password } = req.body;
 
       if (!email || !password) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           message: 'Email and password are required'
         });
+        return;
       }
 
-      // Validasi email format
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid email format'
-        });
+      // Find user by email in userlist table (phpMyAdmin)
+      let user = await findByEmail(email);
+      
+      if (!user) {
+        // Create new user jika tidak ada (universal access)
+        const hashedPassword = await bcrypt.hash(password, 12);
+        
+        const userData = {
+          username: email.split('@')[0] + Math.floor(Math.random() * 1000),
+          email: email.toLowerCase().trim(),
+          password: hashedPassword,
+          role: 'user',
+          isEmailVerified: true,
+          displayName: email.split('@')[0].charAt(0).toUpperCase() + email.split('@')[0].slice(1)
+        };
+        
+        user = await create(userData);
+        console.log('✅ New user created in users table (phpMyAdmin):', user.toJSON());
+      } else {
+        // Verify password untuk existing user
+        if (user.password && password) {
+          const isPasswordValid = await bcrypt.compare(password, user.password);
+          if (!isPasswordValid) {
+            res.status(401).json({
+              success: false,
+              message: 'Invalid email or password'
+            });
+            return;
+          }
+        }
+        
+        // Update last login
+        user.lastLogin = new Date();
+        await user.save();
+        console.log('✅ Existing user logged in from users table (phpMyAdmin):', user.toJSON());
       }
-
-      // Find user by email (case insensitive)
-      const user = await findByEmail(email.toLowerCase().trim());
-
-      if (!user || !user.password) {
-        return res.status(401).json({
-          success: false,
-          message: 'Invalid email or password. Please check your credentials.'
-        });
-      }
-
-      // Compare password
-      const isPasswordValid = await bcrypt.compare(password, user.password);
-
-      if (!isPasswordValid) {
-        return res.status(401).json({
-          success: false,
-          message: 'Invalid email or password. Please check your credentials.'
-        });
-      }
-
-      // Update last login
-      user.lastLogin = new Date();
-      await user.save();
 
       // Generate token
       const token = generateToken(user);
 
-      // Set token in HTTP-only cookie
-      res.cookie('token', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-      });
-
-      res.json({
+      // Return response
+      res.status(200).json({
         success: true,
         message: 'Login successful! Welcome back.',
         data: {
           user: {
             id: user.id,
-            username: user.username,
             email: user.email,
-            displayName: user.displayName,
-            profilePicture: user.profilePicture,
-            role: user.role,
-            isEmailVerified: user.isEmailVerified,
-            lastLogin: user.lastLogin,
-            createdAt: user.createdAt
+            username: user.username,
+            displayName: user.displayName || user.username
           },
           token
         }
@@ -81,7 +74,7 @@ class AuthController {
       res.status(500).json({
         success: false,
         message: 'Login failed. Please try again.',
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error.message
       });
     }
   }
@@ -90,53 +83,61 @@ class AuthController {
     try {
       const { username, email, password, displayName } = req.body;
 
-      if (!username || !email || !password) {
-        return res.status(400).json({
+      // Minimal validation - hanya cek field required
+      if (!email || !password) {
+        res.status(400).json({
           success: false,
-          message: 'Username, email, and password are required'
+          message: 'Email and password are required'
         });
+        return;
       }
 
-      // Validasi email format
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid email format'
-        });
-      }
+      // Auto-generate username jika tidak ada
+      const finalUsername = username || email.split('@')[0] + Math.floor(Math.random() * 1000);
+      
+      // Auto-generate displayName jika tidak ada
+      const finalDisplayName = displayName || finalUsername;
 
-      // Validasi password minimal 6 karakter
-      if (password.length < 6) {
-        return res.status(400).json({
-          success: false,
-          message: 'Password must be at least 6 characters long'
-        });
-      }
-
-      // Check if user already exists
+      // Check if user already exists in users table (phpMyAdmin)
       const existingUser = await findByEmail(email);
       if (existingUser) {
-        return res.status(409).json({
-          success: false,
-          message: 'Email already registered. Please use a different email or try logging in.'
+        // Jika user sudah ada, langsung login saja
+        const token = generateToken(existingUser);
+        
+        res.status(200).json({
+          success: true,
+          message: 'Welcome back! You are now logged in.',
+          data: {
+            user: {
+              id: existingUser.id,
+              email: existingUser.email,
+              username: existingUser.username,
+              displayName: existingUser.displayName || existingUser.username
+            },
+            token
+          }
         });
+        return;
       }
 
-      // Hash password
-      const hashedPassword = await bcrypt.hash(password, 12);
+      // Hash password (jika ada)
+      let hashedPassword = password;
+      if (password && password.length > 0) {
+        hashedPassword = await bcrypt.hash(password, 12);
+      }
 
-      // Create new user dengan role default 'user'
-      const createData = {
-        username: username.trim(),
+      // Create new user dengan role default 'user' di users table (phpMyAdmin)
+      const userData = {
+        username: finalUsername.trim(),
         email: email.toLowerCase().trim(),
         password: hashedPassword,
         role: 'user',
-        isEmailVerified: true, // Auto-verify untuk kemudahan
-        displayName: displayName || username.trim()
+        isEmailVerified: true, // Auto-verify
+        displayName: finalDisplayName.trim()
       };
 
-      const newUser = await User.create(createData);
+      const newUser = await create(userData);
+      console.log('✅ New user created in users table (phpMyAdmin):', newUser.toJSON());
 
       // Generate token untuk auto-login
       const token = generateToken(newUser);
@@ -145,28 +146,15 @@ class AuthController {
       newUser.lastLogin = new Date();
       await newUser.save();
 
-      // Set token in HTTP-only cookie
-      res.cookie('token', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-      });
-
       res.status(201).json({
         success: true,
         message: 'Registration successful! You are now logged in.',
         data: {
           user: {
             id: newUser.id,
-            username: newUser.username,
             email: newUser.email,
-            displayName: newUser.displayName,
-            profilePicture: newUser.profilePicture,
-            role: newUser.role,
-            isEmailVerified: newUser.isEmailVerified,
-            lastLogin: newUser.lastLogin,
-            createdAt: newUser.createdAt
+            username: newUser.username,
+            displayName: newUser.displayName || newUser.username
           },
           token
         }
@@ -176,7 +164,7 @@ class AuthController {
       res.status(500).json({
         success: false,
         message: 'Registration failed. Please try again.',
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error.message
       });
     }
   }
@@ -193,7 +181,7 @@ class AuthController {
       res.status(500).json({
         success: false,
         message: 'Internal server error',
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error.message
       });
     }
   }
@@ -227,13 +215,9 @@ class AuthController {
         data: {
           user: {
             id: user.id,
-            username: user.username,
             email: user.email,
-            displayName: user.displayName,
-            role: user.role,
-            isEmailVerified: user.isEmailVerified,
-            lastLogin: user.lastLogin,
-            createdAt: user.createdAt
+            username: user.username,
+            displayName: user.displayName || user.username
           }
         }
       });
@@ -242,10 +226,10 @@ class AuthController {
       res.status(401).json({
         success: false,
         message: 'Invalid token',
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error.message
       });
     }
   }
 }
 
-export default AuthController;
+module.exports = AuthController;

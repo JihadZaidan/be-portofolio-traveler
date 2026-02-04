@@ -1,4 +1,4 @@
-export const validateEnv = () => {
+const validateEnv = () => {
     const requiredEnv = [
         "GEMINI_API_KEY",
         "PORT",
@@ -11,3 +11,5 @@ export const validateEnv = () => {
         throw new Error(`Missing environment variables: ${missingEnv.join(", ")}`);
     }
 };
+
+module.exports = { validateEnv };

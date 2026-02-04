@@ -47,6 +47,51 @@
       "createdAt": "2026-01-27T03:02:27.937Z",
       "updatedAt": "2026-01-27T03:02:27.953Z",
       "lastLogin": "2026-01-27T03:02:27.951Z"
+    },
+    {
+      "id": "37a46e26-978e-4259-bde1-727cce1e1be6",
+      "username": "fufufafa",
+      "email": "chilipari@gmail.com",
+      "password": "$2b$12$vBTj2xKzJ5e.sF8.KzQG9en8B/1UgoCQesI4/56cSYMFN2K3u6Xbq",
+      "role": "user",
+      "isEmailVerified": true,
+      "displayName": "Fufu Fafa",
+      "createdAt": "2026-02-03T04:55:00.000Z",
+      "updatedAt": "2026-02-03T04:58:46.701Z",
+      "lastLogin": "2026-02-03T04:55:00.000Z"
+    },
+    {
+      "id": "308e3cce-c4b9-4ac7-9a55-879ae4336b6a",
+      "username": "admjrevo157",
+      "email": "admjrevo@gmail.com",
+      "password": "$2b$12$SQBjAon4.x0e1RIkHBzQEuOeuLEX3TA8Kwcer03HYpCnJ3Q5I9Nve",
+      "role": "user",
+      "isEmailVerified": true,
+      "displayName": "Admjrevo",
+      "created_at": "2026-02-03T05:48:03.590Z",
+      "updated_at": "2026-02-03T05:48:03.590Z"
+    },
+    {
+      "id": "15fe4292-ffae-403c-ac8e-c285fce842e0",
+      "username": "admjrevo788",
+      "email": "admjrevo@gmail.com",
+      "password": "$2b$12$J6oYXP2a4zH5RSNUOcoMxe1lv17ZjFqPtNl6Vx7OtxhTNQHn/AZ9O",
+      "role": "user",
+      "isEmailVerified": true,
+      "displayName": "Admjrevo",
+      "created_at": "2026-02-03T05:48:15.688Z",
+      "updated_at": "2026-02-03T05:48:15.688Z"
+    },
+    {
+      "id": "6fc022bb-4cf4-4008-993d-c44b638894db",
+      "username": "admjrevo229",
+      "email": "admjrevo@gmail.com",
+      "password": "$2b$12$gB5gvI.alRORk5orudpiZeYBXrrkFOY9No6jmITqSRrtWKMZQ7nGS",
+      "role": "user",
+      "isEmailVerified": true,
+      "displayName": "Admjrevo",
+      "created_at": "2026-02-03T05:48:58.206Z",
+      "updated_at": "2026-02-03T05:48:58.206Z"
     }
   ],
   "chatMessages": [],

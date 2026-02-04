@@ -9,6 +9,11 @@ const BCAAPIService = require('./src/services/bca-api.service.js');
 const BRIAPIService = require('./src/services/bri-api.service.js');
 const PayPalAPIService = require('./src/services/paypal-api.service.js');
 
+// Import Routes
+const authRoutes = require('./src/routes/auth.routes.js');
+const adminRoutes = require('./src/routes/admin.routes.js');
+const travelJournalRoutes = require('./src/routes/travel-journal.routes.js');
+
 const app = express();
 
 // Middleware
@@ -27,6 +32,11 @@ app.use(cors({
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Mount Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/travel-journal', travelJournalRoutes);
 
 // Mobile Banking Notification Service
 class MobileBankingNotification {

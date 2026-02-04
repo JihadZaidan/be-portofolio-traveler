@@ -1,4 +1,4 @@
-require('dotenv').config({ path: './env.local' });
+require('dotenv').config();
 const app = require('./src/app-simple.js');
 
 // Start server

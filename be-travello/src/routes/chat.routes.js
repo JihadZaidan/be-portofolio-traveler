@@ -1,5 +1,5 @@
-import express from "express";
-import { chat } from "../controllers/chat.controller.js";
+const express = require("express");
+const { chat } = require("../controllers/chat.controller.js");
 
 const router = express.Router();
 
@@ -11,4 +11,4 @@ const router = express.Router();
  */
 router.post("/", chat);
 
-export default router;
+module.exports = router;

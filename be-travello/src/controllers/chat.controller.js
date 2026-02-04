@@ -1,7 +1,7 @@
-import { chatWithGemini } from "../services/gemini.servce.js";
-import { successResponse } from "../utils/response.js";
+const { chatWithGemini } = require("../services/gemini.servce.js");
+const { successResponse } = require("../utils/response.js");
 
-export const chat = async (req, res, next) => {
+const chat = async (req, res, next) => {
   try {
     const { message, history } = req.body;
 
@@ -25,3 +25,5 @@ export const chat = async (req, res, next) => {
     next(error);
   }
 };
+
+module.exports = { chat };

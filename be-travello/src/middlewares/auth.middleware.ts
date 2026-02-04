@@ -2,7 +2,16 @@ import { Request, Response, NextFunction } from 'express';
 import { verifyToken } from '../config/passport.config.js';
 import { User } from '../models/User.model.js';
 
-export const isAuthenticated = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+// Extend Express Request type to include user
+declare global {
+  namespace Express {
+    interface Request {
+      user?: any;
+    }
+  }
+}
+
+export const authenticateToken = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const token = req.cookies?.token || req.headers?.authorization?.replace('Bearer ', '');
 
@@ -37,3 +46,6 @@ export const isAuthenticated = async (req: Request, res: Response, next: NextFun
     });
   }
 };
+
+// Keep the old name for backward compatibility
+export const isAuthenticated = authenticateToken;

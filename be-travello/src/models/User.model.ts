@@ -1,5 +1,5 @@
-import { db } from '../config/database.config.js';
-import { v4 as uuidv4 } from 'uuid';
+import { DataTypes, Model, Optional } from 'sequelize';
+import { sequelize } from '../config/database.config.js';
 
 interface UserAttributes {
   id: string;
@@ -17,9 +17,9 @@ interface UserAttributes {
   updatedAt?: Date;
 }
 
-interface UserCreationAttributes extends Omit<UserAttributes, 'id' | 'createdAt' | 'updatedAt'> {}
+interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'createdAt' | 'updatedAt'> {}
 
-class User {
+class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
   public id!: string;
   public username!: string;
   public email!: string;
@@ -33,145 +33,75 @@ class User {
   public lastLogin?: Date;
   public createdAt!: Date;
   public updatedAt!: Date;
-
-  constructor(userData: UserAttributes) {
-    Object.assign(this, userData);
-  }
-
-  // Static methods
-  static async findOne(options: { where?: { id?: string; googleId?: string; githubId?: string; email?: string } }): Promise<User | null> {
-    await db.read();
-    const users = db.data?.users || [];
-    
-    if (options.where?.id) {
-      const user = users.find(u => u.id === options.where!.id);
-      return user ? new User(user) : null;
-    }
-    if (options.where?.googleId) {
-      const user = users.find(u => u.googleId === options.where!.googleId);
-      return user ? new User(user) : null;
-    }
-    if (options.where?.githubId) {
-      const user = users.find(u => u.githubId === options.where!.githubId);
-      return user ? new User(user) : null;
-    }
-    if (options.where?.email) {
-      const user = users.find(u => u.email.toLowerCase() === options.where?.email?.toLowerCase());
-      return user ? new User(user) : null;
-    }
-    
-    return users.length > 0 ? new User(users[0]) : null;
-  }
-
-  static async findAll(): Promise<User[]> {
-    await db.read();
-    const users = db.data?.users || [];
-    return users.map(user => new User(user));
-  }
-
-  static async create(userData: UserCreationAttributes): Promise<User> {
-    await db.read();
-    if (!db.data) db.data = { users: [], chatMessages: [], userSessions: [], travelKnowledge: [] };
-    
-    const newUser: UserAttributes = {
-      id: uuidv4(),
-      ...userData,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    
-    db.data.users.push(newUser);
-    await db.write();
-    
-    return new User(newUser);
-  }
-
-  static async update(data: Partial<UserAttributes>, options: { where: { id: string } }): Promise<[number]> {
-    await db.read();
-    if (!db.data) return [0];
-    
-    const index = db.data.users.findIndex(u => u.id === options.where.id);
-    if (index === -1) return [0];
-    
-    db.data.users[index] = {
-      ...db.data.users[index],
-      ...data,
-      updatedAt: new Date()
-    };
-    
-    await db.write();
-    return [1];
-  }
-
-  static async destroy(options: { where: { id: string } }): Promise<number> {
-    await db.read();
-    if (!db.data) return 0;
-    
-    const index = db.data.users.findIndex(u => u.id === options.where.id);
-    if (index === -1) return 0;
-    
-    db.data.users.splice(index, 1);
-    await db.write();
-    
-    return 1;
-  }
-
-  static async findByPk(id: string): Promise<User | null> {
-    return await User.findOne({ where: { id } });
-  }
-
-  static async sync(): Promise<void> {
-    await db.read();
-    if (!db.data) {
-      db.data = { users: [], chatMessages: [], userSessions: [], travelKnowledge: [] };
-      await db.write();
-    }
-  }
-
-  async save(): Promise<User> {
-    await db.read();
-    if (!db.data) throw new Error('Database not initialized');
-    
-    const index = db.data.users.findIndex(u => u.id === this.id);
-    if (index === -1) {
-      // If user doesn't exist, create it
-      const newUser: UserAttributes = {
-        ...this,
-        createdAt: this.createdAt || new Date(),
-        updatedAt: new Date()
-      };
-      db.data.users.push(newUser);
-    } else {
-      // Update existing user
-      db.data.users[index] = {
-        ...db.data.users[index],
-        ...this,
-        updatedAt: new Date()
-      };
-    }
-    
-    await db.write();
-    return this;
-  }
-
-  toJSON(): UserAttributes {
-    return {
-      id: this.id,
-      username: this.username,
-      email: this.email,
-      password: this.password,
-      googleId: this.googleId,
-      githubId: this.githubId,
-      displayName: this.displayName,
-      profilePicture: this.profilePicture,
-      role: this.role,
-      isEmailVerified: this.isEmailVerified,
-      lastLogin: this.lastLogin,
-      createdAt: this.createdAt,
-      updatedAt: this.updatedAt
-    };
-  }
 }
+
+User.init(
+  {
+    id: {
+      type: DataTypes.STRING(255),
+      primaryKey: true,
+      defaultValue: () => require('uuid').v4()
+    },
+    username: {
+      type: DataTypes.STRING(255),
+      allowNull: false,
+      unique: true
+    },
+    email: {
+      type: DataTypes.STRING(255),
+      allowNull: false,
+      unique: true,
+      validate: {
+        isEmail: true
+      }
+    },
+    password: {
+      type: DataTypes.STRING(255),
+      allowNull: true
+    },
+    googleId: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      unique: true
+    },
+    githubId: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      unique: true
+    },
+    displayName: {
+      type: DataTypes.STRING(255),
+      allowNull: true
+    },
+    profilePicture: {
+      type: DataTypes.TEXT,
+      allowNull: true
+    },
+    role: {
+      type: DataTypes.ENUM('user', 'admin'),
+      allowNull: false,
+      defaultValue: 'user'
+    },
+    isEmailVerified: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false
+    },
+    lastLogin: {
+      type: DataTypes.DATE,
+      allowNull: true
+    }
+  },
+  {
+    sequelize,
+    modelName: 'User',
+    tableName: 'users',
+    timestamps: true,
+    underscored: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at'
+  }
+);
 
 // Static methods
 const findByGoogleId = async (googleId: string): Promise<User | null> => {
@@ -183,7 +113,7 @@ const findByGitHubId = async (githubId: string): Promise<User | null> => {
 };
 
 const findByEmail = async (email: string): Promise<User | null> => {
-  return await User.findOne({ where: { email } });
+  return await User.findOne({ where: { email: email.toLowerCase() } });
 };
 
 const create = async (userData: UserCreationAttributes): Promise<User> => {
@@ -192,7 +122,7 @@ const create = async (userData: UserCreationAttributes): Promise<User> => {
 
 const initUser = async (): Promise<void> => {
   try {
-    await User.sync();
+    await User.sync({ alter: true });
     console.log('✅ User table initialized successfully');
   } catch (error) {
     console.error('❌ Failed to initialize User table:', error);

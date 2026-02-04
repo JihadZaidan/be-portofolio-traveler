@@ -1,17 +1,16 @@
-import express from "express";
-import cors from "cors";
-import session from "express-session";
-import passport from "./config/passport.config.js";
-import chatRoutes from './routes/chat.routes.js';
-import authRoutes from './routes/auth.routes.js';
-import profileRoutes from './routes/profile.routes.js';
-import paymentRoutes from './routes/payment.routes.js';
-import adminTransactionRoutes from './routes/admin-transaction.routes.js';
-import { errorHandler } from "./middlewares/error.middleware.js";
-import swaggerUi from 'swagger-ui-express';
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
+const express = require("express");
+const cors = require("cors");
+const session = require("express-session");
+const passport = require("./config/passport.config.js");
+const chatRoutes = require('./routes/chat.routes.js');
+const authRoutes = require('./routes/auth.routes.js');
+const profileRoutes = require('./routes/profile.routes.js');
+const paymentRoutes = require('./routes/payment.routes.js');
+const adminTransactionRoutes = require('./routes/admin-transaction.routes.js');
+const { errorHandler } = require("./middlewares/error.middleware.js");
+const swaggerUi = require('swagger-ui-express');
 const swaggerDocument = require('./swagger.json');
+const path = require('path');
 
 const app = express();
 
@@ -83,12 +82,6 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Serve static files from public directory
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // Explicit route for OAuth2 redirect
@@ -215,4 +208,4 @@ app.use((req, res) => {
     });
 });
 
-export default app;
+module.exports = app;

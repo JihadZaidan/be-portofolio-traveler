@@ -6,14 +6,22 @@ const swaggerDocument = require('./swagger.json');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const session = require('express-session');
-const { User, findByGoogleId, findByEmail, create, initUser } = require('./models/User.model.js');
+const { User, findByEmail, create, initUser } = require('./models/User.model.js');
+const { initializeDatabase } = require('./config/database.config.js');
 
 // Import routes
-const chatRoutes = require('./routes/chat.routes.js');
+// const chatRoutes = require('./routes/chat.routes.js');
 const authRoutes = require('./routes/auth.routes.js');
 const adminRoutes = require('./routes/admin.routes.js');
-const profileRoutes = require('./routes/profile.routes.js');
-const paymentRoutes = require('./routes/payment.routes.js');
+// const profileRoutes = require('./routes/profile.routes.js');
+// const paymentRoutes = require('./routes/payment.routes.js');
+
+// Initialize phpMyAdmin database and create userlist table
+initializeDatabase().then(() => {
+  console.log('🗄️  phpMyAdmin database initialized with userlist table');
+}).catch(err => {
+  console.error('❌ Failed to initialize phpMyAdmin database:', err);
+});
 
 const app = express();
 
@@ -93,11 +101,11 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 // API routes
-app.use("/api/chat", chatRoutes);
+// app.use("/api/chat", chatRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
-app.use("/api/profile", profileRoutes);
-app.use("/api/payments", paymentRoutes);
+// app.use("/api/profile", profileRoutes);
+// app.use("/api/payments", paymentRoutes);
 
 // Google OAuth Strategy
 passport.use(new GoogleStrategy({
