@@ -1,13 +1,13 @@
 🚀 CARA CEPAT MASUKKAN RIWAYAT TRANSAKSI KE PHPMYADMIN
 
 📋 YANG DIBUTUHKAN:
-- XAMPP/WAMP yang sudah terinstall
+- Laragon/XAMPP/WAMP yang sudah terinstall
 - File: be-travello/database/import-transactions.sql
 
 🔧 LANGKAH-LANGKAH:
 
-1️⃣ START XAMPP/WAMP
-- Buka XAMPP Control Panel
+1️⃣ START LARAGON/XAMPP/WAMP
+- Buka Laragon Control Panel
 - Start Apache dan MySQL
 - Tunggu sampai kedua service hijau
 
@@ -85,7 +85,7 @@ METODE PEMBAYARAN:
 ❓ JIKA ERROR:
 
 "Cannot connect to MySQL server":
-- Pastikan MySQL service running di XAMPP
+- Pastikan MySQL service running di Laragon/XAMPP
 
 "Access denied for user":
 - Cek username/password phpMyAdmin

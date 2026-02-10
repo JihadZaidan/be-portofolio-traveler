@@ -4,6 +4,13 @@ const cors = require('cors');
 const { v4: uuidv4 } = require('uuid');
 const axios = require('axios');
 
+// Import Laragon detector
+const LaragonDetector = require('./src/utils/laragon-detector.js');
+
+// Setup Laragon environment if detected
+LaragonDetector.setupLaragonEnvironment();
+LaragonDetector.logLaragonInfo();
+
 // Import API Services
 const BCAAPIService = require('./src/services/bca-api.service.js');
 const BRIAPIService = require('./src/services/bri-api.service.js');
@@ -664,13 +671,20 @@ app.use((req, res) => {
 });
 
 // Start server
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 5000;
 const server = app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🚀 Travello Server running on port ${PORT}`);
+  console.log(`🏠 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🔧 Database: ${process.env.MYSQL_DATABASE || 'travello_db'} (XAMPP MySQL)`);
   console.log(`🏥 Health check: http://localhost:${PORT}/health`);
   console.log(`💳 Payment API: http://localhost:${PORT}/api/payments/process`);
   console.log(`📋 API Info: http://localhost:${PORT}/api`);
+  console.log(`🌐 Frontend: http://localhost:5173`);
+  console.log(`🗄️ phpMyAdmin: http://localhost/phpmyadmin`);
+  console.log('');
+  console.log('✅ XAMPP Integration Active');
+  console.log('📊 MySQL Port: 3307 (XAMPP default)');
+  console.log('🌍 Apache Port: 80 (XAMPP default)');
 });
 
 // Graceful shutdown

@@ -28,6 +28,32 @@ const LandingPage = sequelize.define('LandingPage', {
     allowNull: true,
     field: 'image_url'
   },
+  // Additional fields for about section
+  experience: {
+    type: DataTypes.JSON,
+    allowNull: true,
+    defaultValue: []
+  },
+  exp1Value: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: 'exp1_value'
+  },
+  exp1Label: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: 'exp1_label'
+  },
+  exp2Value: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: 'exp2_value'
+  },
+  exp2Label: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: 'exp2_label'
+  },
   buttonText: {
     type: DataTypes.STRING,
     allowNull: true,
@@ -53,11 +79,7 @@ const LandingPage = sequelize.define('LandingPage', {
   createdBy: {
     type: DataTypes.STRING,
     allowNull: false,
-    field: 'created_by',
-    references: {
-      model: 'users',
-      key: 'id'
-    }
+    field: 'created_by'
   },
   createdAt: {
     type: DataTypes.DATE,
@@ -132,12 +154,7 @@ const getAllLandingPages = async (filters = {}) => {
 // Get landing page by ID
 const getLandingPageById = async (id) => {
   try {
-    const page = await LandingPage.findByPk(id, {
-      include: [{
-        model: require('./User.model.mysql.js').User,
-        attributes: ['id', 'username', 'email', 'displayName']
-      }]
-    });
+    const page = await LandingPage.findByPk(id);
     return page;
   } catch (error) {
     console.error('❌ Error getting landing page by ID:', error);

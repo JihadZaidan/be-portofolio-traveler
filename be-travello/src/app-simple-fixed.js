@@ -6,10 +6,32 @@ const swaggerDocument = require('./swagger.json');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const session = require('express-session');
+const { Server } = require('socket.io');
+const http = require('http');
+const jwt = require('jsonwebtoken');
 const { User, findByGoogleId, findByEmail, create, initUser, recordLoginHistory, getAllUsers, getUserById, updateUser, deleteUser } = require('./models/User.model.mysql.js');
 const { findShopUserByEmail, findShopUserByGoogleId, createShopUser, initShopUser, updateShopUser, recordShopLoginHistory, getAllShopUsers, getShopUserById, deleteShopUser } = require('./models/ShopUser.model.mysql.js');
+const SocketChatController = require('./controllers/socket-chat.controller.js');
+const { initChatMessage } = require('./models/ChatMessage.model.js');
 
 const app = express();
+const server = http.createServer(app);
+
+// Generate JWT token function
+const generateToken = (user) => {
+  return jwt.sign(
+    { id: user.id, email: user.email, role: user.role || 'user' },
+    process.env.JWT_SECRET || 'fallback_jwt_secret',
+    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+  );
+};
+const io = new Server(server, {
+  cors: {
+    origin: ["http://localhost:5173", "http://localhost:5174", "http://localhost:5175", "http://localhost:5176", "http://localhost:5177", "http://localhost:5178", "http://localhost:5000"],
+    methods: ["GET", "POST"],
+    credentials: true
+  }
+});
 
 // Serve swagger.json
 app.get('/swagger.json', (req, res) => {
@@ -62,6 +84,16 @@ app.use(cors({
     "http://localhost:5001/swagger-oauth2-redirect",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
+    "http://localhost:5175",
+    "http://127.0.0.1:5175",
+    "http://localhost:5176",
+    "http://127.0.0.1:5176",
+    "http://localhost:5177",
+    "http://127.0.0.1:5177",
+    "http://localhost:5178",
+    "http://127.0.0.1:5178",
     "http://localhost:5000/api-docs",
     "http://localhost:5001/api-docs",
     "http://localhost:5000/api-docs/oauth2-redirect.html",
@@ -155,6 +187,61 @@ app.get('/admin/users', (req, res) => {
   res.sendFile(path.join(__dirname, 'admin-users.html'));
 });
 
+// Socket.IO test endpoint
+app.get('/api/test/socket', (req, res) => {
+  try {
+    const io = require('socket.io')(require('http').createServer());
+    res.json({
+      success: true,
+      message: 'Socket.IO test endpoint',
+      data: {
+        timestamp: new Date().toISOString(),
+        serverStatus: 'running',
+        socketConnections: 'Check console for connection count'
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Socket.IO test failed',
+      error: error.message
+    });
+  }
+});
+
+// Test endpoint for chat messages
+app.get('/api/test/chat-messages', async (req, res) => {
+  try {
+    const { getMessagesByRoom, getAllUnreadMessages } = require('./models/ChatMessage.model.js');
+    
+    // Test get all unread messages
+    const unreadMessages = await getAllUnreadMessages();
+    console.log(`📊 Found ${unreadMessages.length} unread messages`);
+    
+    // Test get messages by room
+    const roomId = 'user_hindayeuh1024_gmail_com_admin';
+    const roomMessages = await getMessagesByRoom(roomId);
+    console.log(`📜 Found ${roomMessages.length} messages in room ${roomId}`);
+    
+    res.json({
+      success: true,
+      data: {
+        unreadCount: unreadMessages.length,
+        unreadMessages: unreadMessages.map(msg => msg.toJSON()),
+        roomMessagesCount: roomMessages.length,
+        roomMessages: roomMessages.map(msg => msg.toJSON())
+      }
+    });
+  } catch (error) {
+    console.error('❌ Test chat messages error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to test chat messages',
+      error: error.message
+    });
+  }
+});
+
 // Health check endpoint
 app.get("/health", (req, res) => {
     res.status(200).json({ status: "OK", timestamp: new Date().toISOString() });
@@ -182,284 +269,14 @@ app.get("/api", (req, res) => {
     });
 });
 
-// Basic auth routes
-app.post("/api/auth/login", async (req, res) => {
-  const { email, password } = req.body;
-  const loginPage = req.query.login_page || 'default';
-  
-  if (!email || !password) {
-    return res.status(400).json({
-      success: false,
-      message: 'Email and password are required'
-    });
-  }
+// Import auth controller for database operations
+const AuthController = require('./controllers/auth.controller.js');
 
-  try {
-    let user, userModel;
-    
-    // Check if this is a shop login
-    if (loginPage === 'shop') {
-      // Initialize shop user database
-      await initShopUser();
-      
-      // Check if shop user exists
-      user = await findShopUserByEmail(email);
-      userModel = 'shop';
-      
-      if (!user) {
-        // Create new shop user if doesn't exist (universal access)
-        const userData = {
-          username: email.split('@')[0] + Math.floor(Math.random() * 1000),
-          email: email,
-          displayName: email.split('@')[0].charAt(0).toUpperCase() + email.split('@')[0].slice(1),
-          provider: 'manual',
-          role: 'customer',
-          isEmailVerified: true,
-          lastLogin: new Date()
-        };
-        
-        user = await createShopUser(userData);
-        console.log('✅ New shop user created:', user.toJSON());
-      } else {
-        // Update last login time
-        await updateShopUser(user.id, { lastLogin: new Date() });
-        console.log('✅ Existing shop user logged in:', user.toJSON());
-      }
-      
-      // Record shop login history
-      await recordShopLoginHistory(user.id, {
-        method: 'manual',
-        ipAddress: req.ip || req.connection.remoteAddress,
-        userAgent: req.get('User-Agent')
-      });
-    } else {
-      // Initialize regular user database
-      await initUser();
-      
-      // Check if user exists
-      user = await findByEmail(email);
-      userModel = 'regular';
-      
-      if (!user) {
-        // Create new user if doesn't exist (universal access)
-        const userData = {
-          username: email.split('@')[0] + Math.floor(Math.random() * 1000),
-          email: email,
-          displayName: email.split('@')[0].charAt(0).toUpperCase() + email.split('@')[0].slice(1),
-          provider: 'manual',
-          role: 'user',
-          isEmailVerified: true,
-          lastLogin: new Date()
-        };
-        
-        user = await create(userData);
-        console.log('✅ New user created:', user.toJSON());
-      } else {
-        // Update last login time
-        await User.update(
-          { lastLogin: new Date() },
-          { where: { id: user.id } }
-        );
-        console.log('✅ Existing user logged in:', user.toJSON());
-      }
-      
-      // Record login history
-      await recordLoginHistory(user.id, {
-        method: 'manual',
-        ipAddress: req.ip || req.connection.remoteAddress,
-        userAgent: req.get('User-Agent')
-      });
-    }
-    
-    // Generate JWT token
-    const token = `${userModel}_login_token_${user.id}_${Date.now()}`;
-    
-    // Create user object for response
-    const userResponse = user.toJSON();
-    
-    // Check if this is an API request (JSON response) or browser redirect
-    const isApiRequest = req.headers.accept?.includes('application/json') || 
-                         req.headers['content-type']?.includes('application/json');
-    
-    if (isApiRequest) {
-      // For API requests, return JSON response
-      return res.json({
-        success: true,
-        message: 'Login successful! Welcome back.',
-        data: {
-          user: userResponse,
-          token: token,
-          userType: userModel
-        }
-      });
-    }
-    
-    // For browser requests, redirect based on user type and login page
-    let redirectUrl;
-    
-    if (loginPage === 'aichatbot') {
-      redirectUrl = `http://localhost:5173/ai-chatbot?token=${token}&user=${encodeURIComponent(JSON.stringify(userResponse))}&action=login&auth=success`;
-    } else if (loginPage === 'shop') {
-      redirectUrl = `http://localhost:5173/shop?token=${token}&user=${encodeURIComponent(JSON.stringify(userResponse))}&action=login&auth=success`;
-    } else {
-      // Default redirect to admin/users
-      redirectUrl = `http://localhost:5173/admin/users?token=${token}&user=${encodeURIComponent(JSON.stringify(userResponse))}&action=login&auth=success`;
-    }
-    
-    // Redirect to appropriate page
-    res.redirect(302, redirectUrl);
-    
-  } catch (error) {
-    console.error('❌ Login error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Login failed',
-      error: error.message
-    });
-  }
-});
-
-app.post("/api/auth/register", async (req, res) => {
-  const { username, email, password, displayName } = req.body;
-  const loginPage = req.query.login_page || 'default';
-  
-  if (!username || !email || !password) {
-    return res.status(400).json({
-      success: false,
-      message: 'Username, email, and password are required'
-    });
-  }
-
-  // Allow ANY email format for universal access
-  // Minimal validation only for basic structure
-  if (!email.includes('@')) {
-    return res.status(400).json({
-      success: false,
-      message: 'Please include @ in email'
-    });
-  }
-
-  try {
-    let user, userModel;
-    
-    // Check if this is a shop registration
-    if (loginPage === 'shop') {
-      // Initialize shop user database
-      await initShopUser();
-      
-      // Check if shop user already exists
-      const existingUser = await findShopUserByEmail(email);
-      if (existingUser) {
-        return res.status(400).json({
-          success: false,
-          message: 'Shop user with this email already exists'
-        });
-      }
-      
-      // Create new shop user
-      const userData = {
-        username: username || email.split('@')[0],
-        email: email,
-        displayName: displayName || username || email.split('@')[0],
-        provider: 'manual',
-        role: 'customer',
-        isEmailVerified: true,
-        lastLogin: new Date()
-      };
-      
-      user = await createShopUser(userData);
-      userModel = 'shop';
-      console.log('✅ New shop user registered:', user.toJSON());
-      
-      // Record shop login history for signup
-      await recordShopLoginHistory(user.id, {
-        method: 'manual',
-        ipAddress: req.ip || req.connection.remoteAddress,
-        userAgent: req.get('User-Agent')
-      });
-    } else {
-      // Initialize regular user database
-      await initUser();
-      
-      // Check if user already exists
-      const existingUser = await findByEmail(email);
-      if (existingUser) {
-        return res.status(400).json({
-          success: false,
-          message: 'User with this email already exists'
-        });
-      }
-      
-      // Create new user
-      const userData = {
-        username: username || email.split('@')[0],
-        email: email,
-        displayName: displayName || username || email.split('@')[0],
-        provider: 'manual',
-        role: 'user',
-        isEmailVerified: true,
-        lastLogin: new Date()
-      };
-      
-      user = await create(userData);
-      userModel = 'regular';
-      console.log('✅ New user registered:', user.toJSON());
-      
-      // Record login history for signup
-      await recordLoginHistory(user.id, {
-        method: 'manual',
-        ipAddress: req.ip || req.connection.remoteAddress,
-        userAgent: req.get('User-Agent')
-      });
-    }
-    
-    // Generate JWT token
-    const token = `${userModel}_signup_token_${user.id}_${Date.now()}`;
-    
-    // Create user object for response
-    const userResponse = user.toJSON();
-    
-    // Check if this is an API request (JSON response) or browser redirect
-    const isApiRequest = req.headers.accept?.includes('application/json') || 
-                         req.headers['content-type']?.includes('application/json');
-    
-    if (isApiRequest) {
-      // For API requests, return JSON response
-      return res.status(201).json({
-        success: true,
-        message: 'Registration successful! You are now logged in.',
-        data: {
-          user: userResponse,
-          token: token,
-          userType: userModel
-        }
-      });
-    }
-    
-    // For browser requests, redirect based on user type and login page
-    let redirectUrl;
-    
-    if (loginPage === 'aichatbot') {
-      redirectUrl = `http://localhost:5173/ai-chatbot?token=${token}&user=${encodeURIComponent(JSON.stringify(userResponse))}&action=signup&auth=success`;
-    } else if (loginPage === 'shop') {
-      redirectUrl = `http://localhost:5173/shop?token=${token}&user=${encodeURIComponent(JSON.stringify(userResponse))}&action=signup&auth=success`;
-    } else {
-      // Default redirect to admin/users
-      redirectUrl = `http://localhost:5173/admin/users?token=${token}&user=${encodeURIComponent(JSON.stringify(userResponse))}&action=signup&auth=success`;
-    }
-    
-    // Redirect to appropriate page
-    res.redirect(302, redirectUrl);
-    
-  } catch (error) {
-    console.error('❌ Registration error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Registration failed',
-      error: error.message
-    });
-  }
-});
+// Basic auth routes - Using AuthController for phpMyAdmin integration
+app.post("/api/auth/login", AuthController.login);
+app.post("/api/auth/register", AuthController.register);
+app.post("/api/auth/logout", AuthController.logout);
+app.get("/api/auth/me", AuthController.getMe);
 
 // Get all users (admin endpoint) - Unified for regular and shop users
 app.get("/api/admin/users", async (req, res) => {
@@ -1724,87 +1541,102 @@ app.get("/api/auth/google", (req, res, next) => {
 
 app.get("/api/auth/google/callback", 
   passport.authenticate('google', { 
-    failureRedirect: 'http://localhost:5173/admin/users?auth=error',
-    session: true,
+    failureRedirect: '/api/auth/google/failure',
+    session: false,
     failureMessage: 'Google OAuth authentication failed'
   }),
   (req, res) => {
     try {
       // Successful authentication with REAL Google
       const user = req.user;
-      const loginPage = req.session.login_page || 'default'; // Get login page
-      const mode = req.session.oauth_mode || 'login'; // Get mode
       
-      console.log('Google OAuth callback successful:', { user, mode, loginPage });
+      console.log('Google OAuth callback successful:', { user });
       
-      // Generate JWT token
-      const token = `google_${mode}_token_${user.id}_${Date.now()}`;
+      // Generate proper JWT token
+      const token = generateToken(user);
       
-      // Check if this is a popup request (from Swagger UI)
-      const isPopup = req.headers.accept?.includes('application/json') || 
-                     req.query.popup === 'true' ||
-                     req.get('User-Agent')?.includes('Swagger');
-      
-      if (isPopup) {
-        // For popup requests, return token and user data as JSON
-        return res.json({
-          success: true,
-          message: 'Google OAuth authentication successful',
-          data: {
-            user: {
-              id: user.id,
-              email: user.email,
-              username: user.email?.split('@')[0] || user.displayName,
-              displayName: user.displayName,
-              photo: user.photos?.[0]?.value,
-              provider: 'google'
-            },
-            token,
-            mode,
-            instructions: 'Use this token for authenticated requests'
-          }
-        });
-      }
-      
-      // For browser redirects, create callback URL for frontend
-      const userResponse = user.toJSON();
-      let redirectUrl;
-      
-      if (loginPage === 'aichatbot') {
-        redirectUrl = `http://localhost:5173/ai-chatbot?token=${token}&user=${encodeURIComponent(JSON.stringify(userResponse))}&action=${mode}&auth=success`;
-      } else if (loginPage === 'shop') {
-        redirectUrl = `http://localhost:5173/shop?token=${token}&user=${encodeURIComponent(JSON.stringify(userResponse))}&action=${mode}&auth=success`;
-      } else {
-        // Default redirect to admin/users
-        redirectUrl = `http://localhost:5173/admin/users?token=${token}&user=${encodeURIComponent(JSON.stringify(userResponse))}&action=${mode}&auth=success`;
-      }
-      
-      // Clear session
-      req.session.destroy();
-      
-      // Redirect to frontend
-      res.redirect(redirectUrl);
+      // Redirect to React frontend callback route (existing handler)
+      const redirectUrl = `http://localhost:5173/auth/callback?token=${token}&login_page=aichatbot`;
+      console.log('Redirecting to React auth callback:', redirectUrl);
+      return res.redirect(redirectUrl);
       
     } catch (error) {
       console.error('Google OAuth callback error:', error);
       
-      // Check if this is a popup request
-      const isPopup = req.headers.accept?.includes('application/json') || req.query.popup === 'true';
-      
-      if (isPopup) {
-        return res.status(500).json({
-          success: false,
-          message: 'Google OAuth callback failed',
-          error: error.message || 'Unknown error'
-        });
-      }
-      
-      // For browser redirects, redirect to error page
-      const errorUrl = `http://localhost:5173/admin/users?auth=error&message=callback_failed`;
-      res.redirect(errorUrl);
+      return res.status(500).json({
+        success: false,
+        message: 'Google OAuth callback failed',
+        error: error.message || 'Unknown error'
+      });
     }
   }
 );
+
+// Google OAuth failure handler
+app.get('/api/auth/google/failure', (req, res) => {
+  res.status(401).json({
+    success: false,
+    message: 'Google OAuth authentication failed',
+    error: 'User denied access or authentication failed'
+  });
+});
+
+// Get current user info (compatible with Google OAuth)
+app.get('/api/auth/me', async (req, res) => {
+  try {
+    const token = req.cookies?.token || req.headers?.authorization?.replace('Bearer ', '');
+    
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    // Verify JWT token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_jwt_secret');
+    
+    // Try to find user in database
+    let user = null;
+    try {
+      user = await User.findByPk(decoded.id);
+    } catch (error) {
+      console.log('Database lookup failed, using token data');
+    }
+    
+    // If user not found in database, use token data
+    if (!user) {
+      user = {
+        id: decoded.id,
+        email: decoded.email,
+        username: decoded.email?.split('@')[0] || 'user',
+        displayName: decoded.email?.split('@')[0] || 'User'
+      };
+    } else {
+      user = {
+        id: user.id,
+        email: user.email,
+        username: user.username || user.email?.split('@')[0],
+        displayName: user.displayName || user.username
+      };
+    }
+
+    res.json({
+      success: true,
+      message: 'User retrieved successfully',
+      data: {
+        user: user
+      }
+    });
+  } catch (error) {
+    console.error('Get user error:', error);
+    res.status(401).json({
+      success: false,
+      message: 'Invalid token',
+      error: error.message
+    });
+  }
+});
 
 // Default route redirect to login
 app.get('/', (req, res) => {
@@ -1814,6 +1646,34 @@ app.get('/', (req, res) => {
 // Payment routes
 const paymentRoutes = require('./routes/payment.routes.js');
 app.use('/api/payments', paymentRoutes);
+
+// Admin transactions routes
+const adminTransactionsRoutes = require('./routes/admin-transactions.routes.js');
+app.use('/api/admin/transactions', adminTransactionsRoutes);
+
+// Travel journal routes
+const travelJournalRoutes = require('./routes/travel-journal.routes.js');
+app.use('/api/travel-journal', travelJournalRoutes);
+
+// AI Chatbot routes
+const aiChatbotRoutes = require('./routes/ai-chatbot.routes.js');
+app.use('/api/ai-chatbot', aiChatbotRoutes);
+
+// Enhanced AI Chatbot routes
+const enhancedAIChatbotRoutes = require('./routes/enhanced-ai-chatbot.routes.js');
+app.use('/api/enhanced-ai-chatbot', enhancedAIChatbotRoutes);
+
+// Certification routes
+const adminRoutes = require('./routes/admin.routes.js');
+const socketChatRoutes = require('./routes/socket-chat.routes.js');
+const certificationRoutes = require('./routes/certification.routes.js');
+const experienceRoutes = require('./routes/experience.routes.js');
+
+// API routes
+app.use('/api/admin', adminRoutes);
+app.use('/api/socket/chat', socketChatRoutes);
+app.use('/api/certifications', certificationRoutes);
+app.use('/api/experiences', experienceRoutes);
 
 // Error handling
 app.use((err, req, res, next) => {
@@ -1841,21 +1701,131 @@ app.use((req, res) => {
             "GET /api/auth/google": "Google OAuth login",
             "GET /api/auth/google/callback": "Google OAuth callback",
             "GET /api/admin/users": "Get all users",
-            "GET /api/admin/users/:id": "Get user by ID"
+            "GET /api/admin/users/:id": "Get user by ID",
+            "GET /api/chat/history": "Get chat history",
+            "GET /api/chat/unread-count": "Get unread messages count",
+            "GET /api/ai-chatbot/health": "AI chatbot health check",
+            "POST /api/ai-chatbot/chat": "AI chatbot chat endpoint",
+            "GET /api/ai-chatbot/history": "Get AI chatbot history",
+            "GET /api/ai-chatbot/suggestions": "Get AI chatbot suggestions",
+            "GET /api/travel-journal": "Get all travel journals",
+            "POST /api/travel-journal": "Create travel journal",
+            "GET /api/travel-journal/:id": "Get travel journal by ID",
+            "PUT /api/travel-journal/:id": "Update travel journal",
+            "DELETE /api/travel-journal/:id": "Delete travel journal"
         }
     });
 });
 
+// Chat API routes
+console.log('🔧 Registering chat routes...');
+app.get('/api/chat/history', (req, res) => {
+  console.log('📝 Chat history route called');
+  SocketChatController.getChatHistory(req, res);
+});
+app.get('/api/chat/unread-count', (req, res) => {
+  console.log('📊 Unread count route called');
+  SocketChatController.getUnreadCount(req, res);
+});
+console.log('✅ Chat routes registered successfully');
+
+// Admin Chat History API routes
+const AdminChatHistoryController = require('./controllers/admin-chat-history.controller.js');
+console.log('🔧 Registering admin chat history routes...');
+
+// Get admin chat history with filters
+app.get('/api/admin/chat-history', AdminChatHistoryController.getAdminChatHistory);
+
+// Get chat session by room ID
+app.get('/api/admin/chat-history/session/:roomId', AdminChatHistoryController.getChatSession);
+
+// Update chat session
+app.put('/api/admin/chat-history/session/:roomId', AdminChatHistoryController.updateChatSession);
+
+// Mark chat as resolved
+app.put('/api/admin/chat-history/resolve/:messageId', AdminChatHistoryController.markChatAsResolved);
+
+// Get admin chat statistics
+app.get('/api/admin/chat-history/stats', AdminChatHistoryController.getAdminChatStats);
+
+// Get chat by date range
+app.get('/api/admin/chat-history/date-range', AdminChatHistoryController.getChatByDateRange);
+
+// Get chat categories
+app.get('/api/admin/chat-history/categories', AdminChatHistoryController.getChatCategories);
+
+// Export chat history
+app.get('/api/admin/chat-history/export', AdminChatHistoryController.exportChatHistory);
+
+// Create admin chat history entry
+app.post('/api/admin/chat-history', AdminChatHistoryController.createAdminChatHistory);
+
+console.log('✅ Admin chat history routes registered successfully');
+
 const PORT = process.env.PORT || 5000;
 
-// Start server
+// Initialize database and start server
 if (require.main === module) {
-  app.listen(PORT, () => {
-    console.log(`🚀 Travello API Server running on http://localhost:${PORT}`);
-    console.log(`📚 Swagger Documentation: http://localhost:${PORT}/api-docs`);
-    console.log(`🏥 Health Check: http://localhost:${PORT}/health`);
-    console.log(`📋 API Info: http://localhost:${PORT}/api`);
-  });
+  // Initialize database first
+  const { initializeDatabase } = require('./config/database.config.js');
+  const { initUser } = require('./models/User.model.js');
+  const { initChatMessage } = require('./models/ChatMessage.model.js');
+  const { initAdminChatHistory } = require('./models/AdminChatHistory.model.js');
+  
+  initializeDatabase()
+    .then(() => {
+      console.log('✅ Database initialized successfully');
+      
+      // Initialize User model
+      return initUser();
+    })
+    .then(() => {
+      console.log('✅ User model synchronized');
+      
+      // Initialize ChatMessage model
+      return initChatMessage();
+    })
+    .then(() => {
+      console.log('✅ ChatMessage model synchronized');
+      
+      // Initialize AdminChatHistory model
+      return initAdminChatHistory();
+    })
+    .then(() => {
+      console.log('✅ AdminChatHistory model synchronized');
+      
+      // Initialize Socket.IO
+      SocketChatController.initializeSocket(io);
+      console.log('✅ Socket.IO initialized');
+      
+      // Start server with Socket.IO
+      server.listen(PORT, () => {
+        console.log(`🚀 Travello API Server running on http://localhost:${PORT}`);
+        console.log(`📚 Swagger Documentation: http://localhost:${PORT}/api-docs`);
+        console.log(`🏥 Health Check: http://localhost:${PORT}/health`);
+        console.log(`📋 API Info: http://localhost:${PORT}/api`);
+        console.log(`💬 Socket.IO Chat: ws://localhost:${PORT}`);
+        console.log(`📊 Admin Chat History: http://localhost:${PORT}/api/admin/chat-history`);
+      });
+    })
+    .catch((error) => {
+      console.error('❌ Database initialization failed:', error.message);
+      console.log('⚠️  Starting server without database connection...');
+      
+      // Initialize Socket.IO anyway
+      SocketChatController.initializeSocket(io);
+      console.log('✅ Socket.IO initialized (without database)');
+      
+      // Start server anyway
+      server.listen(PORT, () => {
+        console.log(`🚀 Travello API Server running on http://localhost:${PORT} (without database)`);
+        console.log(`📚 Swagger Documentation: http://localhost:${PORT}/api-docs`);
+        console.log(`🏥 Health Check: http://localhost:${PORT}/health`);
+        console.log(`📋 API Info: http://localhost:${PORT}/api`);
+        console.log(`💬 Socket.IO Chat: ws://localhost:${PORT}`);
+        console.log('⚠️  Database features disabled');
+      });
+    });
 }
 
 module.exports = app;

@@ -1,28 +1,31 @@
 const { Router } = require('express');
-const PaymentController = require('../controllers/payment.controller.js');
+const MidtransPaymentController = require('../controllers/payment.controller.js');
 const { authenticateToken } = require('../middlewares/auth.middleware.js');
 
 const router = Router();
 
-// All payment routes require authentication
+// Get available payment methods (Midtrans supported) - Public endpoint
+router.get('/methods', MidtransPaymentController.getPaymentMethods);
+
+// Midtrans payment processing - Temporarily public for testing
+router.post('/create', MidtransPaymentController.createPayment);
+
+// Get payment status - Temporarily public for testing
+router.get('/status/:orderId', MidtransPaymentController.getPaymentStatus);
+
+// All other routes require authentication
 router.use(authenticateToken);
 
-// Payment processing
-router.post('/process', PaymentController.processPayment);
-
-// Get payment methods
-router.get('/methods', PaymentController.getPaymentMethods);
-
 // Get payment history
-router.get('/history', PaymentController.getPaymentHistory);
+router.get('/history', MidtransPaymentController.getPaymentHistory);
 
 // Get payment details
-router.get('/details/:paymentId', PaymentController.getPaymentDetails);
+router.get('/details/:paymentId', MidtransPaymentController.getPaymentDetails);
 
 // Refund payment
-router.post('/refund/:paymentId', PaymentController.refundPayment);
+router.post('/refund/:paymentId', MidtransPaymentController.refundPayment);
 
-// Verify payment status
-router.get('/verify/:paymentId', PaymentController.verifyPayment);
+// Webhook endpoint for Midtrans notifications (no auth required)
+router.post('/webhook', MidtransPaymentController.handleWebhook);
 
 module.exports = router;

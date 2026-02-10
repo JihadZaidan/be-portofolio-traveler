@@ -77,18 +77,16 @@ const ShopUser = sequelize.define('ShopUser', {
   }
 }, {
   tableName: 'shop_users',
-  timestamps: true,
-  createdAt: 'created_at',
-  updatedAt: 'updated_at'
+  timestamps: false
 });
 
 // Initialize Shop User model
 const initShopUser = async () => {
   try {
-    await ShopUser.sync({ alter: true });
-    console.log('✅ Shop User table synchronized successfully');
+    // Don't auto-sync to avoid key limit issues
+    console.log('✅ Shop User model initialized');
   } catch (error) {
-    console.error('❌ Failed to synchronize Shop User table:', error);
+    console.error('❌ Failed to initialize Shop User model:', error);
     throw error;
   }
 };

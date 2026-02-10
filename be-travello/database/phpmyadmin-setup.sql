@@ -37,8 +37,8 @@ CREATE TABLE IF NOT EXISTS users (
 -- PAYMENTS TABLE - Payment transaction records
 -- ========================================
 CREATE TABLE IF NOT EXISTS payments (
-    id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL,
+    id VARCHAR(255) PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL,
     method TEXT NOT NULL CHECK (method IN ('credit_card', 'bank_transfer', 'ewallet', 'virtual_account')),
     amount DECIMAL(10,2) NOT NULL,
     currency TEXT NOT NULL DEFAULT 'IDR',
@@ -65,8 +65,8 @@ CREATE TABLE IF NOT EXISTS payments (
 -- PAYMENT TRANSACTIONS TABLE - Detailed transaction logs
 -- ========================================
 CREATE TABLE IF NOT EXISTS payment_transactions (
-    id TEXT PRIMARY KEY,
-    payment_id TEXT NOT NULL,
+    id VARCHAR(255) PRIMARY KEY,
+    payment_id VARCHAR(255) NOT NULL,
     type TEXT NOT NULL CHECK (type IN ('payment', 'refund', 'fee', 'adjustment')),
     amount DECIMAL(10,2) NOT NULL,
     currency TEXT NOT NULL DEFAULT 'IDR',
@@ -88,7 +88,7 @@ CREATE TABLE IF NOT EXISTS payment_transactions (
 -- PAYMENT METHODS TABLE - Payment method configuration
 -- ========================================
 CREATE TABLE IF NOT EXISTS payment_methods (
-    id TEXT PRIMARY KEY,
+    id VARCHAR(255) PRIMARY KEY,
     name TEXT NOT NULL,
     display_name TEXT NOT NULL,
     description TEXT,

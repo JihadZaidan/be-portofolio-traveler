@@ -39,30 +39,24 @@ router.get('/google/callback',
       // Generate JWT token
       const token = generateToken(user);
 
-      // For Swagger UI and API clients, return JSON response
-      if (req.headers.accept?.includes('application/json')) {
-        res.json({
-          success: true,
-          message: 'Google OAuth authentication successful',
-          data: {
-            user: {
-              id: user.id,
-              username: user.username,
-              email: user.email,
-              displayName: user.displayName,
-              profilePicture: user.profilePicture,
-              role: user.role,
-              isEmailVerified: user.isEmailVerified
-            },
-            token,
-            instructions: 'Use this token for authenticated requests'
-          }
-        });
-      } else {
-        // For web browsers, redirect to frontend with token
-        const redirectUrl = `${process.env.CORS_ORIGIN || 'http://localhost:5173'}?auth=success&token=${token}`;
-        res.redirect(redirectUrl);
-      }
+      // Always return JSON response - no redirects to admin pages
+      res.json({
+        success: true,
+        message: 'Google OAuth authentication successful',
+        data: {
+          user: {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            displayName: user.displayName,
+            profilePicture: user.profilePicture,
+            role: user.role,
+            isEmailVerified: user.isEmailVerified
+          },
+          token,
+          instructions: 'Use this token for authenticated requests'
+        }
+      });
     } catch (error) {
       console.error('Google OAuth callback processing error:', error);
       res.status(500).json({

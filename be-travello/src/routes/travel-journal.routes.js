@@ -2,25 +2,22 @@ const { Router } = require('express');
 const { v4: uuidv4 } = require('uuid');
 const router = Router();
 
-// In-memory storage (tanpa database phpMyAdmin)
-let travelJournals = [
-  {
-    id: 1,
-    name: "Bali",
-    cover: "/foto 2.jpg",
-    images: ["/foto 2.jpg", "/foto 5.jpg", "/foto 7.jpg"],
-    createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days ago
-    status: "active"
-  },
-  {
-    id: 2,
-    name: "Tokyo",
-    cover: "/foto 1.jpg",
-    images: ["/foto 1.jpg"],
-    createdAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(), // 14 days ago
-    status: "active"
-  }
-];
+// Import travel journal model functions
+const {
+  TravelJournal,
+  findAll,
+  findById,
+  create,
+  updateById,
+  deleteById
+} = require('../models/TravelJournal.model.mysql.js');
+
+// In-memory storage for contact messages
+let contactMessages = [];
+let messageIdCounter = 1;
+
+// In-memory storage for admin replies
+let adminReplies = [];
 
 // Helper function to get relative time like "54w", "12w", "3d"
 function getRelativeTime(dateString) {
@@ -51,21 +48,219 @@ function getRelativeTime(dateString) {
 // Get all travel journals
 router.get('/', async (req, res) => {
   try {
+    const journals = await findAll();
+    
     res.json({
       success: true,
       data: {
-        journals: travelJournals.map(journal => ({
-          ...journal,
+        journals: journals.map(journal => ({
+          id: journal.id,
+          name: journal.name,
+          cover: journal.cover_image,
+          images: typeof journal.images === 'string' ? JSON.parse(journal.images) : (journal.images || []),
+          createdAt: journal.created_at,
+          status: journal.status,
           // Add timestamp for frontend (like "54w", "12w", etc.)
-          timestamp: getRelativeTime(journal.createdAt)
+          timestamp: getRelativeTime(journal.created_at)
         })),
-        count: travelJournals.length
+        count: journals.length
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching travel journals:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch travel journals',
+      error: error.message
+    });
+  }
+});
+
+// Contact Messages API - Connect shop contact to admin chat
+
+// Get all contact messages for admin chat
+router.get('/contact-messages', async (req, res) => {
+  try {
+    res.json({
+      success: true,
+      data: {
+        messages: contactMessages,
+        count: contactMessages.length
       }
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch travel journals',
+      message: 'Failed to fetch contact messages',
+      error: error.message
+    });
+  }
+});
+
+// Create new contact message from shop
+router.post('/contact-messages', async (req, res) => {
+  try {
+    const { name, email, message, productId, productTitle } = req.body;
+    
+    if (!name || !message) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name and message are required'
+      });
+    }
+    
+    const newContactMessage = {
+      id: messageIdCounter++,
+      name: name || 'Anonymous User',
+      email: email || '',
+      message: message,
+      productId: productId || null,
+      productTitle: productTitle || '',
+      createdAt: new Date().toISOString(),
+      status: 'unread',
+      source: 'shop'
+    };
+    
+    contactMessages.unshift(newContactMessage); // Add to beginning of array
+    
+    res.status(201).json({
+      success: true,
+      message: 'Contact message sent successfully',
+      data: {
+        message: newContactMessage
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to send contact message',
+      error: error.message
+    });
+  }
+});
+
+// Mark contact message as read
+router.put('/contact-messages/:id/read', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const messageIndex = contactMessages.findIndex(m => m.id === parseInt(id));
+    
+    if (messageIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: 'Contact message not found'
+      });
+    }
+    
+    contactMessages[messageIndex].status = 'read';
+    
+    res.json({
+      success: true,
+      message: 'Contact message marked as read',
+      data: {
+        message: contactMessages[messageIndex]
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to mark message as read',
+      error: error.message
+    });
+  }
+});
+
+// Delete contact message
+router.delete('/contact-messages/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const messageIndex = contactMessages.findIndex(m => m.id === parseInt(id));
+    
+    if (messageIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: 'Contact message not found'
+      });
+    }
+    
+    const deletedMessage = contactMessages.splice(messageIndex, 1)[0];
+    
+    res.json({
+      success: true,
+      message: 'Contact message deleted successfully',
+      data: {
+        message: deletedMessage
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete contact message',
+      error: error.message
+    });
+  }
+});
+
+// Admin replies endpoint
+router.post('/admin-replies', async (req, res) => {
+  try {
+    const { message, customerName, adminName } = req.body;
+    
+    if (!message || !customerName) {
+      return res.status(400).json({
+        success: false,
+        message: 'Message and customer name are required'
+      });
+    }
+    
+    // Store admin reply (in a real app, this would be stored in database)
+    const adminReply = {
+      id: adminReplies.length > 0 ? Math.max(...adminReplies.map(r => r.id)) + 1 : 1,
+      message: message,
+      customerName: customerName,
+      adminName: adminName || 'Admin',
+      createdAt: new Date().toISOString(),
+      status: 'sent'
+    };
+    
+    adminReplies.push(adminReply);
+    
+    console.log(`Admin reply sent to ${customerName}: ${message}`);
+    
+    res.status(201).json({
+      success: true,
+      message: 'Admin reply sent successfully',
+      data: {
+        reply: adminReply
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to send admin reply',
+      error: error.message
+    });
+  }
+});
+
+// Get admin replies for customer
+router.get('/admin-replies/:customerName', async (req, res) => {
+  try {
+    const { customerName } = req.params;
+    
+    const customerReplies = adminReplies.filter(reply => reply.customerName === customerName);
+    
+    res.json({
+      success: true,
+      data: {
+        replies: customerReplies,
+        count: customerReplies.length
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch admin replies',
       error: error.message
     });
   }
@@ -75,7 +270,8 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const journal = travelJournals.find(j => j.id === parseInt(id));
+    
+    const journal = await findById(id);
     
     if (!journal) {
       return res.status(404).json({
@@ -88,12 +284,18 @@ router.get('/:id', async (req, res) => {
       success: true,
       data: {
         journal: {
-          ...journal,
-          timestamp: getRelativeTime(journal.createdAt)
+          id: journal.id,
+          name: journal.name,
+          cover: journal.cover_image,
+          images: typeof journal.images === 'string' ? JSON.parse(journal.images) : (journal.images || []),
+          createdAt: journal.created_at,
+          status: journal.status,
+          timestamp: getRelativeTime(journal.created_at)
         }
       }
     });
   } catch (error) {
+    console.error('Error fetching travel journal:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch travel journal',
@@ -114,28 +316,32 @@ router.post('/', async (req, res) => {
       });
     }
     
-    const newJournal = {
-      id: travelJournals.length > 0 ? Math.max(...travelJournals.map(j => j.id)) + 1 : 1,
+    const journalData = {
       name,
-      cover,
+      cover_image: cover,
       images: images || [],
-      createdAt: new Date().toISOString(),
-      status: "active"
+      status: 'active'
     };
     
-    travelJournals.push(newJournal);
+    const newJournal = await create(journalData);
     
     res.status(201).json({
       success: true,
       message: 'Travel journal created successfully',
       data: {
         journal: {
-          ...newJournal,
-          timestamp: getRelativeTime(newJournal.createdAt)
+          id: newJournal.id,
+          name: newJournal.name,
+          cover: newJournal.cover_image,
+          images: typeof newJournal.images === 'string' ? JSON.parse(newJournal.images) : (newJournal.images || []),
+          createdAt: newJournal.created_at,
+          status: newJournal.status,
+          timestamp: getRelativeTime(newJournal.created_at)
         }
       }
     });
   } catch (error) {
+    console.error('Error creating travel journal:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to create travel journal',
@@ -150,33 +356,36 @@ router.put('/:id', async (req, res) => {
     const { id } = req.params;
     const { name, cover, images } = req.body;
     
-    const journalIndex = travelJournals.findIndex(j => j.id === parseInt(id));
+    const updateData = {};
+    if (name) updateData.name = name;
+    if (cover) updateData.cover_image = cover;
+    if (images) updateData.images = images;
     
-    if (journalIndex === -1) {
-      return res.status(404).json({
-        success: false,
-        message: 'Travel journal not found'
-      });
-    }
-    
-    travelJournals[journalIndex] = {
-      ...travelJournals[journalIndex],
-      ...(name && { name }),
-      ...(cover && { cover }),
-      ...(images && { images })
-    };
+    const updatedJournal = await updateById(id, updateData);
     
     res.json({
       success: true,
       message: 'Travel journal updated successfully',
       data: {
         journal: {
-          ...travelJournals[journalIndex],
-          timestamp: getRelativeTime(travelJournals[journalIndex].createdAt)
+          id: updatedJournal.id,
+          name: updatedJournal.name,
+          cover: updatedJournal.cover_image,
+          images: typeof updatedJournal.images === 'string' ? JSON.parse(updatedJournal.images) : (updatedJournal.images || []),
+          createdAt: updatedJournal.created_at,
+          status: updatedJournal.status,
+          timestamp: getRelativeTime(updatedJournal.created_at)
         }
       }
     });
   } catch (error) {
+    console.error('Error updating travel journal:', error);
+    if (error.message === 'Travel journal not found') {
+      return res.status(404).json({
+        success: false,
+        message: 'Travel journal not found'
+      });
+    }
     res.status(500).json({
       success: false,
       message: 'Failed to update travel journal',
@@ -189,25 +398,31 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const journalIndex = travelJournals.findIndex(j => j.id === parseInt(id));
     
-    if (journalIndex === -1) {
-      return res.status(404).json({
-        success: false,
-        message: 'Travel journal not found'
-      });
-    }
-    
-    const deletedJournal = travelJournals.splice(journalIndex, 1)[0];
+    const deletedJournal = await deleteById(id);
     
     res.json({
       success: true,
       message: 'Travel journal deleted successfully',
       data: {
-        journal: deletedJournal
+        journal: {
+          id: deletedJournal.id,
+          name: deletedJournal.name,
+          cover: deletedJournal.cover_image,
+          images: deletedJournal.images || [],
+          createdAt: deletedJournal.created_at,
+          status: deletedJournal.status
+        }
       }
     });
   } catch (error) {
+    console.error('Error deleting travel journal:', error);
+    if (error.message === 'Travel journal not found') {
+      return res.status(404).json({
+        success: false,
+        message: 'Travel journal not found'
+      });
+    }
     res.status(500).json({
       success: false,
       message: 'Failed to delete travel journal',
@@ -223,17 +438,18 @@ router.post('/cleanup', async (req, res) => {
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     
     // Find journals older than 24 hours
-    const oldJournals = travelJournals.filter(journal => 
-      new Date(journal.createdAt) < twentyFourHoursAgo
+    const journals = await findAll();
+    const oldJournals = journals.filter(journal => 
+      new Date(journal.created_at) < twentyFourHoursAgo
     );
     
     // In production, you would also delete the actual image files
     // from your storage (S3, local filesystem, etc.)
     
-    // Remove old journals
-    travelJournals = travelJournals.filter(journal => 
-      new Date(journal.createdAt) >= twentyFourHoursAgo
-    );
+    // Delete old journals from database
+    for (const journal of oldJournals) {
+      await deleteById(journal.id);
+    }
     
     res.json({
       success: true,

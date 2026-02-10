@@ -1,173 +1,88 @@
-const { v4: uuidv4 } = require('uuid');
-const { db } = require('../config/database.config.js');
+const MidtransPaymentService = require('../services/payment.service.js');
 
-class PaymentController {
-    // Process payment
-    static async processPayment(req, res) {
+// Helper function to map Midtrans status to frontend status
+const mapMidtransStatus = (midtransStatus) => {
+    const statusMap = {
+        'settlement': 'paid',
+        'pending': 'processing',
+        'authorize': 'processing',
+        'deny': 'cancelled',
+        'expire': 'cancelled',
+        'cancel': 'cancelled',
+        'refund': 'refunded'
+    };
+    return statusMap[midtransStatus] || 'processing';
+};
+
+class MidtransPaymentController {
+    // Create Midtrans payment
+    static async createPayment(req, res) {
         try {
             const { 
-                method, 
                 amount, 
-                currency = 'IDR', 
-                description, 
-                bookingId,
-                customerInfo 
+                customerDetails, 
+                itemDetails, 
+                orderId,
+                callbacks 
             } = req.body;
 
             // Validate required fields
-            if (!method || !amount || !description) {
+            if (!amount || !customerDetails || !itemDetails || !orderId) {
                 return res.status(400).json({
                     success: false,
-                    message: 'Method, amount, and description are required'
+                    message: 'Amount, customer details, item details, and order ID are required'
                 });
             }
 
-            // Validate payment method
-            const validMethods = ['credit_card', 'bank_transfer', 'ewallet', 'virtual_account', 'paypal'];
-            if (!validMethods.includes(method)) {
+            // Validate customer details
+            if (!customerDetails.firstName || !customerDetails.lastName || !customerDetails.email) {
                 return res.status(400).json({
                     success: false,
-                    message: 'Invalid payment method'
+                    message: 'Customer first name, last name, and email are required'
                 });
             }
 
-            // Card-specific validation
-            if (method === 'credit_card') {
-                const cardValidation = this.validateCardDetails(customerInfo?.cardDetails);
-                if (!cardValidation.isValid) {
-                    return res.status(400).json({
-                        success: false,
-                        message: 'Invalid card details',
-                        errors: cardValidation.errors
-                    });
-                }
+            // Validate item details
+            if (!Array.isArray(itemDetails) || itemDetails.length === 0) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Item details must be a non-empty array'
+                });
             }
 
-            // PayPal-specific validation
-            if (method === 'paypal') {
-                if (!customerInfo?.paypalPaymentId) {
-                    return res.status(400).json({
-                        success: false,
-                        message: 'PayPal payment ID is required'
-                    });
-                }
-            }
-
-            // Generate payment ID
-            const paymentId = uuidv4();
-
-            // Create payment record
-            const payment = {
-                id: paymentId,
-                user_id: req.user.id,
-                method,
+            // Create payment with Midtrans
+            const paymentResult = await MidtransPaymentService.createPayment({
                 amount: parseFloat(amount),
-                currency,
-                description,
-                booking_id: bookingId || null,
-                customer_info: JSON.stringify(customerInfo || {}),
-                status: 'pending',
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-            };
-
-            // Save to database
-            const stmt = db.prepare('INSERT INTO payments (id, user_id, method, amount, currency, description, booking_id, customer_info, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-            const result = await stmt.run(
-                payment.id,
-                payment.user_id,
-                payment.method,
-                payment.amount,
-                payment.currency,
-                payment.description,
-                payment.booking_id,
-                payment.customer_info,
-                payment.status,
-                payment.created_at,
-                payment.updated_at
-            );
-
-            // Simulate payment processing (in real app, integrate with payment gateway)
-            const paymentResult = await this.simulatePaymentGateway(payment, customerInfo?.cardDetails);
-
-            // Update payment status
-            const updateStmt = db.prepare('UPDATE payments SET status = ?, updated_at = ?, payment_gateway_response = ? WHERE id = ?');
-            await updateStmt.run(
-                paymentResult.status,
-                new Date().toISOString(),
-                JSON.stringify(paymentResult.gatewayResponse),
-                paymentId
-            );
-
-            res.json({
-                success: true,
-                message: 'Payment processed successfully',
-                data: {
-                    paymentId,
-                    status: paymentResult.status,
-                    amount: payment.amount,
-                    currency: payment.currency,
-                    method: payment.method,
-                    gatewayResponse: paymentResult.gatewayResponse,
-                    createdAt: payment.created_at
+                customerDetails,
+                itemDetails,
+                orderId,
+                callbacks: callbacks || {
+                    finish: `${req.protocol}://${req.get('host')}/shop/payment/payment-success`,
+                    error: `${req.protocol}://${req.get('host')}/shop/payment/error`,
+                    pending: `${req.protocol}://${req.get('host')}/shop/payment/pending`
                 }
             });
 
+            res.json({
+                success: true,
+                message: 'Payment created successfully',
+                data: paymentResult
+            });
+
         } catch (error) {
-            console.error('Payment processing error:', error);
+            console.error('Midtrans payment creation error:', error);
             res.status(500).json({
                 success: false,
-                message: 'Failed to process payment',
+                message: 'Failed to create payment',
                 error: error.message
             });
         }
     }
 
-    // Get available payment methods
+    // Get available payment methods (Midtrans supported)
     static async getPaymentMethods(req, res) {
         try {
-            const methods = [
-                {
-                    id: 'credit_card',
-                    name: 'Credit Card',
-                    description: 'Visa, Mastercard, JCB',
-                    icon: '💳',
-                    fees: 2.9, // percentage
-                    available: true
-                },
-                {
-                    id: 'paypal',
-                    name: 'PayPal',
-                    description: 'Fast and secure PayPal payment',
-                    icon: '🅿️',
-                    fees: 3.4, // percentage
-                    available: true
-                },
-                {
-                    id: 'bank_transfer',
-                    name: 'Bank Transfer',
-                    description: 'Transfer to virtual account',
-                    icon: '🏦',
-                    fees: 0,
-                    available: true
-                },
-                {
-                    id: 'ewallet',
-                    name: 'E-Wallet',
-                    description: 'GoPay, OVO, Dana, ShopeePay',
-                    icon: '📱',
-                    fees: 1.5,
-                    available: true
-                },
-                {
-                    id: 'virtual_account',
-                    name: 'Virtual Account',
-                    description: 'BCA, BNI, BRI, Mandiri VA',
-                    icon: '🔢',
-                    fees: 0,
-                    available: true
-                }
-            ];
+            const methods = await MidtransPaymentService.getPaymentMethods();
 
             res.json({
                 success: true,
@@ -184,55 +99,55 @@ class PaymentController {
         }
     }
 
-    // Get payment history
-    static async getPaymentHistory(req, res) {
+    // Get payment status
+    static async getPaymentStatus(req, res) {
         try {
-            const { page = 1, limit = 10, status } = req.query;
-            const offset = (page - 1) * limit;
+            const { orderId } = req.params;
 
-            let query = 'SELECT * FROM payments WHERE user_id = ?';
-            let params = [req.user.id];
-
-            if (status) {
-                query += ' AND status = ?';
-                params.push(status);
+            if (!orderId) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Order ID is required'
+                });
             }
 
-            query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
-            params.push(limit, offset);
+            const paymentStatus = await MidtransPaymentService.getPaymentStatus(orderId);
 
-            const payments = await db.prepare(query).all(...params);
+            res.json({
+                success: true,
+                data: paymentStatus
+            });
 
-            // Format payments
-            const formattedPayments = payments.map(payment => ({
-                id: payment.id,
-                method: payment.method,
-                amount: payment.amount,
-                currency: payment.currency,
-                description: payment.description,
-                status: payment.status,
-                bookingId: payment.booking_id,
-                createdAt: payment.created_at,
-                updatedAt: payment.updated_at
-            }));
+        } catch (error) {
+            console.error('Get payment status error:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to get payment status',
+                error: error.message
+            });
+        }
+    }
 
-            // Get total count
-            const countQuery = status 
-                ? 'SELECT COUNT(*) as total FROM payments WHERE user_id = ? AND status = ?'
-                : 'SELECT COUNT(*) as total FROM payments WHERE user_id = ?';
-            
-            const countParams = status ? [req.user.id, status] : [req.user.id];
-            const countResult = await db.prepare(countQuery).get(...countParams);
+    // Get payment history for user
+    static async getPaymentHistory(req, res) {
+        try {
+            const { page = 1, limit = 10 } = req.query;
+            const userId = req.user?.id || 'current_user'; // Should come from auth middleware
+
+            const payments = await MidtransPaymentService.getPaymentHistory(
+                userId, 
+                parseInt(limit)
+            );
 
             res.json({
                 success: true,
                 data: {
-                    payments: formattedPayments,
+                    payments,
                     pagination: {
                         page: parseInt(page),
                         limit: parseInt(limit),
-                        total: countResult.total,
-                        totalPages: Math.ceil(countResult.total / limit)
+                        total: payments.length,
+                        totalPages: Math.ceil(payments.length / limit)
                     }
                 }
             });
@@ -252,7 +167,14 @@ class PaymentController {
         try {
             const { paymentId } = req.params;
 
-            const payment = await db.prepare('SELECT * FROM payments WHERE id = ? AND user_id = ?').get(paymentId, req.user.id);
+            if (!paymentId) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Payment ID is required'
+                });
+            }
+
+            const payment = await MidtransPaymentService.getPaymentDetails(paymentId);
 
             if (!payment) {
                 return res.status(404).json({
@@ -261,24 +183,9 @@ class PaymentController {
                 });
             }
 
-            // Format payment details
-            const paymentDetails = {
-                id: payment.id,
-                method: payment.method,
-                amount: payment.amount,
-                currency: payment.currency,
-                description: payment.description,
-                status: payment.status,
-                bookingId: payment.booking_id,
-                customerInfo: JSON.parse(payment.customer_info || '{}'),
-                gatewayResponse: JSON.parse(payment.payment_gateway_response || '{}'),
-                createdAt: payment.created_at,
-                updatedAt: payment.updated_at
-            };
-
             res.json({
                 success: true,
-                data: paymentDetails
+                data: payment
             });
 
         } catch (error) {
@@ -291,50 +198,25 @@ class PaymentController {
         }
     }
 
-    // Refund payment
+    // Process refund
     static async refundPayment(req, res) {
         try {
             const { paymentId } = req.params;
             const { reason } = req.body;
 
-            const payment = await db.prepare('SELECT * FROM payments WHERE id = ? AND user_id = ?').get(paymentId, req.user.id);
-
-            if (!payment) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'Payment not found'
-                });
-            }
-
-            if (payment.status !== 'completed') {
+            if (!paymentId) {
                 return res.status(400).json({
                     success: false,
-                    message: 'Only completed payments can be refunded'
+                    message: 'Payment ID is required'
                 });
             }
 
-            // Simulate refund process
-            const refundResult = await this.simulateRefund(payment, reason);
-
-            // Update payment status
-            await db.prepare('UPDATE payments SET status = ?, updated_at = ?, refund_reason = ?, refund_processed_at = ? WHERE id = ?').run(
-                'refunded',
-                new Date().toISOString(),
-                reason || 'User requested refund',
-                new Date().toISOString(),
-                paymentId
-            );
+            const refundResult = await MidtransPaymentService.processRefund(paymentId, reason);
 
             res.json({
                 success: true,
                 message: 'Payment refunded successfully',
-                data: {
-                    paymentId,
-                    refundId: refundResult.refundId,
-                    amount: payment.amount,
-                    refundReason: reason,
-                    processedAt: new Date().toISOString()
-                }
+                data: refundResult
             });
 
         } catch (error) {
@@ -347,191 +229,378 @@ class PaymentController {
         }
     }
 
-    // Verify payment status
-    static async verifyPayment(req, res) {
+    // Webhook handler for Midtrans notifications
+    static async handleWebhook(req, res) {
         try {
-            const { paymentId } = req.params;
+            const notification = req.body;
 
-            const payment = await db.prepare('SELECT * FROM payments WHERE id = ? AND user_id = ?').get(paymentId, req.user.id);
-
-            if (!payment) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'Payment not found'
-                });
+            // Verify webhook signature (in production)
+            const signature = req.headers['x-callback-signature'];
+            if (signature && !this.verifyWebhookSignature(notification, signature)) {
+                return res.status(401).json({ message: 'Invalid signature' });
             }
 
-            res.json({
-                success: true,
-                data: {
-                    paymentId: payment.id,
-                    status: payment.status,
-                    verified: payment.status === 'completed',
-                    amount: payment.amount,
-                    currency: payment.currency,
-                    method: payment.method,
-                    createdAt: payment.created_at,
-                    updatedAt: payment.updated_at
-                }
-            });
+            // Process different notification types
+            if (notification.transaction_status) {
+                const { order_id, transaction_status, gross_amount, payment_type } = notification;
+
+                // Update payment status in database
+                await MidtransPaymentService.getPaymentStatus(order_id);
+
+                console.log(`Payment notification: Order ${order_id} - Status ${transaction_status} - Amount ${gross_amount} - Type ${payment_type}`);
+            }
+
+            res.status(200).json({ message: 'Webhook received' });
 
         } catch (error) {
-            console.error('Verify payment error:', error);
+            console.error('Webhook handling error:', error);
             res.status(500).json({
                 success: false,
-                message: 'Failed to verify payment',
+                message: 'Failed to process webhook',
                 error: error.message
             });
         }
     }
 
-    // Validate card details
-    static validateCardDetails(cardDetails) {
-        const errors = [];
-
-        if (!cardDetails) {
-            errors.push('Card details are required for credit card payments');
-            return { isValid: false, errors };
-        }
-
-        // Card number validation
-        const cardNumber = cardDetails.cardNumber?.replace(/\s/g, '');
-        if (!cardNumber || !/^\d{16}$/.test(cardNumber)) {
-            errors.push('Card number must be exactly 16 digits');
-        } else if (!this.luhnCheck(cardNumber)) {
-            errors.push('Invalid card number (failed Luhn check)');
-        }
-
-        // Expiry date validation
-        if (!cardDetails.expiryDate || !/^(0[1-9]|1[0-2])\/\d{2}$/.test(cardDetails.expiryDate)) {
-            errors.push('Expiry date must be in MM/YY format');
-        } else {
-            const [month, year] = cardDetails.expiryDate.split('/');
-            const expiry = new Date(2000 + parseInt(year), parseInt(month) - 1);
-            if (expiry < new Date()) {
-                errors.push('Card has expired');
-            }
-        }
-
-        // CVV validation
-        if (!cardDetails.securityCode || !/^\d{3,4}$/.test(cardDetails.securityCode)) {
-            errors.push('Security code must be 3 or 4 digits');
-        }
-
-        // Cardholder name validation
-        if (!cardDetails.cardholderName || !cardDetails.cardholderName.trim()) {
-            errors.push('Cardholder name is required');
-        }
-
-        // Name on card validation
-        if (!cardDetails.nameOnCard || !cardDetails.nameOnCard.trim()) {
-            errors.push('Name as written on card is required');
-        }
-
-        return {
-            isValid: errors.length === 0,
-            errors
+    // Helper method to map Midtrans status to frontend status
+    static mapMidtransStatus(midtransStatus) {
+        const statusMap = {
+            'settlement': 'paid',
+            'pending': 'processing',
+            'authorize': 'processing',
+            'deny': 'cancelled',
+            'expire': 'cancelled',
+            'cancel': 'cancelled',
+            'refund': 'refunded'
         };
+        return statusMap[midtransStatus] || 'processing';
     }
 
-    // Luhn algorithm for card number validation
-    static luhnCheck(cardNumber) {
-        let sum = 0;
-        let isEven = false;
-        
-        for (let i = cardNumber.length - 1; i >= 0; i--) {
-            let digit = parseInt(cardNumber[i]);
+    // Get all transactions for admin (with pagination and filtering)
+    static async getAllTransactionsForAdmin(req, res) {
+        try {
+            const { 
+                page = 1, 
+                limit = 10, 
+                status, 
+                paymentMethod, 
+                dateFrom, 
+                dateTo,
+                search 
+            } = req.query;
+
+            const offset = (parseInt(page) - 1) * parseInt(limit);
+
+            // Build WHERE conditions
+            let whereConditions = [];
+            let replacements = [];
+
+            if (status && status !== 'all') {
+                whereConditions.push('status = ?');
+                replacements.push(status);
+            }
+
+            if (paymentMethod && paymentMethod !== 'all') {
+                whereConditions.push('method = ?');
+                replacements.push(paymentMethod);
+            }
+
+            if (dateFrom) {
+                whereConditions.push('DATE(created_at) >= ?');
+                replacements.push(dateFrom);
+            }
+
+            if (dateTo) {
+                whereConditions.push('DATE(created_at) <= ?');
+                replacements.push(dateTo);
+            }
+
+            if (search) {
+                whereConditions.push('(order_id LIKE ? OR description LIKE ? OR customer_info LIKE ?)');
+                const searchPattern = `%${search}%`;
+                replacements.push(searchPattern, searchPattern, searchPattern);
+            }
+
+            const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+
+            // Get total count
+            const countQuery = `SELECT COUNT(*) as total FROM payments ${whereClause}`;
+            const countResult = await MidtransPaymentService.executeQuery(countQuery, replacements);
+            const total = countResult[0]?.total || 0;
+
+            // Get transactions
+            const query = `
+                SELECT * FROM payments 
+                ${whereClause}
+                ORDER BY created_at DESC 
+                LIMIT ? OFFSET ?
+            `;
             
-            if (isEven) {
-                digit *= 2;
-                if (digit > 9) {
-                    digit -= 9;
+            const transactions = await MidtransPaymentService.executeQuery(query, [
+                ...replacements,
+                parseInt(limit),
+                offset
+            ]);
+
+            // Format transactions for frontend
+            const formattedTransactions = transactions.map(payment => {
+                const customerInfo = JSON.parse(payment.customer_info || '{}');
+                return {
+                    id: payment.id,
+                    trxCode: `TRX-${payment.id.slice(-8)}`,
+                    orderCode: payment.order_id,
+                    buyerName: `${customerInfo.firstName || 'Customer'} ${customerInfo.lastName || ''}`,
+                    buyerEmail: customerInfo.email || 'customer@example.com',
+                    sellerName: 'TRAVELLO',
+                    sellerService: payment.description,
+                    grossAmount: payment.amount,
+                    adminFee: payment.processing_fee,
+                    netAmount: payment.total_amount,
+                    status: mapMidtransStatus(payment.status),
+                    paymentMethod: payment.method,
+                    paidStatus: payment.status === 'settlement' ? 'paid' : 'unpaid',
+                    date: new Date(payment.created_at).toLocaleDateString('en-US', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric'
+                    }),
+                    transactionId: payment.transaction_id,
+                    paymentGatewayResponse: payment.payment_gateway_response
+                };
+            });
+
+            res.json({
+                success: true,
+                data: {
+                    transactions: formattedTransactions,
+                    pagination: {
+                        page: parseInt(page),
+                        limit: parseInt(limit),
+                        total,
+                        totalPages: Math.ceil(total / parseInt(limit))
+                    }
                 }
-            }
-            
-            sum += digit;
-            isEven = !isEven;
+            });
+
+        } catch (error) {
+            console.error('Get all transactions error:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to get transactions',
+                error: error.message
+            });
         }
-        
-        return sum % 10 === 0;
     }
 
-    // Get card type from number
-    static getCardType(cardNumber) {
-        const number = cardNumber.replace(/\s/g, '');
-        
-        if (/^4/.test(number)) return 'visa';
-        if (/^5[1-5]/.test(number)) return 'mastercard';
-        if (/^3[47]/.test(number)) return 'amex';
-        if (/^6(?:011|5)/.test(number)) return 'discover';
-        
-        return 'unknown';
-    }
+    // Get transaction statistics for admin dashboard
+    static async getTransactionStats(req, res) {
+        try {
+            const { period = '30d' } = req.query;
 
-    // Simulate payment gateway (in real app, integrate with actual payment gateway)
-    static async simulatePaymentGateway(payment, cardDetails = null) {
-        // Simulate processing time
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        // Simulate different payment methods
-        const gatewayResponses = {
-            credit_card: {
-                transactionId: `CC_${Date.now()}`,
-                approvalCode: `APPROV_${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
-                maskedCard: cardDetails ? `****-****-****-${cardDetails.cardNumber?.replace(/\s/g, '').slice(-4)}` : '****-****-****-1234',
-                cardType: cardDetails ? this.getCardType(cardDetails.cardNumber) : 'visa',
-                authResponse: 'Approved',
-                avsResponse: 'Y',
-                cvvResponse: 'M'
-            },
-            paypal: {
-                transactionId: customerInfo?.paypalPaymentId || `PP_${Date.now()}`,
-                paypalOrderId: `ORDER_${Math.random().toString(36).substr(2, 12).toUpperCase()}`,
-                paymentStatus: 'COMPLETED',
-                payerId: `PAYER_${Math.random().toString(36).substr(2, 8).toUpperCase()}`,
-                paymentEmail: customerInfo?.email || 'payer@example.com'
-            },
-            bank_transfer: {
-                virtualAccount: `${Math.random().toString(36).substr(2, 8).toUpperCase()}${Math.random().toString(36).substr(2, 8).toUpperCase()}`,
-                bankName: 'BCA Virtual Account',
-                accountNumber: `1234567890${Math.floor(Math.random() * 1000)}`
-            },
-            ewallet: {
-                transactionId: `EW_${Date.now()}`,
-                referenceId: `REF_${Math.random().toString(36).substr(2, 12).toUpperCase()}`,
-                phoneNumber: '****-****-1234'
-            },
-            virtual_account: {
-                vaNumber: `${Math.floor(Math.random() * 9000000000) + 1000000000}`,
-                bankName: 'BCA Virtual Account',
-                expiryDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+            let dateCondition = '';
+            if (period === '7d') {
+                dateCondition = 'AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)';
+            } else if (period === '30d') {
+                dateCondition = 'AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)';
+            } else if (period === 'this_month') {
+                dateCondition = 'AND MONTH(created_at) = MONTH(NOW()) AND YEAR(created_at) = YEAR(NOW())';
             }
-        };
 
-        // Simulate success/failure (90% success rate)
-        const isSuccess = Math.random() > 0.1;
+            const statsQuery = `
+                SELECT 
+                    COUNT(*) as total_transactions,
+                    SUM(CASE WHEN status = 'settlement' THEN amount ELSE 0 END) as total_revenue,
+                    SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_count,
+                    SUM(CASE WHEN status = 'settlement' THEN 1 ELSE 0 END) as completed_count,
+                    SUM(CASE WHEN status = 'deny' OR status = 'expire' OR status = 'cancel' THEN 1 ELSE 0 END) as failed_count,
+                    AVG(CASE WHEN status = 'settlement' THEN amount END) as avg_transaction_value
+                FROM payments 
+                WHERE 1=1 ${dateCondition}
+            `;
 
-        return {
-            status: isSuccess ? 'completed' : 'failed',
-            gatewayResponse: gatewayResponses[payment.method] || {},
-            processedAt: new Date().toISOString()
-        };
+            const stats = await MidtransPaymentService.executeQuery(statsQuery);
+            const statsData = stats[0] || {};
+
+            // Get daily revenue for the period
+            const revenueQuery = `
+                SELECT 
+                    DATE(created_at) as date,
+                    SUM(CASE WHEN status = 'settlement' THEN amount ELSE 0 END) as revenue,
+                    COUNT(*) as transactions
+                FROM payments 
+                WHERE 1=1 ${dateCondition}
+                GROUP BY DATE(created_at)
+                ORDER BY date DESC
+                LIMIT 30
+            `;
+
+            const dailyRevenue = await MidtransPaymentService.executeQuery(revenueQuery);
+
+            res.json({
+                success: true,
+                data: {
+                    totalTransactions: statsData.total_transactions || 0,
+                    totalRevenue: statsData.total_revenue || 0,
+                    pendingCount: statsData.pending_count || 0,
+                    completedCount: statsData.completed_count || 0,
+                    failedCount: statsData.failed_count || 0,
+                    avgTransactionValue: statsData.avg_transaction_value || 0,
+                    dailyRevenue
+                }
+            });
+
+        } catch (error) {
+            console.error('Get transaction stats error:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to get transaction statistics',
+                error: error.message
+            });
+        }
     }
 
-    // Simulate refund process
-    static async simulateRefund(payment, reason) {
-        // Simulate processing time
-        await new Promise(resolve => setTimeout(resolve, 500));
+    // Sync payment status with Midtrans
+    static async syncPaymentStatus(req, res) {
+        try {
+            const { orderId } = req.params;
 
-        return {
-            refundId: `REF_${Date.now()}`,
-            originalPaymentId: payment.id,
-            amount: payment.amount,
-            reason: reason || 'User requested refund',
-            processedAt: new Date().toISOString(),
-            estimatedSettlement: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days
-        };
+            if (!orderId) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Order ID is required'
+                });
+            }
+
+            // Get current status from Midtrans
+            const paymentStatus = await MidtransPaymentService.getPaymentStatus(orderId);
+
+            res.json({
+                success: true,
+                message: 'Payment status synced successfully',
+                data: paymentStatus
+            });
+
+        } catch (error) {
+            console.error('Sync payment status error:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to sync payment status',
+                error: error.message
+            });
+        }
+    }
+
+    // Export transactions to CSV
+    static async exportTransactions(req, res) {
+        try {
+            const { status, paymentMethod, dateFrom, dateTo } = req.query;
+
+            // Build WHERE conditions
+            let whereConditions = [];
+            let replacements = [];
+
+            if (status && status !== 'all') {
+                whereConditions.push('status = ?');
+                replacements.push(status);
+            }
+
+            if (paymentMethod && paymentMethod !== 'all') {
+                whereConditions.push('method = ?');
+                replacements.push(paymentMethod);
+            }
+
+            if (dateFrom) {
+                whereConditions.push('DATE(created_at) >= ?');
+                replacements.push(dateFrom);
+            }
+
+            if (dateTo) {
+                whereConditions.push('DATE(created_at) <= ?');
+                replacements.push(dateTo);
+            }
+
+            const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+
+            const query = `
+                SELECT * FROM payments 
+                ${whereClause}
+                ORDER BY created_at DESC
+            `;
+            
+            const transactions = await MidtransPaymentService.executeQuery(query, replacements);
+
+            // Format for CSV
+            const csvData = transactions.map(payment => {
+                const customerInfo = JSON.parse(payment.customer_info || '{}');
+                return {
+                    'Transaction ID': payment.id,
+                    'Order ID': payment.order_id,
+                    'Customer Name': `${customerInfo.firstName || ''} ${customerInfo.lastName || ''}`,
+                    'Customer Email': customerInfo.email || '',
+                    'Amount': payment.amount,
+                    'Status': payment.status,
+                    'Payment Method': payment.method,
+                    'Created At': new Date(payment.created_at).toISOString()
+                };
+            });
+
+            // Convert to CSV
+            const csv = this.convertToCSV(csvData);
+
+            res.setHeader('Content-Type', 'text/csv');
+            res.setHeader('Content-Disposition', `attachment; filename="transactions-${new Date().toISOString().split('T')[0]}.csv"`);
+            res.send(csv);
+
+        } catch (error) {
+            console.error('Export transactions error:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to export transactions',
+                error: error.message
+            });
+        }
+    }
+
+    // Helper method to convert array of objects to CSV
+    static convertToCSV(data) {
+        if (!data || data.length === 0) return '';
+
+        const headers = Object.keys(data[0]);
+        const csvHeaders = headers.join(',');
+        
+        const csvRows = data.map(row => {
+            return headers.map(header => {
+                const value = row[header];
+                // Escape quotes and wrap in quotes if contains comma
+                if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
+                    return `"${value.replace(/"/g, '""')}"`;
+                }
+                return value;
+            }).join(',');
+        });
+
+        return [csvHeaders, ...csvRows].join('\n');
+    }
+
+    // Verify webhook signature (for production)
+    static verifyWebhookSignature(notification, signature) {
+        try {
+            const crypto = require('crypto');
+            
+            // Create SHA512 hash of the notification body
+            const hash = crypto.createHash('sha512')
+                .update(JSON.stringify(notification))
+                .digest('hex');
+            
+            // Compare with provided signature
+            const expectedSignature = hash;
+            
+            return signature === expectedSignature;
+        } catch (error) {
+            console.error('Webhook signature verification error:', error);
+            return false;
+        }
     }
 }
 
-module.exports = PaymentController;
+module.exports = MidtransPaymentController;

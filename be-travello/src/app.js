@@ -2,11 +2,26 @@ const express = require("express");
 const cors = require("cors");
 const session = require("express-session");
 const passport = require("./config/passport.config.js");
+const http = require('http');
+const { Server } = require('socket.io');
 const chatRoutes = require('./routes/chat.routes.js');
 const authRoutes = require('./routes/auth.routes.js');
 const profileRoutes = require('./routes/profile.routes.js');
 const paymentRoutes = require('./routes/payment.routes.js');
 const adminTransactionRoutes = require('./routes/admin-transaction.routes.js');
+const adminRoutes = require('./routes/admin.routes.js');
+const socketChatRoutes = require('./routes/socket-chat.routes.js');
+const certificationRoutes = require('./routes/certification.routes.js');
+const experienceRoutes = require('./routes/experience.routes.js');
+const portfolioRoutes = require('./routes/portfolio.routes.js');
+const landingPageRoutes = require('./routes/landing-page.routes.js');
+const travelJournalRoutes = require('./routes/travel-journal.routes.js');
+const { initChatMessage } = require('./models/ChatMessage.model.js');
+const { initUserAdminChatMessage } = require('./models/UserAdminChatMessage.model.js');
+const { initPortfolio } = require('./models/Portfolio.model.mysql.js');
+const { initTravelJournal } = require('./models/TravelJournal.model.mysql.js');
+const SocketChatController = require('./controllers/socket-chat.controller.js');
+console.log('🔧 Experience routes imported:', typeof experienceRoutes);
 const { errorHandler } = require("./middlewares/error.middleware.js");
 const swaggerUi = require('swagger-ui-express');
 const swaggerDocument = require('./swagger.json');
@@ -190,6 +205,18 @@ app.use("/api/auth", authRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/admin/transactions", adminTransactionRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/socket/chat", socketChatRoutes);
+app.use("/api/certifications", certificationRoutes);
+console.log('🔧 Loading experience routes...');
+app.use("/api/experiences", experienceRoutes);
+console.log('✅ Experience routes loaded');
+app.use("/api/portfolios", portfolioRoutes);
+console.log('✅ Portfolio routes loaded');
+app.use("/api/landing-pages", landingPageRoutes);
+console.log('✅ Landing pages routes loaded');
+app.use("/api/travel-journal", travelJournalRoutes);
+console.log('✅ Travel journal routes loaded');
 
 // Error handling
 app.use(errorHandler);
@@ -208,4 +235,23 @@ app.use((req, res) => {
     });
 });
 
-module.exports = app;
+// Initialize Socket.IO
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    methods: ["GET", "POST"],
+    credentials: true
+  }
+});
+
+// Initialize Socket.IO chat controller
+SocketChatController.initializeSocket(io);
+
+// Initialize database models
+initChatMessage().catch(console.error);
+initUserAdminChatMessage().catch(console.error);
+initPortfolio().catch(console.error);
+initTravelJournal().catch(console.error);
+
+module.exports = server;

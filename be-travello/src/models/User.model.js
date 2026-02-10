@@ -54,6 +54,17 @@ User.init(
       type: DataTypes.DATE,
       allowNull: true,
       field: 'last_login'
+    },
+    googleId: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      unique: true,
+      field: 'google_id'
+    },
+    profilePicture: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      field: 'profile_picture'
     }
   },
   {
@@ -70,6 +81,10 @@ User.init(
 // Static methods for users table operations
 const findByEmail = async (email) => {
   return await User.findOne({ where: { email: email.toLowerCase() } });
+};
+
+const findByGoogleId = async (googleId) => {
+  return await User.findOne({ where: { googleId } });
 };
 
 const create = async (userData) => {
@@ -89,6 +104,7 @@ const initUser = async () => {
 module.exports = { 
   User, 
   findByEmail, 
+  findByGoogleId,
   create, 
   initUser 
 };

@@ -2,10 +2,13 @@
   "name": "be-travello",
   "version": "1.0.0",
   "description": "Backend API for Travello application",
-  "main": "server.js",
+  "main": "src/app-simple-fixed.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js"
+    "start": "node src/app-simple-fixed.js",
+    "dev": "node src/app-simple-fixed.js",
+    "laragon": "node src/app-simple-fixed.js",
+    "laragon:dev": "nodemon src/app-simple-fixed.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
     "travel",
@@ -26,10 +29,12 @@
     "jsonwebtoken": "^9.0.3",
     "lowdb": "^7.0.1",
     "mysql2": "^3.16.2",
+    "node-fetch": "^3.3.2",
     "passport": "^0.7.0",
     "passport-github2": "^0.1.12",
     "passport-google-oauth20": "^2.0.0",
     "sequelize": "^6.37.7",
+    "socket.io": "^4.8.3",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
     "uuid": "^13.0.0"

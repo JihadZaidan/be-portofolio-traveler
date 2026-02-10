@@ -75,16 +75,14 @@ const User = sequelize.define('User', {
   }
 }, {
   tableName: 'users',
-  timestamps: true,
-  createdAt: 'created_at',
-  updatedAt: 'updated_at'
+  timestamps: false
 });
 
 // Initialize database connection
 const initUser = async () => {
   try {
     await sequelize.authenticate();
-    await User.sync({ alter: true });
+    // Don't auto-sync to avoid key limit issues
     console.log('✅ User model initialized with MySQL');
   } catch (error) {
     console.error('❌ Failed to initialize User model:', error);

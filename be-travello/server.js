@@ -1,9 +1,9 @@
 require('dotenv').config();
-const app = require('./src/app-simple.js');
+const server = require('./src/app.js');
 
-// Start server
+// Start server (Socket.IO already initialized in app.js)
 const PORT = process.env.PORT || 5001;
-const server = app.listen(PORT, () => {
+server.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`🏥 Health check: http://localhost:${PORT}/health`);
@@ -11,6 +11,7 @@ const server = app.listen(PORT, () => {
     console.log(`💬 Chat API: http://localhost:${PORT}/api/chat`);
     console.log(`🔐 Google OAuth: http://localhost:${PORT}/api/auth/google`);
     console.log(`🌍 Frontend: http://localhost:${PORT}/`);
+    console.log(`🔌 Socket.IO: ws://localhost:${PORT}`);
 });
 
 // Graceful shutdown

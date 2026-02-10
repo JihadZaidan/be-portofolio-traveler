@@ -1,369 +1,354 @@
-import { v4 as uuidv4 } from 'uuid';
-import { db } from '../config/database.config.js';
+const { v4: uuidv4 } = require('uuid');
+const { sequelize } = require('../config/database.config.js');
+const axios = require('axios');
 
-class PaymentService {
-    // Process payment with external gateway
-    static async processPayment(paymentData) {
-        const { method, amount, currency, customerInfo } = paymentData;
-        
-        // Get payment method configuration
-        const methodConfig = await this.getPaymentMethodConfig(method);
-        
-        // Calculate fees
-        const processingFee = this.calculateFees(amount, methodConfig);
-        const totalAmount = amount + processingFee;
-        
-        // Create payment record
-        const payment = {
-            id: uuidv4(),
-            user_id: paymentData.user_id,
-            method,
-            amount,
-            currency,
-            description: paymentData.description,
-            booking_id: paymentData.booking_id || null,
-            customer_info: JSON.stringify(customerInfo || {}),
-            status: 'pending',
-            processing_fee: processingFee,
-            total_amount: totalAmount,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-        };
-        
-        // Save to database
-        await this.createPayment(payment);
-        
-        // Process with payment gateway
-        const gatewayResult = await this.processWithGateway(payment, methodConfig);
-        
-        // Update payment with gateway response
-        await this.updatePaymentGatewayResponse(payment.id, gatewayResult);
-        
-        return {
-            paymentId: payment.id,
-            status: gatewayResult.status,
-            amount: payment.amount,
-            processingFee,
-            totalAmount,
-            gatewayResponse: gatewayResult.response
-        };
-    }
-    
-    // Get payment method configuration
-    static async getPaymentMethodConfig(method) {
-        const config = await db.prepare('SELECT * FROM payment_methods WHERE name = ? AND is_active = 1').get(method);
-        
-        if (!config) {
-            throw new Error(`Payment method ${method} not found or inactive`);
-        }
-        
-        return config;
-    }
-    
-    // Calculate processing fees
-    static calculateFees(amount, methodConfig) {
-        let fees = 0;
-        
-        // Percentage fee
-        if (methodConfig.fees > 0) {
-            fees += (amount * methodConfig.fees) / 100;
-        }
-        
-        // Fixed fee
-        if (methodConfig.fixed_fee > 0) {
-            fees += methodConfig.fixed_fee;
-        }
-        
-        return Math.round(fees * 100) / 100; // Round to 2 decimal places
-    }
-    
-    // Process payment with external gateway
-    static async processWithGateway(payment, methodConfig) {
-        // Simulate different payment gateway integrations
-        switch (payment.method) {
-            case 'credit_card':
-                return await this.processCreditCard(payment);
-            case 'bank_transfer':
-                return await this.processBankTransfer(payment);
-            case 'ewallet':
-                return await this.processEwallet(payment);
-            case 'virtual_account':
-                return await this.processVirtualAccount(payment);
-            default:
-                throw new Error(`Unsupported payment method: ${payment.method}`);
+class MidtransPaymentService {
+    static SERVER_KEY = process.env.MIDTRANS_SERVER_KEY;
+    static CLIENT_KEY = process.env.MIDTRANS_CLIENT_KEY;
+    static ENVIRONMENT = process.env.MIDTRANS_ENVIRONMENT || 'sandbox';
+    static API_URL = this.ENVIRONMENT === 'production' 
+        ? 'https://api.midtrans.com/v2' 
+        : 'https://api.sandbox.midtrans.com/v2';
+
+    // Create Midtrans payment
+    static async createPayment(paymentData) {
+        try {
+            const payload = {
+                payment_type: 'snap',
+                transaction_details: {
+                    order_id: paymentData.orderId,
+                    gross_amount: paymentData.amount
+                },
+                customer_details: paymentData.customerDetails,
+                item_details: paymentData.itemDetails,
+                callbacks: paymentData.callbacks
+            };
+
+            // Create payment record first using Sequelize
+            const payment = {
+                id: uuidv4(),
+                user_id: 'current_user',
+                method: 'midtrans',
+                amount: paymentData.amount,
+                currency: 'IDR',
+                description: `Payment for order ${paymentData.orderId}`,
+                booking_id: null,
+                customer_info: JSON.stringify(paymentData.customerDetails),
+                status: 'pending',
+                processing_fee: 0,
+                total_amount: paymentData.amount,
+                payment_gateway_response: '',
+                created_at: new Date(),
+                updated_at: new Date()
+            };
+
+            await this.createPaymentRecord(payment);
+
+            // Call real Midtrans API using axios
+            const response = await axios.post(`${this.API_URL}/charge`, payload, {
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'Authorization': `Basic ${Buffer.from(this.SERVER_KEY + ':').toString('base64')}`
+                }
+            });
+
+            const result = response.data;
+
+            if (result.token) {
+                // Update payment with Midtrans response
+                await this.updatePaymentWithMidtransResponse(payment.id, {
+                    token: result.token,
+                    transaction_id: result.transaction_id || paymentData.orderId,
+                    order_id: paymentData.orderId,
+                    status: 'pending'
+                });
+
+                return {
+                    token: result.token,
+                    redirect_url: result.redirect_url || '',
+                    transaction_id: result.transaction_id || paymentData.orderId,
+                    order_id: paymentData.orderId,
+                    status: 'pending',
+                    amount: paymentData.amount
+                };
+            } else {
+                throw new Error(result.error_message || 'Failed to create Midtrans payment');
+            }
+        } catch (error) {
+            console.error('Midtrans payment creation error:', error);
+            throw new Error(error.message || 'Payment processing failed');
         }
     }
-    
-    // Credit card processing
-    static async processCreditCard(payment) {
-        // Simulate credit card processing
-        await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second processing
-        
-        const isSuccess = Math.random() > 0.1; // 90% success rate
-        
-        return {
-            status: isSuccess ? 'completed' : 'failed',
-            response: {
-                transactionId: `CC_${Date.now()}`,
-                approvalCode: isSuccess ? `APPROV_${Math.random().toString(36).substr(2, 9).toUpperCase()}` : null,
-                maskedCard: '****-****-****-1234',
-                authCode: isSuccess ? Math.random().toString(36).substr(2, 6).toUpperCase() : null,
-                responseCode: isSuccess ? '00' : '05',
-                responseMessage: isSuccess ? 'Approved' : 'Declined'
-            }
-        };
-    }
-    
-    // Bank transfer processing
-    static async processBankTransfer(payment) {
-        // Generate virtual account
-        const vaNumber = `${Math.floor(Math.random() * 9000000000) + 1000000000}`;
-        
-        return {
-            status: 'pending', // Bank transfers are pending until confirmed
-            response: {
-                virtualAccount: vaNumber,
-                bankName: 'BCA Virtual Account',
-                accountNumber: vaNumber,
-                accountName: 'TRAVELLO PAYMENTS',
-                amount: payment.amount,
-                expiryDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
-                instructions: [
-                    'Transfer to the virtual account number above',
-                    'Use the exact amount to avoid payment issues',
-                    'Payment will be confirmed automatically within 5 minutes'
-                ]
-            }
-        };
-    }
-    
-    // E-wallet processing
-    static async processEwallet(payment) {
-        // Simulate e-wallet processing
-        await new Promise(resolve => setTimeout(resolve, 1500)); // 1.5 second processing
-        
-        const isSuccess = Math.random() > 0.05; // 95% success rate
-        
-        return {
-            status: isSuccess ? 'completed' : 'failed',
-            response: {
-                transactionId: `EW_${Date.now()}`,
-                referenceId: `REF_${Math.random().toString(36).substr(2, 12).toUpperCase()}`,
-                phoneNumber: '****-****-1234',
-                merchantId: 'MERCH_TRAVELLO',
-                responseCode: isSuccess ? '200' : '400',
-                responseMessage: isSuccess ? 'Success' : 'Failed'
-            }
-        };
-    }
-    
-    // Virtual account processing
-    static async processVirtualAccount(payment) {
-        // Generate virtual account for specific bank
-        const banks = ['BCA', 'BNI', 'BRI', 'MANDIRI'];
-        const selectedBank = banks[Math.floor(Math.random() * banks.length)];
-        const vaNumber = `${selectedBank}${Math.floor(Math.random() * 9000000000) + 1000000000}`;
-        
-        return {
-            status: 'pending', // Virtual accounts are pending until payment
-            response: {
-                vaNumber: vaNumber,
-                bankName: `${selectedBank} Virtual Account`,
-                accountNumber: vaNumber,
-                accountName: 'TRAVELLO PAYMENTS',
-                amount: payment.amount,
-                expiryDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
-                instructions: [
-                    `Transfer to ${selectedBank} Virtual Account`,
-                    'Use the exact amount to avoid payment issues',
-                    'Payment will be confirmed automatically',
-                    'Save the virtual account number for future reference'
-                ]
-            }
-        };
-    }
-    
-    // Create payment record
-    static async createPayment(payment) {
-        await db.prepare(`
-            INSERT INTO payments (
-                id, user_id, method, amount, currency, description, 
-                booking_id, customer_info, status, processing_fee, 
-                total_amount, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(
-            payment.id,
-            payment.user_id,
-            payment.method,
-            payment.amount,
-            payment.currency,
-            payment.description,
-            payment.booking_id,
-            payment.customer_info,
-            payment.status,
-            payment.processing_fee,
-            payment.total_amount,
-            payment.created_at,
-            payment.updated_at
-        );
-    }
-    
-    // Update payment with gateway response
-    static async updatePaymentGatewayResponse(paymentId, gatewayResult) {
-        await db.prepare(`
-            UPDATE payments 
-            SET status = ?, payment_gateway_response = ?, updated_at = ?
-            WHERE id = ?
-        `).run(
-            gatewayResult.status,
-            JSON.stringify(gatewayResult.response),
-            new Date().toISOString(),
-            paymentId
-        );
-        
-        // Create transaction record
-        await this.createTransactionRecord(paymentId, gatewayResult);
-    }
-    
-    // Create transaction record
-    static async createTransactionRecord(paymentId, gatewayResult) {
-        const transaction = {
-            id: uuidv4(),
-            payment_id: paymentId,
-            type: 'payment',
-            amount: gatewayResult.status === 'completed' ? 'amount' : 0, // Will be updated based on actual payment
-            currency: 'IDR',
-            description: `Payment processing - ${gatewayResult.status}`,
-            gateway_transaction_id: gatewayResult.response.transactionId || null,
-            gateway_response: JSON.stringify(gatewayResult.response),
-            status: gatewayResult.status,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-        };
-        
-        await db.prepare(`
-            INSERT INTO payment_transactions (
-                id, payment_id, type, amount, currency, description,
-                gateway_transaction_id, gateway_response, status, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(
-            transaction.id,
-            transaction.payment_id,
-            transaction.type,
-            transaction.amount,
-            transaction.currency,
-            transaction.description,
-            transaction.gateway_transaction_id,
-            transaction.gateway_response,
-            transaction.status,
-            transaction.created_at,
-            transaction.updated_at
-        );
-    }
-    
-    // Verify payment status
-    static async verifyPaymentStatus(paymentId) {
-        const payment = await db.prepare('SELECT * FROM payments WHERE id = ?').get(paymentId);
-        
-        if (!payment) {
-            throw new Error('Payment not found');
+
+    // Get payment status from Midtrans
+    static async getPaymentStatus(orderId) {
+        try {
+            // Call real Midtrans API using axios
+            const response = await axios.get(`${this.API_URL}/${orderId}/status`, {
+                headers: {
+                    'Accept': 'application/json',
+                    'Authorization': `Basic ${Buffer.from(this.SERVER_KEY + ':').toString('base64')}`
+                }
+            });
+
+            const result = response.data;
+
+            // Update payment in database
+            await this.updatePaymentStatus(orderId, result.transaction_status);
+
+            return {
+                paymentId: orderId,
+                status: result.transaction_status,
+                amount: result.gross_amount,
+                currency: result.currency,
+                method: 'midtrans',
+                createdAt: result.transaction_time,
+                updatedAt: new Date().toISOString(),
+                isCompleted: result.transaction_status === 'settlement',
+                isPending: ['pending', 'authorize'].includes(result.transaction_status),
+                isFailed: ['deny', 'expire', 'cancel'].includes(result.transaction_status),
+                transactionId: result.transaction_id
+            };
+        } catch (error) {
+            console.error('Midtrans status check error:', error);
+            throw new Error(error.message || 'Status check failed');
         }
-        
-        // For pending payments, check with gateway
-        if (payment.status === 'pending') {
-            const gatewayStatus = await this.checkGatewayStatus(payment);
-            
-            if (gatewayStatus.isCompleted) {
-                await this.updatePaymentStatus(paymentId, 'completed');
-                payment.status = 'completed';
-            } else if (gatewayStatus.isExpired) {
-                await this.updatePaymentStatus(paymentId, 'expired');
-                payment.status = 'expired';
+    }
+
+    // Get available payment methods
+    static async getPaymentMethods() {
+        return [
+            {
+                id: 'credit_card',
+                name: 'Credit Card',
+                description: 'Visa, Mastercard, JCB, Amex',
+                icon: 'credit-card',
+                type: 'credit_card',
+                available: true
+            },
+            {
+                id: 'bank_transfer',
+                name: 'Bank Transfer',
+                description: 'BCA, BNI, BRI, Mandiri, Permata, etc',
+                icon: 'bank',
+                type: 'bank_transfer',
+                available: true
+            },
+            {
+                id: 'ewallet',
+                name: 'E-Wallet',
+                description: 'GoPay, OVO, DANA, ShopeePay, LinkAja',
+                icon: 'wallet',
+                type: 'ewallet',
+                available: true
+            },
+            {
+                id: 'qris',
+                name: 'QRIS',
+                description: 'Scan QR code with any e-wallet app',
+                icon: 'qrcode',
+                type: 'qris',
+                available: true
+            },
+            {
+                id: 'cstore',
+                name: 'Convenience Store',
+                description: 'Alfamart, Indomaret',
+                icon: 'store',
+                type: 'cstore',
+                available: true
             }
-        }
-        
-        return {
-            paymentId: payment.id,
-            status: payment.status,
-            amount: payment.amount,
-            currency: payment.currency,
-            method: payment.method,
-            createdAt: payment.created_at,
-            updatedAt: payment.updated_at,
-            isCompleted: payment.status === 'completed',
-            isPending: payment.status === 'pending',
-            isFailed: payment.status === 'failed'
-        };
+        ];
     }
-    
-    // Check payment status with gateway
-    static async checkGatewayStatus(payment) {
-        // Simulate gateway status check
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // For demo purposes, randomly complete some pending payments
-        const isCompleted = Math.random() > 0.7; // 30% chance of completion
-        const isExpired = Math.random() > 0.95; // 5% chance of expiration
-        
-        return {
-            isCompleted,
-            isExpired,
-            gatewayResponse: {
-                status: isCompleted ? 'completed' : (isExpired ? 'expired' : 'pending'),
-                checkedAt: new Date().toISOString()
-            }
-        };
-    }
-    
-    // Update payment status
-    static async updatePaymentStatus(paymentId, status) {
-        await db.prepare(`
-            UPDATE payments 
-            SET status = ?, updated_at = ?
-            WHERE id = ?
-        `).run(status, new Date().toISOString(), paymentId);
-    }
-    
+
     // Process refund
     static async processRefund(paymentId, reason) {
-        const payment = await db.prepare('SELECT * FROM payments WHERE id = ?').get(paymentId);
-        
-        if (!payment) {
-            throw new Error('Payment not found');
+        try {
+            const payment = await this.getPaymentRecord(paymentId);
+            
+            if (!payment) {
+                throw new Error('Payment not found');
+            }
+
+            if (payment.status !== 'settlement') {
+                throw new Error('Only settled payments can be refunded');
+            }
+
+            // Call real Midtrans API using axios
+            const response = await axios.post(`${this.API_URL}/${payment.order_id}/refund`, {
+                refund_key: uuidv4(),
+                amount: payment.amount,
+                reason: reason || 'Customer requested refund'
+            }, {
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'Authorization': `Basic ${Buffer.from(this.SERVER_KEY + ':').toString('base64')}`
+                }
+            });
+
+            const result = response.data;
+
+            // Update payment status
+            await this.updatePaymentStatus(payment.order_id, 'refund');
+
+            const refundResult = {
+                refundId: result.refund_id || `REF_${Date.now()}`,
+                originalPaymentId: paymentId,
+                amount: payment.amount,
+                reason: reason || 'Customer requested refund',
+                status: 'processed',
+                processedAt: new Date().toISOString(),
+                estimatedSettlement: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days
+            };
+
+            return refundResult;
+        } catch (error) {
+            console.error('Midtrans refund error:', error);
+            throw new Error(error.message || 'Refund processing failed');
         }
-        
-        if (payment.status !== 'completed') {
-            throw new Error('Only completed payments can be refunded');
+    }
+
+    // Database operations using Sequelize
+    static async createPaymentRecord(payment) {
+        try {
+            const query = `
+                INSERT INTO payments (
+                    id, user_id, method, amount, currency, description, 
+                    booking_id, customer_info, status, processing_fee, 
+                    total_amount, payment_gateway_response, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `;
+            
+            await sequelize.query(query, {
+                replacements: [
+                    payment.id,
+                    payment.user_id,
+                    payment.method,
+                    payment.amount,
+                    payment.currency,
+                    payment.description,
+                    payment.booking_id,
+                    payment.customer_info,
+                    payment.status,
+                    payment.processing_fee,
+                    payment.total_amount,
+                    payment.payment_gateway_response,
+                    payment.created_at,
+                    payment.updated_at
+                ],
+                type: sequelize.QueryTypes.INSERT
+            });
+        } catch (error) {
+            console.error('Error creating payment record:', error);
+            // Continue even if database fails - payment can still be processed
         }
-        
-        // Simulate refund processing
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        const refundResult = {
-            refundId: `REF_${Date.now()}`,
-            originalPaymentId: paymentId,
-            amount: payment.amount,
-            reason: reason || 'User requested refund',
-            status: 'processed',
-            processedAt: new Date().toISOString(),
-            estimatedSettlement: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days
-        };
-        
-        // Update payment status
-        await db.prepare(`
-            UPDATE payments 
-            SET status = 'refunded', refund_reason = ?, refund_processed_at = ?, updated_at = ?
-            WHERE id = ?
-        `).run(reason, new Date().toISOString(), new Date().toISOString(), paymentId);
-        
-        // Create refund transaction record
-        await this.createTransactionRecord(paymentId, {
-            status: 'refunded',
-            response: refundResult
-        });
-        
-        return refundResult;
+    }
+
+    static async updatePaymentWithMidtransResponse(paymentId, response) {
+        try {
+            const query = `
+                UPDATE payments 
+                SET transaction_id = ?, order_id = ?, payment_gateway_response = ?, updated_at = ?
+                WHERE id = ?
+            `;
+            
+            await sequelize.query(query, {
+                replacements: [
+                    response.transaction_id,
+                    response.order_id,
+                    JSON.stringify(response),
+                    new Date(),
+                    paymentId
+                ],
+                type: sequelize.QueryTypes.UPDATE
+            });
+        } catch (error) {
+            console.error('Error updating payment with Midtrans response:', error);
+        }
+    }
+
+    static async updatePaymentStatus(orderId, status) {
+        try {
+            const query = `
+                UPDATE payments 
+                SET status = ?, updated_at = ?
+                WHERE order_id = ?
+            `;
+            
+            await sequelize.query(query, {
+                replacements: [status, new Date(), orderId],
+                type: sequelize.QueryTypes.UPDATE
+            });
+        } catch (error) {
+            console.error('Error updating payment status:', error);
+        }
+    }
+
+    static async getPaymentRecord(paymentId) {
+        try {
+            const query = 'SELECT * FROM payments WHERE id = ?';
+            const results = await sequelize.query(query, {
+                replacements: [paymentId],
+                type: sequelize.QueryTypes.SELECT
+            });
+            return results[0] || null;
+        } catch (error) {
+            console.error('Error getting payment record:', error);
+            return null;
+        }
+    }
+
+    // Get payment history for user
+    static async getPaymentHistory(userId, limit = 10) {
+        try {
+            const query = `
+                SELECT * FROM payments 
+                WHERE user_id = ? 
+                ORDER BY created_at DESC 
+                LIMIT ?
+            `;
+            
+            const results = await sequelize.query(query, {
+                replacements: [userId, limit],
+                type: sequelize.QueryTypes.SELECT
+            });
+            return results;
+        } catch (error) {
+            console.error('Error getting payment history:', error);
+            return [];
+        }
+    }
+
+    // Get payment details
+    static async getPaymentDetails(paymentId) {
+        try {
+            const query = 'SELECT * FROM payments WHERE id = ?';
+            const results = await sequelize.query(query, {
+                replacements: [paymentId],
+                type: sequelize.QueryTypes.SELECT
+            });
+            return results[0] || null;
+        } catch (error) {
+            console.error('Error getting payment details:', error);
+            return null;
+        }
+    }
+
+    // Execute custom query for admin operations
+    static async executeQuery(query, replacements = []) {
+        try {
+            const results = await sequelize.query(query, {
+                replacements: replacements,
+                type: sequelize.QueryTypes.SELECT
+            });
+            return results;
+        } catch (error) {
+            console.error('Error executing query:', error);
+            throw error;
+        }
     }
 }
 
-export default PaymentService;
+module.exports = MidtransPaymentService;

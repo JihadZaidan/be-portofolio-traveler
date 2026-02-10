@@ -8,7 +8,7 @@ const initTravelJournal = async () => {
       return global.sequelize.models.TravelJournal;
     }
 
-    const { sequelize } = require('../config/database.config.js');
+    const { sequelize } = require('../config/database-mysql.config.js');
     
     // Define TravelJournal model
     const TravelJournal = sequelize.define('TravelJournal', {
@@ -26,9 +26,10 @@ const initTravelJournal = async () => {
           }
         }
       },
-      cover: {
+      cover_image: {
         type: DataTypes.TEXT,
         allowNull: false,
+        field: 'cover_image',
         validate: {
           notEmpty: {
             msg: 'Cover image is required'
@@ -57,10 +58,8 @@ const initTravelJournal = async () => {
       }
     }, {
       tableName: 'travel_journals',
-      timestamps: true,
+      timestamps: false,
       underscored: true,
-      createdAt: 'created_at',
-      updatedAt: 'updated_at',
       indexes: [
         {
           fields: ['name'],
@@ -68,15 +67,12 @@ const initTravelJournal = async () => {
         },
         {
           fields: ['status']
-        },
-        {
-          fields: ['created_at']
         }
       ]
     });
 
-    // Sync the model with database
-    await TravelJournal.sync({ alter: true });
+    // Don't auto-sync to avoid key limit issues
+    console.log('✅ TravelJournal model initialized');
     
     // Make model globally available
     global.sequelize = global.sequelize || {};

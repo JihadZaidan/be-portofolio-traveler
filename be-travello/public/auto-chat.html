@@ -229,9 +229,51 @@
             left: 0;
             color: var(--primary);
         }
+        
+        /* Hide signup/login overlays */
+        .signup-overlay,
+        .login-overlay,
+        [id*="signup"],
+        [id*="login"],
+        .auth-container {
+            display: none !important;
+        }
+        
+        /* Ensure chat interface is always visible */
+        .flex.h-screen {
+            display: flex !important;
+        }
+        
+        body {
+            display: flex !important;
+        }
     </style>
 </head>
 <body class="min-h-screen text-gray-100">
+    <!-- Immediately show chat interface -->
+    <script>
+        // Force show chat interface immediately
+        document.addEventListener('DOMContentLoaded', function() {
+            // Hide any auth/signup overlays immediately
+            const authElements = document.querySelectorAll('[id*="signup"], [id*="login"], [class*="signup"], [class*="login"], .auth-container');
+            authElements.forEach(el => el.style.display = 'none');
+            
+            // Ensure main content is visible
+            document.body.style.display = 'flex';
+            const mainContainer = document.querySelector('.flex.h-screen');
+            if (mainContainer) mainContainer.style.display = 'flex';
+        });
+        
+        // Also run immediately without waiting for DOMContentLoaded
+        (function() {
+            const authElements = document.querySelectorAll('[id*="signup"], [id*="login"], [class*="signup"], [class*="login"], .auth-container');
+            authElements.forEach(el => el.style.display = 'none');
+            document.body.style.display = 'flex';
+            const mainContainer = document.querySelector('.flex.h-screen');
+            if (mainContainer) mainContainer.style.display = 'flex';
+        })();
+    </script>
+    
     <div class="flex h-screen">
         <!-- Sidebar -->
         <aside class="sidebar w-64 flex flex-col">
@@ -363,18 +405,123 @@
         
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
-            checkAuth();
+            // Check for token in URL parameters (from Google OAuth callback)
+            const urlParams = new URLSearchParams(window.location.search);
+            const token = urlParams.get('token');
+            const auth = urlParams.get('auth');
+            
+            if (auth === 'success' && token) {
+                // Save token from Google OAuth
+                localStorage.setItem('token', token);
+                
+                // Get user info from token
+                fetchUserInfo(token);
+                
+                // Clean URL
+                window.history.replaceState({}, document.title, window.location.pathname);
+                
+                // Show chat interface immediately
+                showChatInterface();
+            } else {
+                checkAuth();
+            }
+            
             loadSuggestions();
             setupAutoResize();
         });
+        
+        // Show chat interface
+        function showChatInterface() {
+            // Make sure the main content is visible
+            document.body.style.display = 'flex';
+            document.querySelector('.flex.h-screen').style.display = 'flex';
+            
+            // Remove any loading or signup overlays
+            const overlays = document.querySelectorAll('[id*="signup"], [id*="login"], [class*="signup"], [class*="login"]');
+            overlays.forEach(el => el.style.display = 'none');
+            
+            console.log('Chat interface shown');
+        }
+        
+        // Fetch user info from token
+        async function fetchUserInfo(token) {
+            try {
+                const response = await fetch(`${API_BASE}/auth/me`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    const user = data.data.user;
+                    localStorage.setItem('user', JSON.stringify(user));
+                    document.getElementById('userEmail').textContent = user.email;
+                    
+                    // Generate session ID
+                    currentSessionId = `auto_session_${user.id}_${Date.now()}`;
+                    
+                    showNotification('Login berhasil! Selamat datang ' + user.displayName, 'success');
+                } else {
+                    // Jika gagal mendapatkan user info, coba parse token manual
+                    console.log('Failed to get user info, trying manual token parse...');
+                    handleManualTokenSetup(token);
+                }
+            } catch (error) {
+                console.error('Error fetching user info:', error);
+                showNotification('Terjadi kesalahan, mencoba setup manual...', 'warning');
+                handleManualTokenSetup(token);
+            }
+        }
+        
+        // Handle manual token setup when /auth/me fails
+        function handleManualTokenSetup(token) {
+            try {
+                // Parse JWT token manual (basic info)
+                const tokenParts = token.split('.');
+                if (tokenParts.length === 3) {
+                    const payload = JSON.parse(atob(tokenParts[1]));
+                    
+                    // Create basic user object from token
+                    const user = {
+                        id: payload.id || 'google_user_' + Date.now(),
+                        email: payload.email || 'user@gmail.com',
+                        username: payload.email?.split('@')[0] || 'google_user',
+                        displayName: payload.email?.split('@')[0] || 'Google User',
+                        provider: 'google'
+                    };
+                    
+                    localStorage.setItem('user', JSON.stringify(user));
+                    document.getElementById('userEmail').textContent = user.email;
+                    currentSessionId = `auto_session_${user.id}_${Date.now()}`;
+                    
+                    showNotification('Login berhasil! Selamat datang ' + user.displayName, 'success');
+                } else {
+                    throw new Error('Invalid token format');
+                }
+            } catch (error) {
+                console.error('Manual token setup failed:', error);
+                showNotification('Gagal setup otomatis. Silakan coba login lagi.', 'error');
+                setTimeout(() => {
+                    window.location.href = '/auth.html';
+                }, 2000);
+            }
+        }
         
         // Check authentication
         function checkAuth() {
             const token = localStorage.getItem('token');
             const user = localStorage.getItem('user');
             
+            // Always show chat interface
+            showChatInterface();
+            
             if (!token || !user) {
-                window.location.href = '/auth.html';
+                // If no token/user, show default user info
+                document.getElementById('userEmail').textContent = 'Guest User';
+                currentSessionId = `guest_session_${Date.now()}`;
                 return;
             }
             
@@ -574,6 +721,34 @@
                 event.preventDefault();
                 sendMessage();
             }
+        }
+        
+        // Show notification
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 fade-in ${
+                type === 'success' ? 'bg-green-500 text-white' :
+                type === 'error' ? 'bg-red-500 text-white' :
+                type === 'warning' ? 'bg-yellow-500 text-white' :
+                'bg-blue-500 text-white'
+            }`;
+            notification.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas ${
+                        type === 'success' ? 'fa-check-circle' :
+                        type === 'error' ? 'fa-exclamation-circle' :
+                        type === 'warning' ? 'fa-exclamation-triangle' :
+                        'fa-info-circle'
+                    } mr-2"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
         }
         
         // Logout
