@@ -1,8 +1,8 @@
-const { Sequelize } = require('sequelize');
+const { Sequelize, DataTypes } = require('sequelize');
 
 // Database configuration for phpMyAdmin/MySQL
 const sequelize = new Sequelize(
-  process.env.DB_NAME || 'travello_db',
+  process.env.DB_NAME || 'ai_chatbot_db',
   process.env.DB_USER || 'root',
   process.env.DB_PASSWORD || '',
   {
@@ -31,7 +31,4 @@ const initializeDatabase = async () => {
   }
 };
 
-module.exports = {
-  sequelize,
-  initializeDatabase
-};
+module.exports = { sequelize, DataTypes, initializeDatabase };

@@ -11,8 +11,13 @@ const http = require('http');
 const jwt = require('jsonwebtoken');
 const { User, findByGoogleId, findByEmail, create, initUser, recordLoginHistory, getAllUsers, getUserById, updateUser, deleteUser } = require('./models/User.model.mysql.js');
 const { findShopUserByEmail, findShopUserByGoogleId, createShopUser, initShopUser, updateShopUser, recordShopLoginHistory, getAllShopUsers, getShopUserById, deleteShopUser } = require('./models/ShopUser.model.mysql.js');
+const { initShopProduct, createShopProduct, getAllShopProducts, getShopProductById, updateShopProduct, deleteShopProduct, getShopProductCategories } = require('./models/ShopProducts.model.mysql.js');
 const SocketChatController = require('./controllers/socket-chat.controller.js');
 const { initChatMessage } = require('./models/ChatMessage.model.js');
+const { initializeDatabase } = require('./config/database-mysql.config.js');
+const { initAdminChatHistory } = require('./models/AdminChatHistory.model.js');
+const { syncModels } = require('./models/sync-models.js');
+const AdminChatHistoryController = require('./controllers/admin-chat-history.controller.js');
 
 const app = express();
 const server = http.createServer(app);
@@ -74,6 +79,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
 app.use(cors({ 
   origin: [
     process.env.CORS_ORIGIN || "http://localhost:5173",
+    "http://localhost:5174",
     "http://localhost:5000",
     "http://127.0.0.1:5000",
     "http://localhost:5001",
@@ -109,8 +115,9 @@ app.use(cors({
 }));
 
 app.options('*', cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Increase body size limits to support base64-encoded images from admin travel journal
+app.use(express.json({ limit: '25mb' }));
+app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 
 // Session middleware for Passport
 app.use(session({
@@ -125,7 +132,7 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 // Serve static files
-app.use(express.static(path.join(__dirname, '../public')));
+app.use(express.static(path.join(__dirname, '../../public')));
 
 // OAuth2 redirect handler for Swagger UI
 app.get('/swagger-oauth2-redirect', (req, res) => {
@@ -559,7 +566,7 @@ const {
 // Get all shops
 app.get("/api/shops", async (req, res) => {
   try {
-    await initShop();
+    await initShopProduct();
     const filters = {
       category: req.query.category,
       status: req.query.status,
@@ -567,13 +574,13 @@ app.get("/api/shops", async (req, res) => {
       includeUser: req.query.includeUser === 'true'
     };
     
-    const shops = await getAllShops(filters);
+    const shops = await getAllShopProducts(filters);
     
     res.json({
       success: true,
       message: 'Shops retrieved successfully',
       data: {
-        shops: shops.map(shop => shop.toJSON()),
+        shops: shops,
         count: shops.length
       }
     });
@@ -622,16 +629,17 @@ app.get("/api/shops/:id", async (req, res) => {
 app.post("/api/shops", async (req, res) => {
   try {
     const shopData = req.body;
-    await initShop();
+    await initShopProduct();
     
-    const shop = await createShop(shopData);
-    console.log('✅ New shop created:', shop.toJSON());
+    // ShopProducts model already uses the correct field names
+    const product = await createShopProduct(shopData);
+    console.log('✅ New shop product created:', product.toJSON());
     
     res.status(201).json({
       success: true,
       message: 'Shop created successfully',
       data: {
-        shop: shop.toJSON()
+        shop: product.toJSON()
       }
     });
   } catch (error) {
@@ -1396,14 +1404,15 @@ app.get("/api/users/:userId/shops", async (req, res) => {
   }
 });
 
-// Google OAuth Strategy
-passport.use(new GoogleStrategy({
-  clientID: process.env.GOOGLE_CLIENT_ID,
-  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  callbackURL: process.env.GOOGLE_CALLBACK_URL,
-  scope: ['profile', 'email'],
-  prompt: 'consent' // Force consent screen
-}, async (accessToken, refreshToken, profile, done) => {
+// Google OAuth Strategy (only initialize if credentials are configured)
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  passport.use(new GoogleStrategy({
+    clientID: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    callbackURL: process.env.GOOGLE_CALLBACK_URL,
+    scope: ['profile', 'email'],
+    prompt: 'consent' // Force consent screen
+  }, async (accessToken, refreshToken, profile, done) => {
   try {
     console.log('Google OAuth Profile:', profile);
     
@@ -1460,6 +1469,9 @@ passport.use(new GoogleStrategy({
     return done(error, null);
   }
 }));
+} else {
+  console.log('⚠️  Google OAuth credentials not configured. OAuth features will be disabled.');
+}
 
 // Serialize/deserialize user for sessions
 passport.serializeUser((user, done) => {
@@ -1668,20 +1680,37 @@ const adminRoutes = require('./routes/admin.routes.js');
 const socketChatRoutes = require('./routes/socket-chat.routes.js');
 const certificationRoutes = require('./routes/certification.routes.js');
 const experienceRoutes = require('./routes/experience.routes.js');
+const portfolioRoutes = require('./routes/portfolio.routes.js');
+const landingPageRoutes = require('./routes/landing-page.routes.js');
+const userRoutes = require('./routes/user.routes.js');
 
 // API routes
 app.use('/api/admin', adminRoutes);
 app.use('/api/socket/chat', socketChatRoutes);
 app.use('/api/certifications', certificationRoutes);
 app.use('/api/experiences', experienceRoutes);
+app.use('/api/portfolio', portfolioRoutes);
+app.use('/api/user', userRoutes);
 
-// Error handling
+// Error handling middleware
 app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).json({
+    const isDevelopment = process.env.NODE_ENV === 'development';
+
+    // Handle body-parser/express payload too large
+    if (err?.type === 'entity.too.large' || err?.status === 413) {
+        return res.status(413).json({
+            success: false,
+            message: 'Payload too large. Please upload smaller images.',
+            ...(isDevelopment && { error: err.message })
+        });
+    }
+
+    const statusCode = err?.statusCode || err?.status || 500;
+    console.error(err);
+    res.status(statusCode).json({
         success: false,
-        message: 'Internal server error',
-        error: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
+        message: err?.message || 'Internal server error',
+        ...(isDevelopment && { stack: err?.stack })
     });
 });
 
@@ -1730,7 +1759,6 @@ app.get('/api/chat/unread-count', (req, res) => {
 console.log('✅ Chat routes registered successfully');
 
 // Admin Chat History API routes
-const AdminChatHistoryController = require('./controllers/admin-chat-history.controller.js');
 console.log('🔧 Registering admin chat history routes...');
 
 // Get admin chat history with filters
@@ -1766,11 +1794,6 @@ const PORT = process.env.PORT || 5000;
 
 // Initialize database and start server
 if (require.main === module) {
-  // Initialize database first
-  const { initializeDatabase } = require('./config/database.config.js');
-  const { initUser } = require('./models/User.model.js');
-  const { initChatMessage } = require('./models/ChatMessage.model.js');
-  const { initAdminChatHistory } = require('./models/AdminChatHistory.model.js');
   
   initializeDatabase()
     .then(() => {
@@ -1794,15 +1817,26 @@ if (require.main === module) {
     .then(() => {
       console.log('✅ AdminChatHistory model synchronized');
       
+      // Initialize AI Chatbot models
+      return syncModels();
+    })
+    .then(() => {
+      console.log('✅ AI Chatbot models synchronized');
+      
       // Initialize Socket.IO
       SocketChatController.initializeSocket(io);
       console.log('✅ Socket.IO initialized');
       
-      // Start server with Socket.IO
+      const PORT = process.env.PORT || 5000;
+
+// Start server with Socket.IO
       server.listen(PORT, () => {
         console.log(`🚀 Travello API Server running on http://localhost:${PORT}`);
         console.log(`📚 Swagger Documentation: http://localhost:${PORT}/api-docs`);
         console.log(`🏥 Health Check: http://localhost:${PORT}/health`);
+        console.log(`📋 API Info: http://localhost:${PORT}/api`);
+        console.log(`💬 Socket.IO Chat: ws://localhost:${PORT}`);
+        console.log(`🌐 Frontend should connect to: http://localhost:${PORT}`);
         console.log(`📋 API Info: http://localhost:${PORT}/api`);
         console.log(`💬 Socket.IO Chat: ws://localhost:${PORT}`);
         console.log(`📊 Admin Chat History: http://localhost:${PORT}/api/admin/chat-history`);
@@ -1821,6 +1855,9 @@ if (require.main === module) {
         console.log(`🚀 Travello API Server running on http://localhost:${PORT} (without database)`);
         console.log(`📚 Swagger Documentation: http://localhost:${PORT}/api-docs`);
         console.log(`🏥 Health Check: http://localhost:${PORT}/health`);
+        console.log(`📋 API Info: http://localhost:${PORT}/api`);
+        console.log(`💬 Socket.IO Chat: ws://localhost:${PORT}`);
+        console.log(`🌐 Frontend should connect to: http://localhost:${PORT}`);
         console.log(`📋 API Info: http://localhost:${PORT}/api`);
         console.log(`💬 Socket.IO Chat: ws://localhost:${PORT}`);
         console.log('⚠️  Database features disabled');

@@ -5,6 +5,10 @@ const cors = require('cors');
 let users = [];
 let userIdCounter = 1;
 
+// Simple in-memory shop storage for testing
+let shops = [];
+let shopIdCounter = 1;
+
 const app = express();
 
 // Middleware
@@ -50,6 +54,44 @@ const create = (userData) => {
 
 const getAllUsers = () => {
   return users.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+};
+
+// Shop helper functions
+const createShop = (shopData) => {
+  const newShop = {
+    id: `shop_${shopIdCounter++}_${Date.now()}`,
+    ...shopData,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  };
+  shops.push(newShop);
+  return newShop;
+};
+
+const getAllShops = () => {
+  return shops.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+};
+
+const findShopById = (id) => {
+  return shops.find(shop => shop.id === id);
+};
+
+const updateShop = (id, updateData) => {
+  const index = shops.findIndex(shop => shop.id === id);
+  if (index !== -1) {
+    shops[index] = { ...shops[index], ...updateData, updatedAt: new Date() };
+    return shops[index];
+  }
+  return null;
+};
+
+const deleteShop = (id) => {
+  const index = shops.findIndex(shop => shop.id === id);
+  if (index !== -1) {
+    const deleted = shops.splice(index, 1)[0];
+    return deleted;
+  }
+  return null;
 };
 
 // Serve admin login page
@@ -264,6 +306,145 @@ app.post("/api/auth/login", async (req, res) => {
   }
 });
 
+// Get all shops (public endpoint)
+app.get("/api/shops", async (req, res) => {
+  try {
+    const allShops = getAllShops();
+    
+    console.log(`📊 Fetching ${allShops.length} shops for frontend`);
+    
+    res.json(allShops);
+  } catch (error) {
+    console.error('Error fetching shops:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch shops',
+      error: error.message
+    });
+  }
+});
+
+// Get shop by ID
+app.get("/api/shops/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const shop = findShopById(id);
+    
+    if (!shop) {
+      return res.status(404).json({
+        success: false,
+        message: 'Shop not found'
+      });
+    }
+    
+    res.json(shop);
+  } catch (error) {
+    console.error('Error fetching shop:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch shop',
+      error: error.message
+    });
+  }
+});
+
+// Create shop
+app.post("/api/shops", async (req, res) => {
+  try {
+    const shopData = req.body;
+    
+    console.log('🛍️ Creating new shop:', shopData);
+    
+    const newShop = createShop(shopData);
+    console.log('✅ New shop created:', newShop);
+    
+    res.status(201).json(newShop);
+  } catch (error) {
+    console.error('Error creating shop:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create shop',
+      error: error.message
+    });
+  }
+});
+
+// Update shop
+app.put("/api/shops/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updateData = req.body;
+    
+    console.log('🔄 Updating shop:', id, updateData);
+    
+    const updatedShop = updateShop(id, updateData);
+    
+    if (!updatedShop) {
+      return res.status(404).json({
+        success: false,
+        message: 'Shop not found'
+      });
+    }
+    
+    console.log('✅ Shop updated:', updatedShop);
+    res.json(updatedShop);
+  } catch (error) {
+    console.error('Error updating shop:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update shop',
+      error: error.message
+    });
+  }
+});
+
+// Delete shop
+app.delete("/api/shops/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    console.log('🗑️ Deleting shop:', id);
+    
+    const deletedShop = deleteShop(id);
+    
+    if (!deletedShop) {
+      return res.status(404).json({
+        success: false,
+        message: 'Shop not found'
+      });
+    }
+    
+    console.log('✅ Shop deleted:', deletedShop);
+    res.json({ success: true, message: 'Shop deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting shop:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete shop',
+      error: error.message
+    });
+  }
+});
+
+// Get shop categories
+app.get("/api/shops/categories", async (req, res) => {
+  try {
+    const allShops = getAllShops();
+    const categories = [...new Set(allShops.map(shop => shop.category))];
+    
+    console.log(`📊 Fetching ${categories.length} categories`);
+    
+    res.json(categories);
+  } catch (error) {
+    console.error('Error fetching categories:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch categories',
+      error: error.message
+    });
+  }
+});
+
 // Get all users (admin endpoint)
 app.get("/api/admin/users", async (req, res) => {
   try {
@@ -298,10 +479,12 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚀 Travello Auth Server running on port ${PORT}`);
   console.log(`🏥 Health check: http://localhost:${PORT}/health`);
+  console.log(`🛍️ Shops API: http://localhost:${PORT}/api/shops`);
   console.log(`👥 Users API: http://localhost:${PORT}/api/admin/users`);
   console.log(`🔐 Register API: http://localhost:${PORT}/api/auth/register`);
   console.log(`🔐 Login API: http://localhost:${PORT}/api/auth/login`);
   console.log(`📊 Current users: ${users.length}`);
+  console.log(`📊 Current shops: ${shops.length}`);
   console.log(`📝 Admin login: http://localhost:${PORT}/admin-login`);
   console.log(`📝 User login: http://localhost:${PORT}/login`);
 });

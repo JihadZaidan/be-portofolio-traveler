@@ -1,6 +1,6 @@
 const { DataTypes } = require('sequelize');
 const { v4: uuidv4 } = require('uuid');
-const sequelize = require('../config/database-mysql.config.js');
+const { sequelize } = require('../config/database-mysql.config.js');
 
 const TravelJournal = sequelize.define('TravelJournal', {
   id: {

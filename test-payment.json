@@ -1,0 +1,19 @@
+{
+  "amount": 10000,
+  "customerDetails": {
+    "firstName": "Test",
+    "lastName": "User",
+    "email": "test@example.com",
+    "phone": "08123456789"
+  },
+  "itemDetails": [
+    {
+      "id": "TEST-ITEM-1",
+      "price": 10000,
+      "quantity": 1,
+      "name": "Test Travel Package",
+      "category": "Travel Package"
+    }
+  ],
+  "orderId": "TEST-1739012345678"
+}

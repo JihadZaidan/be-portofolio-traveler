@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Midtrans Integration Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://app.sandbox.midtrans.com/snap/snap.js" data-client-key="Mid-client-hnw3QaclflueMkZ4z"></script>
+</head>
+<body class="bg-gray-50 min-h-screen py-8">
+    <div class="max-w-4xl mx-auto px-4">
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h1 class="text-2xl font-bold text-gray-900 mb-6">Midtrans Integration Test</h1>
+            
+            <!-- Test Configuration -->
+            <div class="mb-6">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">Test Configuration</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Server URL</label>
+                        <input type="text" id="serverUrl" value="http://localhost:5000/api" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Client Key</label>
+                        <input type="text" id="clientKey" value="Mid-client-hnw3QaclflueMkZ4z" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Auth Token (Optional)</label>
+                        <input type="text" id="authToken" value="mock_jwt_token_test" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Test Payment Form -->
+            <div class="mb-6">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">Test Payment</h2>
+                <form id="paymentForm" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Amount</label>
+                            <input type="number" id="amount" value="10000" min="1000" step="1000"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Customer Email</label>
+                            <input type="email" id="email" value="test@example.com"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                            <input type="text" id="firstName" value="Test"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                            <input type="text" id="lastName" value="User"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                            <input type="tel" id="phone" value="08123456789"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Item Name</label>
+                            <input type="text" id="itemName" value="Test Travel Package"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                    </div>
+                    
+                    <button type="submit" 
+                            class="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors">
+                        Create Test Payment
+                    </button>
+                </form>
+            </div>
+
+            <!-- Test Results -->
+            <div id="testResults" class="hidden">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">Test Results</h2>
+                <div id="resultContent" class="bg-gray-50 rounded-lg p-4">
+                    <!-- Results will be displayed here -->
+                </div>
+            </div>
+
+            <!-- API Test Buttons -->
+            <div class="mb-6">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">API Tests</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <button onclick="testPaymentMethods()" 
+                            class="bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors">
+                        Test Payment Methods
+                    </button>
+                    <button onclick="testPaymentStatus()" 
+                            class="bg-yellow-600 text-white py-2 px-4 rounded-lg hover:bg-yellow-700 transition-colors">
+                        Test Payment Status
+                    </button>
+                    <button onclick="testRefund()" 
+                            class="bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors">
+                        Test Refund
+                    </button>
+                </div>
+            </div>
+
+            <!-- Log Output -->
+            <div>
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">Activity Log</h2>
+                <div id="logOutput" class="bg-gray-900 text-green-400 rounded-lg p-4 h-64 overflow-y-auto font-mono text-sm">
+                    <div>Ready for testing...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentOrderId = null;
+        let currentPaymentId = null;
+
+        // Utility function to get headers
+        function getHeaders() {
+            const authToken = document.getElementById('authToken').value;
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            if (authToken) {
+                headers['Authorization'] = `Bearer ${authToken}`;
+            }
+            return headers;
+        }
+
+        // Utility function to log messages
+        function log(message, type = 'info') {
+            const logOutput = document.getElementById('logOutput');
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? 'text-red-400' : 
+                         type === 'success' ? 'text-green-400' : 
+                         type === 'warning' ? 'text-yellow-400' : 'text-blue-400';
+            
+            logOutput.innerHTML += `<div class="${color}">[${timestamp}] ${message}</div>`;
+            logOutput.scrollTop = logOutput.scrollHeight;
+        }
+
+        // Show test results
+        function showResults(title, data, isError = false) {
+            const testResults = document.getElementById('testResults');
+            const resultContent = document.getElementById('resultContent');
+            
+            testResults.classList.remove('hidden');
+            resultContent.innerHTML = `
+                <h3 class="text-lg font-semibold mb-2 ${isError ? 'text-red-600' : 'text-green-600'}">${title}</h3>
+                <pre class="bg-white p-4 rounded border overflow-x-auto text-sm">${JSON.stringify(data, null, 2)}</pre>
+            `;
+        }
+
+        // Handle payment form submission
+        document.getElementById('paymentForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = {
+                amount: parseFloat(document.getElementById('amount').value),
+                customerDetails: {
+                    firstName: document.getElementById('firstName').value,
+                    lastName: document.getElementById('lastName').value,
+                    email: document.getElementById('email').value,
+                    phone: document.getElementById('phone').value
+                },
+                itemDetails: [{
+                    id: 'TEST-ITEM-1',
+                    price: parseFloat(document.getElementById('amount').value),
+                    quantity: 1,
+                    name: document.getElementById('itemName').value,
+                    category: 'Travel Package'
+                }],
+                orderId: `TEST-${Date.now()}`,
+                callbacks: {
+                    finish: `${window.location.origin}/payment/success`,
+                    error: `${window.location.origin}/payment/error`,
+                    pending: `${window.location.origin}/payment/pending`
+                }
+            };
+
+            log('Creating test payment...', 'info');
+            
+            try {
+                const serverUrl = document.getElementById('serverUrl').value;
+                const response = await fetch(`${serverUrl}/payments/create`, {
+                    method: 'POST',
+                    headers: getHeaders(),
+                    body: JSON.stringify(formData)
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    currentOrderId = result.data.order_id;
+                    log(`Payment created successfully! Order ID: ${currentOrderId}`, 'success');
+                    showResults('Payment Created Successfully', result);
+                    
+                    // Open Snap popup
+                    if (result.data.token) {
+                        log('Opening Midtrans Snap popup...', 'info');
+                        snap.pay(result.data.token, {
+                            onSuccess: (result) => {
+                                log('Payment successful!', 'success');
+                                showResults('Payment Success', result);
+                            },
+                            onPending: (result) => {
+                                log('Payment pending!', 'warning');
+                                showResults('Payment Pending', result);
+                            },
+                            onError: (result) => {
+                                log('Payment failed!', 'error');
+                                showResults('Payment Error', result, true);
+                            },
+                            onClose: () => {
+                                log('Payment popup closed', 'info');
+                            }
+                        });
+                    }
+                } else {
+                    log(`Payment creation failed: ${result.message}`, 'error');
+                    showResults('Payment Creation Failed', result, true);
+                }
+            } catch (error) {
+                log(`Network error: ${error.message}`, 'error');
+                showResults('Network Error', { message: error.message }, true);
+            }
+        });
+
+        // Test payment methods
+        async function testPaymentMethods() {
+            log('Testing payment methods...', 'info');
+            
+            try {
+                const serverUrl = document.getElementById('serverUrl').value;
+                const response = await fetch(`${serverUrl}/payments/methods`, {
+                    headers: getHeaders()
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    log(`Payment methods retrieved successfully!`, 'success');
+                    showResults('Payment Methods', result);
+                } else {
+                    log(`Failed to get payment methods: ${result.message}`, 'error');
+                    showResults('Payment Methods Error', result, true);
+                }
+            } catch (error) {
+                log(`Payment methods test error: ${error.message}`, 'error');
+                showResults('Payment Methods Error', { message: error.message }, true);
+            }
+        }
+
+        // Test payment status
+        async function testPaymentStatus() {
+            if (!currentOrderId) {
+                log('No order ID available. Create a payment first.', 'warning');
+                return;
+            }
+
+            log(`Testing payment status for order: ${currentOrderId}`, 'info');
+            
+            try {
+                const serverUrl = document.getElementById('serverUrl').value;
+                const response = await fetch(`${serverUrl}/payments/status/${currentOrderId}`, {
+                    headers: getHeaders()
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    log(`Payment status retrieved successfully!`, 'success');
+                    showResults('Payment Status', result);
+                } else {
+                    log(`Failed to get payment status: ${result.message}`, 'error');
+                    showResults('Payment Status Error', result, true);
+                }
+            } catch (error) {
+                log(`Payment status test error: ${error.message}`, 'error');
+                showResults('Payment Status Error', { message: error.message }, true);
+            }
+        }
+
+        // Test refund
+        async function testRefund() {
+            if (!currentPaymentId) {
+                log('No payment ID available. Create a payment first.', 'warning');
+                return;
+            }
+
+            log(`Testing refund for payment: ${currentPaymentId}`, 'info');
+            
+            try {
+                const serverUrl = document.getElementById('serverUrl').value;
+                const response = await fetch(`${serverUrl}/payments/refund/${currentPaymentId}`, {
+                    method: 'POST',
+                    headers: getHeaders(),
+                    body: JSON.stringify({
+                        reason: 'Test refund'
+                    })
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    log(`Refund processed successfully!`, 'success');
+                    showResults('Refund Success', result);
+                } else {
+                    log(`Refund failed: ${result.message}`, 'error');
+                    showResults('Refund Error', result, true);
+                }
+            } catch (error) {
+                log(`Refund test error: ${error.message}`, 'error');
+                showResults('Refund Error', { message: error.message }, true);
+            }
+        }
+
+        // Initialize
+        log('Midtrans Integration Test loaded successfully!', 'success');
+    </script>
+</body>
+</html>

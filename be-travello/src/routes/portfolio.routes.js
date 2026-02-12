@@ -1,5 +1,4 @@
 const express = require('express');
-const router = express.Router();
 const {
   getPortfolios,
   getPortfolio,
@@ -10,6 +9,8 @@ const {
   getPortfolioByCategory,
   getPortfolioCategoriesList
 } = require('../controllers/portfolio.controller.js');
+
+const router = express.Router();
 
 // GET /api/portfolios - Get all portfolios with optional filters
 router.get('/', getPortfolios);

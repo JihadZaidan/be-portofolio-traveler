@@ -48,7 +48,9 @@ function getRelativeTime(dateString) {
 // Get all travel journals
 router.get('/', async (req, res) => {
   try {
+    console.log('🔄 GET /api/travel-journal - Fetching all journals');
     const journals = await findAll();
+    console.log('📊 Found journals:', journals.length);
     
     res.json({
       success: true,
@@ -67,7 +69,7 @@ router.get('/', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error fetching travel journals:', error);
+    console.error('❌ Error fetching travel journals:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch travel journals',
@@ -316,13 +318,17 @@ router.post('/', async (req, res) => {
       });
     }
     
+    // Handle base64 images - ensure they're properly stored
+    const processedImages = Array.isArray(images) ? images : [];
+    
     const journalData = {
       name,
       cover_image: cover,
-      images: images || [],
+      images: processedImages,
       status: 'active'
     };
     
+    console.log('📝 Creating travel journal with data:', journalData);
     const newJournal = await create(journalData);
     
     res.status(201).json({
@@ -359,8 +365,12 @@ router.put('/:id', async (req, res) => {
     const updateData = {};
     if (name) updateData.name = name;
     if (cover) updateData.cover_image = cover;
-    if (images) updateData.images = images;
+    if (images) {
+      // Handle base64 images - ensure they're properly stored
+      updateData.images = Array.isArray(images) ? images : [];
+    }
     
+    console.log('📝 Updating travel journal with data:', updateData);
     const updatedJournal = await updateById(id, updateData);
     
     res.json({

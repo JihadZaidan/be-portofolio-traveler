@@ -1,9 +1,11 @@
 /**
  * Enhanced AI Chatbot Controller
  * Advanced features: conversation flows, proactive suggestions, context awareness
+ * Integration with Google Gemini API for intelligent responses
  */
 
 const EnhancedAIChatbotService = require('../services/enhanced-ai-chatbot.service.js');
+const aiChatHistoryService = require('../services/ai-chat-history.service.js');
 const { 
   createAIMessage,
   getAIMessagesBySession,
@@ -695,7 +697,67 @@ class EnhancedAIChatbotController {
       const enhancedAnalytics = this.aiService.getAnalytics();
 
       // Generate contextual suggestions
-      const suggestions = this.aiService.getContextualSuggestions(finalResponse, dbHistory, currentSessionId);
+      const suggestions = this.aiService.generateContextualSuggestions(finalResponse, dbHistory, currentSessionId);
+
+      // Save chat history to database
+      try {
+        // Create or get session
+        await aiChatHistoryService.createOrGetSession(
+          currentSessionId, 
+          'demo_user', 
+          'Demo User', 
+          'demo@travello.com',
+          { source: 'web_demo', autoTrigger }
+        );
+
+        // Save user message
+        await aiChatHistoryService.saveMessage(
+          currentSessionId,
+          `user_${Date.now()}`,
+          'demo_user',
+          'user',
+          message,
+          {
+            processingTime: processingTime,
+            intent: intent?.service || 'general',
+            confidence: confidence
+          }
+        );
+
+        // Save AI response
+        await aiChatHistoryService.saveMessage(
+          currentSessionId,
+          `ai_${Date.now()}`,
+          'ai_system',
+          'ai',
+          finalResponse,
+          {
+            processingTime: processingTime,
+            modelUsed: 'enhanced-ai',
+            intent: intent?.service || 'general',
+            confidence: confidence,
+            suggestions: suggestions
+          }
+        );
+
+        // Save suggestions
+        if (suggestions && suggestions.length > 0) {
+          await aiChatHistoryService.saveSuggestions(
+            currentSessionId,
+            'demo_user',
+            suggestions.map(s => ({
+              text: s,
+              category: intent?.service || 'general',
+              keywords: [intent?.service || 'general']
+            }))
+          );
+        }
+
+        console.log('✅ Chat history saved to database');
+      } catch (dbError) {
+        console.error('❌ Error saving chat history:', dbError);
+        // Continue even if database save fails
+      }
 
       // Calculate total processing time
       const totalProcessingTime = Date.now() - startTime;
@@ -752,8 +814,104 @@ class EnhancedAIChatbotController {
   }
 
   /**
-   * Helper method to log enhanced analytics
+   * Get chat history for a session
    */
+  async getChatHistory(req, res) {
+    try {
+      const { sessionId } = req.params;
+      const { limit = 50 } = req.query;
+
+      if (!sessionId) {
+        return res.status(400).json({
+          success: false,
+          error: 'Session ID is required'
+        });
+      }
+
+      const history = await aiChatHistoryService.getChatHistory(sessionId, parseInt(limit));
+
+      res.status(200).json({
+        success: true,
+        data: {
+          sessionId,
+          history,
+          count: history.length
+        }
+      });
+    } catch (error) {
+      console.error('Error getting chat history:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to get chat history'
+      });
+    }
+  }
+
+  /**
+   * Get all sessions for a user
+   */
+  async getUserSessions(req, res) {
+    try {
+      const { userId } = req.params;
+      const { limit = 20 } = req.query;
+
+      if (!userId) {
+        return res.status(400).json({
+          success: false,
+          error: 'User ID is required'
+        });
+      }
+
+      const sessions = await aiChatHistoryService.getUserSessions(userId, parseInt(limit));
+
+      res.status(200).json({
+        success: true,
+        data: {
+          userId,
+          sessions,
+          count: sessions.length
+        }
+      });
+    } catch (error) {
+      console.error('Error getting user sessions:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to get user sessions'
+      });
+    }
+  }
+
+  /**
+   * Get session analytics
+   */
+  async getSessionAnalytics(req, res) {
+    try {
+      const { sessionId } = req.params;
+
+      if (!sessionId) {
+        return res.status(400).json({
+          success: false,
+          error: 'Session ID is required'
+        });
+      }
+
+      const analytics = await aiChatHistoryService.getSessionAnalytics(sessionId);
+
+      res.status(200).json({
+        success: true,
+        data: {
+          sessionId,
+          analytics
+        }
+      });
+    } catch (error) {
+      console.error('Error getting session analytics:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to get session analytics'
+      });
+    }
+  }
   async logEnhancedAnalytics(sessionId, userId, eventType, eventData) {
     try {
       await logAnalytics({

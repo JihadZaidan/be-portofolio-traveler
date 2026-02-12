@@ -1,5 +1,5 @@
 const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database-mysql.config.js');
+const { sequelize } = require('../config/database-mysql.config.js');
 
 const LandingPage = sequelize.define('LandingPage', {
   id: {

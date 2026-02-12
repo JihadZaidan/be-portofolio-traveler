@@ -63,18 +63,25 @@ const createExperience = async (req, res) => {
     await initExperience();
     const { logo, logoAlt, title, company, period, duration } = req.body;
     
-    if (!title || !company) {
+    if (!title) {
       return res.status(400).json({
         success: false,
-        message: 'Title and company are required'
+        message: 'Title is required'
       });
     }
     
+    // Auto-generate logo if not provided
+    let finalLogo = logo || '';
+    if (!finalLogo) {
+      // Generate UI Avatar URL as fallback
+      finalLogo = `https://ui-avatars.com/api/?name=${encodeURIComponent(title)}&background=3b82f6&color=fff&size=128&bold=true`;
+    }
+    
     const experience = await Experience.create({
-      logo: logo || '',
-      logoAlt: logoAlt || company,
+      logo: finalLogo,
+      logoAlt: logoAlt || title || company,
       title,
-      company,
+      company: company || '',
       period: period || '',
       duration: duration || ''
     });
@@ -112,8 +119,14 @@ const updateExperience = async (req, res) => {
     
     const { logo, logoAlt, title, company, period, duration } = req.body;
     
+    // Auto-generate logo if updating to empty or if logo is explicitly set to empty
+    let finalLogo = logo;
+    if (logo !== undefined && !logo) {
+      finalLogo = `https://ui-avatars.com/api/?name=${encodeURIComponent(title || experience.title)}&background=3b82f6&color=fff&size=128&bold=true`;
+    }
+    
     await experience.update({
-      logo: logo !== undefined ? logo : experience.logo,
+      logo: finalLogo !== undefined ? finalLogo : experience.logo,
       logoAlt: logoAlt !== undefined ? logoAlt : experience.logoAlt,
       title: title !== undefined ? title : experience.title,
       company: company !== undefined ? company : experience.company,

@@ -6,9 +6,9 @@ const {
   createExperience,
   updateExperience,
   deleteExperience
-} = require('../controllers/simple-experience.controller');
+} = require('../controllers/experience.controller');
 
-console.log('🔧 Experience routes loaded with controller:', Object.keys(require('../controllers/simple-experience.controller')));
+console.log('🔧 Experience routes loaded with controller:', Object.keys(require('../controllers/experience.controller')));
 
 // GET /api/experiences - Get all experiences
 router.get('/', getAllExperiences);

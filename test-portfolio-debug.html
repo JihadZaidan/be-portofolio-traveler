@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Portfolio Debug Test</title>
+</head>
+<body>
+    <h1>Portfolio Debug Test</h1>
+    <button onclick="testPortfolioSave()">Test Portfolio Save</button>
+    <div id="result"></div>
+
+    <script>
+        async function testPortfolioSave() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<p>Testing...</p>';
+            
+            const testData = {
+                title: "Test Debug Save",
+                description: "Test untuk debugging save error",
+                category: "web",
+                imageUrl: "",
+                projectUrl: "",
+                githubUrl: "",
+                technologies: [],
+                tags: [],
+                featured: false,
+                published: true,
+                orderIndex: 0,
+                clientName: "",
+                completionDate: "",
+                createdBy: "admin"
+            };
+
+            try {
+                console.log('📝 Sending data:', testData);
+                
+                const response = await fetch('http://localhost:5000/api/portfolios', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(testData)
+                });
+
+                console.log('📡 Response status:', response.status);
+                console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('❌ HTTP Error:', response.status, errorText);
+                    resultDiv.innerHTML = `<p style="color: red;">Error: ${response.status} - ${errorText}</p>`;
+                    return;
+                }
+
+                const result = await response.json();
+                console.log('✅ Response data:', result);
+                
+                if (result.success) {
+                    resultDiv.innerHTML = `<p style="color: green;">✅ Success! Portfolio ID: ${result.data.portfolio.id}</p>`;
+                } else {
+                    resultDiv.innerHTML = `<p style="color: red;">❌ Backend Error: ${result.message}</p>`;
+                }
+            } catch (error) {
+                console.error('❌ Network Error:', error);
+                resultDiv.innerHTML = `<p style="color: red;">❌ Network Error: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>
