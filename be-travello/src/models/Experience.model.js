@@ -1,5 +1,5 @@
 const { DataTypes } = require('sequelize');
-const { sequelize } = require('../config/database-mysql.config');
+const { sequelize } = require('../config/database.config');
 
 const Experience = sequelize.define('Experience', {
   id: {
@@ -21,7 +21,7 @@ const Experience = sequelize.define('Experience', {
   },
   company: {
     type: DataTypes.STRING,
-    allowNull: true
+    allowNull: false
   },
   period: {
     type: DataTypes.STRING,

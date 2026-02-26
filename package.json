@@ -4,10 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --root fe-travello --config fe-travello/vite.config.ts",
-    "build": "tsc -b && vite build --root fe-travello --config fe-travello/vite.config.ts",
+    "dev": "vite",
+    "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview --root fe-travello --config fe-travello/vite.config.ts"
+    "preview": "vite preview"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.4",
@@ -17,7 +17,7 @@
     "class-variance-authority": "^0.7.1",
     "jquery": "^3.7.1",
     "lucide-react": "^0.562.0",
-    "quill": "^2.0.2",
+    "quill": "^2.0.3",
     "radix-ui": "^1.4.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

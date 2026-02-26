@@ -23,11 +23,13 @@
 
         .sidebar {
             background: rgba(26, 32, 44, 0.95);
+            backdrop-filter: blur(10px);
             border-right: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .chat-container {
             background: rgba(45, 55, 72, 0.95);
+            backdrop-filter: blur(10px);
         }
 
         .message-bubble {
@@ -48,6 +50,7 @@
             color: #e2e8f0;
             border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 18px 18px 18px 4px;
+            backdrop-filter: blur(10px);
         }
 
         .typing-indicator {
@@ -57,6 +60,7 @@
             background: rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 18px 18px 18px 4px;
+            backdrop-filter: blur(10px);
         }
 
         .typing-dot {
@@ -81,6 +85,7 @@
             border: 1px solid rgba(255, 255, 255, 0.2);
             color: #e2e8f0;
             transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
         }
 
         .suggestion-chip:hover {
@@ -107,6 +112,7 @@
 
         .input-area {
             background: rgba(26, 32, 44, 0.95);
+            backdrop-filter: blur(10px);
             border-top: 1px solid rgba(255, 255, 255, 0.1);
         }
 
@@ -340,7 +346,7 @@
             <!-- Header Image -->
             <div class="header-image flex items-center justify-center">
                 <div class="text-center z-10">
-                    <div class="inline-flex items-center justify-center w-16 h-16 bg-white bg-opacity-20 rounded-full mb-4">
+                    <div class="inline-flex items-center justify-center w-16 h-16 bg-white bg-opacity-20 rounded-full mb-4 backdrop-filter backdrop-blur-lg">
                         <i class="fas fa-robot text-white text-2xl"></i>
                     </div>
                     <h2 class="text-2xl font-bold text-white mb-2">AI Travel Assistant</h2>

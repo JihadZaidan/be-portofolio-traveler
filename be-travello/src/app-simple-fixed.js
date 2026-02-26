@@ -11,13 +11,9 @@ const http = require('http');
 const jwt = require('jsonwebtoken');
 const { User, findByGoogleId, findByEmail, create, initUser, recordLoginHistory, getAllUsers, getUserById, updateUser, deleteUser } = require('./models/User.model.mysql.js');
 const { findShopUserByEmail, findShopUserByGoogleId, createShopUser, initShopUser, updateShopUser, recordShopLoginHistory, getAllShopUsers, getShopUserById, deleteShopUser } = require('./models/ShopUser.model.mysql.js');
-const { initShopProduct, createShopProduct, getAllShopProducts, getShopProductById, updateShopProduct, deleteShopProduct, getShopProductCategories } = require('./models/ShopProducts.model.mysql.js');
+const { ShopProduct, initShopProduct, createShopProduct, getAllShopProducts, getShopProductById, updateShopProduct, deleteShopProduct, getShopProductCategories } = require('./models/ShopProducts.model.mysql.js');
 const SocketChatController = require('./controllers/socket-chat.controller.js');
 const { initChatMessage } = require('./models/ChatMessage.model.js');
-const { initializeDatabase } = require('./config/database-mysql.config.js');
-const { initAdminChatHistory } = require('./models/AdminChatHistory.model.js');
-const { syncModels } = require('./models/sync-models.js');
-const AdminChatHistoryController = require('./controllers/admin-chat-history.controller.js');
 
 const app = express();
 const server = http.createServer(app);
@@ -79,7 +75,6 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
 app.use(cors({ 
   origin: [
     process.env.CORS_ORIGIN || "http://localhost:5173",
-    "http://localhost:5174",
     "http://localhost:5000",
     "http://127.0.0.1:5000",
     "http://localhost:5001",
@@ -115,9 +110,8 @@ app.use(cors({
 }));
 
 app.options('*', cors());
-// Increase body size limits to support base64-encoded images from admin travel journal
-app.use(express.json({ limit: '25mb' }));
-app.use(express.urlencoded({ extended: true, limit: '25mb' }));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Session middleware for Passport
 app.use(session({
@@ -132,7 +126,7 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 // Serve static files
-app.use(express.static(path.join(__dirname, '../../public')));
+app.use(express.static(path.join(__dirname, '../public')));
 
 // OAuth2 redirect handler for Swagger UI
 app.get('/swagger-oauth2-redirect', (req, res) => {
@@ -284,6 +278,58 @@ app.post("/api/auth/login", AuthController.login);
 app.post("/api/auth/register", AuthController.register);
 app.post("/api/auth/logout", AuthController.logout);
 app.get("/api/auth/me", AuthController.getMe);
+
+// Test endpoint to check database schema
+app.get("/api/test/schema", async (req, res) => {
+  try {
+    const { sequelize } = require('./config/database-mysql.config.js');
+    const [results] = await sequelize.query("DESCRIBE users");
+    
+    res.json({
+      success: true,
+      message: 'Database schema',
+      data: results
+    });
+  } catch (error) {
+    console.error('Schema test error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Schema test failed',
+      error: error.message
+    });
+  }
+});
+
+// Test endpoint to check database users
+app.get("/api/test/users", async (req, res) => {
+  try {
+    await initUser();
+    const users = await getAllUsers();
+    console.log('Found users:', users.length);
+    
+    res.json({
+      success: true,
+      message: 'Test users endpoint',
+      data: {
+        count: users.length,
+        users: users.map(u => ({
+          id: u.id,
+          username: u.username,
+          email: u.email,
+          role: u.role,
+          created_at: u.created_at
+        }))
+      }
+    });
+  } catch (error) {
+    console.error('Test users error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Test failed',
+      error: error.message
+    });
+  }
+});
 
 // Get all users (admin endpoint) - Unified for regular and shop users
 app.get("/api/admin/users", async (req, res) => {
@@ -566,7 +612,7 @@ const {
 // Get all shops
 app.get("/api/shops", async (req, res) => {
   try {
-    await initShopProduct();
+    await initShop();
     const filters = {
       category: req.query.category,
       status: req.query.status,
@@ -574,13 +620,13 @@ app.get("/api/shops", async (req, res) => {
       includeUser: req.query.includeUser === 'true'
     };
     
-    const shops = await getAllShopProducts(filters);
+    const shops = await getAllShops(filters);
     
     res.json({
       success: true,
       message: 'Shops retrieved successfully',
       data: {
-        shops: shops,
+        shops: shops.map(shop => shop.toJSON()),
         count: shops.length
       }
     });
@@ -629,17 +675,16 @@ app.get("/api/shops/:id", async (req, res) => {
 app.post("/api/shops", async (req, res) => {
   try {
     const shopData = req.body;
-    await initShopProduct();
+    await initShop();
     
-    // ShopProducts model already uses the correct field names
-    const product = await createShopProduct(shopData);
-    console.log('✅ New shop product created:', product.toJSON());
+    const shop = await createShop(shopData);
+    console.log('✅ New shop created:', shop.toJSON());
     
     res.status(201).json({
       success: true,
       message: 'Shop created successfully',
       data: {
-        shop: product.toJSON()
+        shop: shop.toJSON()
       }
     });
   } catch (error) {
@@ -730,6 +775,243 @@ app.get("/api/shops/categories", async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch shop categories',
+      error: error.message
+    });
+  }
+});
+
+// Shop Products CRUD endpoints
+
+// Get all shop products
+app.get("/api/shop-products", async (req, res) => {
+  try {
+    await initShopProduct();
+    const filters = {
+      category: req.query.category,
+      status: req.query.status || 'active',
+      search: req.query.search
+    };
+    
+    const products = await getAllShopProducts(filters);
+    
+    res.json({
+      success: true,
+      message: 'Shop products retrieved successfully',
+      data: {
+        products: products.map(product => ({
+          id: product.id,
+          title: product.title,
+          description: product.description,
+          imageSrc: product.image_src,
+          price: product.price,
+          deliveryTime: product.delivery_time,
+          serviceCategory: product.service_category,
+          status: product.status,
+          createdAt: product.created_at,
+          updatedAt: product.updated_at
+        })),
+        count: products.length
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching shop products:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch shop products',
+      error: error.message
+    });
+  }
+});
+
+// Get shop product by ID
+app.get("/api/shop-products/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    await initShopProduct();
+    
+    const product = await getShopProductById(id);
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Shop product not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Shop product retrieved successfully',
+      data: {
+        product: {
+          id: product.id,
+          title: product.title,
+          description: product.description,
+          imageSrc: product.image_src,
+          price: product.price,
+          deliveryTime: product.delivery_time,
+          serviceCategory: product.service_category,
+          status: product.status,
+          createdAt: product.created_at,
+          updatedAt: product.updated_at
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching shop product:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch shop product',
+      error: error.message
+    });
+  }
+});
+
+// Create shop product
+app.post("/api/shop-products", async (req, res) => {
+  try {
+    const productData = {
+      title: req.body.title,
+      description: req.body.description,
+      image_src: req.body.imageSrc || '/bg-shopCards.jpg',
+      price: req.body.price,
+      delivery_time: req.body.deliveryTime,
+      service_category: req.body.serviceCategory,
+      status: req.body.status || 'active'
+    };
+    
+    await initShopProduct();
+    const product = await createShopProduct(productData);
+    console.log('✅ New shop product created:', product.toJSON());
+    
+    res.status(201).json({
+      success: true,
+      message: 'Shop product created successfully',
+      data: {
+        product: {
+          id: product.id,
+          title: product.title,
+          description: product.description,
+          imageSrc: product.image_src,
+          price: product.price,
+          deliveryTime: product.delivery_time,
+          serviceCategory: product.service_category,
+          status: product.status,
+          createdAt: product.created_at,
+          updatedAt: product.updated_at
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error creating shop product:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create shop product',
+      error: error.message
+    });
+  }
+});
+
+// Update shop product
+app.put("/api/shop-products/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updateData = {
+      title: req.body.title,
+      description: req.body.description,
+      image_src: req.body.imageSrc,
+      price: req.body.price,
+      delivery_time: req.body.deliveryTime,
+      service_category: req.body.serviceCategory,
+      status: req.body.status
+    };
+    
+    await initShopProduct();
+    const product = await updateShopProduct(id, updateData);
+    
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Shop product not found'
+      });
+    }
+    
+    console.log('✅ Shop product updated:', product.toJSON());
+    
+    res.json({
+      success: true,
+      message: 'Shop product updated successfully',
+      data: {
+        product: {
+          id: product.id,
+          title: product.title,
+          description: product.description,
+          imageSrc: product.image_src,
+          price: product.price,
+          deliveryTime: product.delivery_time,
+          serviceCategory: product.service_category,
+          status: product.status,
+          createdAt: product.created_at,
+          updatedAt: product.updated_at
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error updating shop product:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update shop product',
+      error: error.message
+    });
+  }
+});
+
+// Delete shop product
+app.delete("/api/shop-products/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    await initShopProduct();
+    
+    const deleted = await deleteShopProduct(id);
+    if (!deleted) {
+      return res.status(404).json({
+        success: false,
+        message: 'Shop product not found'
+      });
+    }
+    
+    console.log('✅ Shop product deleted:', id);
+    
+    res.json({
+      success: true,
+      message: 'Shop product deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting shop product:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete shop product',
+      error: error.message
+    });
+  }
+});
+
+// Get shop product categories
+app.get("/api/shop-products/categories", async (req, res) => {
+  try {
+    await initShopProduct();
+    const categories = await getShopProductCategories();
+    
+    res.json({
+      success: true,
+      message: 'Shop product categories retrieved successfully',
+      data: {
+        categories
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching shop product categories:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch shop product categories',
       error: error.message
     });
   }
@@ -921,7 +1203,8 @@ app.get("/api/landing-pages/section/:section", async (req, res) => {
   }
 });
 
-// Portfolio CRUD endpoints
+// Portfolio CRUD endpoints - Temporarily disabled
+/*
 const { 
   Portfolio, 
   createPortfolio, 
@@ -934,7 +1217,10 @@ const {
   getPortfolioCategories,
   initPortfolio 
 } = require('./models/Portfolio.model.mysql.js');
+*/
 
+// Portfolio endpoints - Temporarily disabled
+/*
 // Get all portfolios
 app.get("/api/portfolios", async (req, res) => {
   try {
@@ -1159,8 +1445,10 @@ app.get("/api/portfolios/categories", async (req, res) => {
     });
   }
 });
+*/
 
-// Blog Articles CRUD API
+// Blog Articles CRUD API - Temporarily disabled
+/*
 const { 
   BlogArticle, 
   createBlogArticle, 
@@ -1174,6 +1462,7 @@ const {
   incrementViewCount,
   initBlogArticle 
 } = require('./models/BlogArticle.model.mysql');
+*/
 
 // Get all blog articles (admin)
 app.get("/api/admin/blog/articles", async (req, res) => {
@@ -1404,15 +1693,14 @@ app.get("/api/users/:userId/shops", async (req, res) => {
   }
 });
 
-// Google OAuth Strategy (only initialize if credentials are configured)
-if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
-  passport.use(new GoogleStrategy({
-    clientID: process.env.GOOGLE_CLIENT_ID,
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: process.env.GOOGLE_CALLBACK_URL,
-    scope: ['profile', 'email'],
-    prompt: 'consent' // Force consent screen
-  }, async (accessToken, refreshToken, profile, done) => {
+// Google OAuth Strategy
+passport.use(new GoogleStrategy({
+  clientID: process.env.GOOGLE_CLIENT_ID,
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  callbackURL: process.env.GOOGLE_CALLBACK_URL,
+  scope: ['profile', 'email'],
+  prompt: 'consent' // Force consent screen
+}, async (accessToken, refreshToken, profile, done) => {
   try {
     console.log('Google OAuth Profile:', profile);
     
@@ -1469,9 +1757,6 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
     return done(error, null);
   }
 }));
-} else {
-  console.log('⚠️  Google OAuth credentials not configured. OAuth features will be disabled.');
-}
 
 // Serialize/deserialize user for sessions
 passport.serializeUser((user, done) => {
@@ -1568,8 +1853,10 @@ app.get("/api/auth/google/callback",
       const token = generateToken(user);
       
       // Redirect to React frontend callback route (existing handler)
-      const redirectUrl = `http://localhost:5173/auth/callback?token=${token}&login_page=aichatbot`;
+      const redirectUrl = `http://localhost:5173/auth/callback?token=${token}&auth=success&login_page=aichatbot`;
       console.log('Redirecting to React auth callback:', redirectUrl);
+      console.log('Generated token:', token.substring(0, 50) + '...');
+      console.log('User data:', { id: user.id, email: user.email, name: user.displayName });
       return res.redirect(redirectUrl);
       
     } catch (error) {
@@ -1663,9 +1950,9 @@ app.use('/api/payments', paymentRoutes);
 const adminTransactionsRoutes = require('./routes/admin-transactions.routes.js');
 app.use('/api/admin/transactions', adminTransactionsRoutes);
 
-// Travel journal routes
-const travelJournalRoutes = require('./routes/travel-journal.routes.js');
-app.use('/api/travel-journal', travelJournalRoutes);
+// Travel journal routes - Temporarily disabled
+// const travelJournalRoutes = require('./routes/travel-journal.routes.js');
+// app.use('/api/travel-journal', travelJournalRoutes);
 
 // AI Chatbot routes
 const aiChatbotRoutes = require('./routes/ai-chatbot.routes.js');
@@ -1680,37 +1967,18 @@ const adminRoutes = require('./routes/admin.routes.js');
 const socketChatRoutes = require('./routes/socket-chat.routes.js');
 const certificationRoutes = require('./routes/certification.routes.js');
 const experienceRoutes = require('./routes/experience.routes.js');
-const portfolioRoutes = require('./routes/portfolio.routes.js');
-const landingPageRoutes = require('./routes/landing-page.routes.js');
-const userRoutes = require('./routes/user.routes.js');
-
-// API routes
 app.use('/api/admin', adminRoutes);
 app.use('/api/socket/chat', socketChatRoutes);
 app.use('/api/certifications', certificationRoutes);
 app.use('/api/experiences', experienceRoutes);
-app.use('/api/portfolio', portfolioRoutes);
-app.use('/api/user', userRoutes);
 
-// Error handling middleware
+// Error handling
 app.use((err, req, res, next) => {
-    const isDevelopment = process.env.NODE_ENV === 'development';
-
-    // Handle body-parser/express payload too large
-    if (err?.type === 'entity.too.large' || err?.status === 413) {
-        return res.status(413).json({
-            success: false,
-            message: 'Payload too large. Please upload smaller images.',
-            ...(isDevelopment && { error: err.message })
-        });
-    }
-
-    const statusCode = err?.statusCode || err?.status || 500;
-    console.error(err);
-    res.status(statusCode).json({
+    console.error(err.stack);
+    res.status(500).json({
         success: false,
-        message: err?.message || 'Internal server error',
-        ...(isDevelopment && { stack: err?.stack })
+        message: 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
     });
 });
 
@@ -1759,6 +2027,7 @@ app.get('/api/chat/unread-count', (req, res) => {
 console.log('✅ Chat routes registered successfully');
 
 // Admin Chat History API routes
+const AdminChatHistoryController = require('./controllers/admin-chat-history.controller.js');
 console.log('🔧 Registering admin chat history routes...');
 
 // Get admin chat history with filters
@@ -1790,10 +2059,15 @@ app.post('/api/admin/chat-history', AdminChatHistoryController.createAdminChatHi
 
 console.log('✅ Admin chat history routes registered successfully');
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 55432;
 
 // Initialize database and start server
 if (require.main === module) {
+  // Initialize database first
+  const { initializeDatabase } = require('./config/database.config.js');
+  const { initUser } = require('./models/User.model.js');
+  const { initChatMessage } = require('./models/ChatMessage.model.js');
+  const { initAdminChatHistory } = require('./models/AdminChatHistory.model.js');
   
   initializeDatabase()
     .then(() => {
@@ -1817,29 +2091,17 @@ if (require.main === module) {
     .then(() => {
       console.log('✅ AdminChatHistory model synchronized');
       
-      // Initialize AI Chatbot models
-      return syncModels();
-    })
-    .then(() => {
-      console.log('✅ AI Chatbot models synchronized');
-      
       // Initialize Socket.IO
       SocketChatController.initializeSocket(io);
       console.log('✅ Socket.IO initialized');
       
-      const PORT = process.env.PORT || 5000;
-
-// Start server with Socket.IO
+      // Start server with Socket.IO
       server.listen(PORT, () => {
         console.log(`🚀 Travello API Server running on http://localhost:${PORT}`);
         console.log(`📚 Swagger Documentation: http://localhost:${PORT}/api-docs`);
         console.log(`🏥 Health Check: http://localhost:${PORT}/health`);
         console.log(`📋 API Info: http://localhost:${PORT}/api`);
         console.log(`💬 Socket.IO Chat: ws://localhost:${PORT}`);
-        console.log(`🌐 Frontend should connect to: http://localhost:${PORT}`);
-        console.log(`📋 API Info: http://localhost:${PORT}/api`);
-        console.log(`💬 Socket.IO Chat: ws://localhost:${PORT}`);
-        console.log(`📊 Admin Chat History: http://localhost:${PORT}/api/admin/chat-history`);
       });
     })
     .catch((error) => {
@@ -1855,9 +2117,6 @@ if (require.main === module) {
         console.log(`🚀 Travello API Server running on http://localhost:${PORT} (without database)`);
         console.log(`📚 Swagger Documentation: http://localhost:${PORT}/api-docs`);
         console.log(`🏥 Health Check: http://localhost:${PORT}/health`);
-        console.log(`📋 API Info: http://localhost:${PORT}/api`);
-        console.log(`💬 Socket.IO Chat: ws://localhost:${PORT}`);
-        console.log(`🌐 Frontend should connect to: http://localhost:${PORT}`);
         console.log(`📋 API Info: http://localhost:${PORT}/api`);
         console.log(`💬 Socket.IO Chat: ws://localhost:${PORT}`);
         console.log('⚠️  Database features disabled');

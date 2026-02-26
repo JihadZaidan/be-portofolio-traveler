@@ -383,9 +383,4 @@ router.get('/health', controller.healthCheck.bind(controller));
  */
 router.get('/info', controller.getServiceInfo.bind(controller));
 
-// Chat History Routes
-router.get('/history/:sessionId', controller.getChatHistory.bind(controller));
-router.get('/sessions/:userId', controller.getUserSessions.bind(controller));
-router.get('/analytics/:sessionId', controller.getSessionAnalytics.bind(controller));
-
 module.exports = router;

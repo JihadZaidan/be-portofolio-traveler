@@ -301,40 +301,53 @@
         // Google OAuth login
         function loginWithGoogle() {
             const oauthUrl = 'http://localhost:5000/api/auth/google?mode=login&login_page=aichatbot';
-            const popup = window.open(oauthUrl, 'google-oauth', 'width=500,height=600,scrollbars=yes,resizable=yes');
-            
             showNotification('Opening Google authentication...', 'success');
             
-            // Listen for messages from popup
-            const messageHandler = (event) => {
-                if (event.origin !== 'http://localhost:5000') return;
-                
-                if (event.data.success) {
-                    showNotification('Google login successful! Redirecting to AI Chatbot...', 'success');
-                    setTimeout(() => {
-                        window.location.href = `http://localhost:5173/aichatbot?token=${event.data.data.token}&user=${encodeURIComponent(JSON.stringify(event.data.data.user))}&action=login&auth=success`;
-                    }, 2000);
-                    popup.close();
-                } else if (event.data.error) {
-                    showNotification('Google login failed: ' + event.data.error, 'error');
-                    popup.close();
-                }
-            };
-            
-            window.addEventListener('message', messageHandler);
-            
-            // Check if popup was closed manually
-            const checkPopup = setInterval(() => {
-                if (popup.closed) {
-                    clearInterval(checkPopup);
-                    window.removeEventListener('message', messageHandler);
-                    showNotification('Google login was cancelled', 'error');
-                }
-            }, 1000);
+            // Redirect directly to Google OAuth instead of using popup
+            window.location.href = oauthUrl;
         }
         
         // Auto-fill demo data for testing
         document.addEventListener('DOMContentLoaded', function() {
+            // Check if user is already authenticated
+            const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
+            const authToken = localStorage.getItem('authToken');
+            
+            if (isAuthenticated && authToken) {
+                // Verify token with backend
+                fetch('http://localhost:5000/api/auth/google/me', {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // User is still authenticated, redirect to chatbot
+                        showNotification('Welcome back! Redirecting to AI Chatbot...', 'success');
+                        setTimeout(() => {
+                            window.location.href = 'http://localhost:5173/aichatbot';
+                        }, 2000);
+                    } else {
+                        // Token invalid, clear auth data
+                        localStorage.removeItem('authToken');
+                        localStorage.removeItem('isAuthenticated');
+                        localStorage.removeItem('userEmail');
+                        localStorage.removeItem('userName');
+                        localStorage.removeItem('authProvider');
+                        localStorage.removeItem('loginTime');
+                    }
+                })
+                .catch(error => {
+                    console.error('Token verification error:', error);
+                    // Clear auth data on error
+                    localStorage.removeItem('authToken');
+                    localStorage.removeItem('isAuthenticated');
+                });
+            }
+            
+            // Auto-fill demo data for testing
             document.getElementById('loginEmail').value = 'chatbot@example.com';
             document.getElementById('loginPassword').value = 'password123';
         });

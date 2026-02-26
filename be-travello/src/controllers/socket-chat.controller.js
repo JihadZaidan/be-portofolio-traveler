@@ -147,10 +147,7 @@ class SocketChatController {
             role: socket.role 
           });
           
-          const { message, receiverId, receiverName, messageType, attachmentUrl, attachmentType } = messageData;
-          
-          // Determine message type based on sender role
-          const finalMessageType = messageType || (socket.role === 'admin' ? 'admin_to_user' : 'user_to_admin');
+          const { message, receiverId, receiverName, messageType = 'user_to_admin', attachmentUrl, attachmentType } = messageData;
           
           // Create message in database
           const newMessage = await createUserAdminMessage({
@@ -160,7 +157,7 @@ class SocketChatController {
             receiverId,
             receiverName,
             message,
-            messageType: finalMessageType,
+            messageType,
             roomId: socket.role === 'admin' ? `user_${receiverId}_admin` : `user_${socket.userId}_admin`,
             attachmentUrl,
             attachmentType,
@@ -177,7 +174,6 @@ class SocketChatController {
             // Send to specific user if online
             if (userSocketId) {
               io.to(userSocketId).emit('receive_message', messageToSend);
-              io.to(userSocketId).emit('message_delivered', { messageId: newMessage.id });
               console.log(`📤 Admin message sent to user ${receiverId} via socket ${userSocketId}`);
               
               // Update message status to delivered
@@ -201,21 +197,15 @@ class SocketChatController {
             // User sends message to all admins
             console.log('📤 Sending message from user to admin_room:', messageToSend);
             
-            // Send to all admins in admin_room (real-time like WhatsApp)
+            // Send to all admins in admin_room
             io.to('admin_room').emit('receive_message', messageToSend);
-            console.log('✅ Message sent to admin_room');
+            console.log('📤 User message sent to admin_room');
             
-            // Send back to user for confirmation and display (like WhatsApp)
-            socket.emit('receive_message', messageToSend);
+            // Send back to user for confirmation
             socket.emit('message_sent', messageToSend);
-            socket.emit('message_delivered', { messageId: newMessage.id });
-            console.log('✅ Message sent back to user for display');
-            
-            const userRoomId = `user_${socket.userId}_admin`;
-            io.to(userRoomId).emit('receive_message', messageToSend);
-            console.log(`✅ Message also sent to room ${userRoomId}`);
             
             // Update user info in admins' user list when they send a message
+            const userRoomId = `user_${socket.userId}_admin`;
             const userInfo = {
               id: socket.userId,
               name: socket.userName,
@@ -227,8 +217,10 @@ class SocketChatController {
             };
             console.log('👤 Updating user in admin list (new message):', userInfo);
             io.to('admin_room').emit('user_update', userInfo);
-            
-            // Update unread count for admins
+          }
+
+          // Update unread count for admins
+          if (socket.role !== 'admin') {
             const unreadCount = await getUnreadCount();
             io.to('admin_room').emit('unread_count', { count: unreadCount });
           }
@@ -241,23 +233,10 @@ class SocketChatController {
         }
       });
 
-      // Mark messages as read (like WhatsApp blue ticks)
+      // Mark messages as read
       socket.on('mark_read', async (messageIds) => {
         try {
           await markMessagesAsRead(messageIds);
-          
-          // Send read status to sender
-          const message = await UserAdminChatMessage.findOne({ where: { id: messageIds[0] } });
-          if (message) {
-            const senderSocketId = message.messageType === 'user_to_admin' 
-              ? connectedUsers.get(message.senderId)
-              : Array.from(connectedAdmins.values()).find(adminId => adminId === message.receiverId);
-            
-            if (senderSocketId) {
-              io.to(senderSocketId).emit('message_read', { messageIds });
-              console.log(`📖 Messages marked as read for sender`);
-            }
-          }
           
           if (socket.role === 'admin') {
             // Update unread count for all admins
@@ -285,7 +264,7 @@ class SocketChatController {
         }
       });
 
-      // Typing indicators (like WhatsApp)
+      // Typing indicators
       socket.on('typing_start', (data) => {
         if (socket.role === 'admin') {
           const userSocketId = connectedUsers.get(data.receiverId);
@@ -294,7 +273,6 @@ class SocketChatController {
               userName: socket.userName,
               isTyping: true 
             });
-            console.log(`📝 Admin ${socket.userName} is typing to user ${data.receiverId}`);
           }
         } else {
           typingUsers.add(socket.userId);
@@ -303,7 +281,6 @@ class SocketChatController {
             userId: socket.userId,
             isTyping: true 
           });
-          console.log(`📝 User ${socket.userName} is typing to admin`);
         }
       });
 
@@ -315,7 +292,6 @@ class SocketChatController {
               userName: socket.userName,
               isTyping: false 
             });
-            console.log(`📝 Admin ${socket.userName} stopped typing to user ${data.receiverId}`);
           }
         } else {
           typingUsers.delete(socket.userId);
@@ -324,7 +300,6 @@ class SocketChatController {
             userId: socket.userId,
             isTyping: false 
           });
-          console.log(`📝 User ${socket.userName} stopped typing`);
         }
       });
 
@@ -375,35 +350,39 @@ class SocketChatController {
       socket.on('get_chat_history', async (data) => {
         try {
           const { userId } = data;
-          if (socket.role === 'admin' && userId) {
-            const roomId = `user_${userId}_admin`;
-            const messages = await getMessagesByRoom(roomId);
-            socket.emit('chat_history', { messages });
-            console.log(`📜 Sent chat history for user ${userId} to admin ${socket.userName}`);
-          }
+          const roomId = `user_${userId}_admin`;
+          const messages = await getMessagesByRoom(roomId);
+          
+          console.log(`📜 Getting chat history for user ${userId} from room ${roomId}: ${messages.length} messages`);
+          
+          // Send chat history to the requesting socket
+          socket.emit('chat_history', { messages });
+          
         } catch (error) {
-          console.error('❌ Error in get_chat_history:', error);
+          console.error('❌ Error getting chat history:', error);
           socket.emit('error', { message: 'Failed to get chat history' });
         }
       });
 
-      // Join specific room for admin
-      socket.on('join_user_room', (userId) => {
-        if (socket.role === 'admin') {
-          const roomId = `user_${userId}_admin`;
-          socket.join(roomId);
-          console.log(`👨‍💼 Admin ${socket.userName} joined user room: ${roomId}`);
-          
-          // Get chat history for this room
-          getMessagesByRoom(roomId).then(messages => {
+      // Join specific user room
+      socket.on('join_user_room', async (userId) => {
+        try {
+          if (socket.role === 'admin') {
+            const roomId = `user_${userId}_admin`;
+            socket.join(roomId);
+            console.log(`👤 ${socket.userName} joined user room: ${roomId}`);
+            
+            // Get and send chat history for this room
+            const messages = await getMessagesByRoom(roomId);
             socket.emit('chat_history', { messages });
-            console.log(`📜 Sent ${messages.length} messages for room ${roomId}`);
-          }).catch(error => {
-            console.error('❌ Error getting chat history:', error);
-          });
-        } else {
-          console.error('❌ Only admins can join user rooms');
-          socket.emit('error', { message: 'Failed to join user room: Admin access required' });
+            console.log(`📜 Sent ${messages.length} messages from room ${roomId}`);
+          } else {
+            console.error('❌ Only admins can join user rooms');
+            socket.emit('error', { message: 'Failed to join user room: Admin access required' });
+          }
+        } catch (error) {
+          console.error('❌ Error joining user room:', error);
+          socket.emit('error', { message: 'Failed to join user room' });
         }
       });
 
@@ -414,6 +393,9 @@ class SocketChatController {
             const roomId = `user_${userId}_admin`;
             socket.leave(roomId);
             console.log(`👨‍💼 Admin ${socket.userName} left user room: ${roomId}`);
+          } else {
+            console.log('❌ Only admins can leave user rooms');
+            socket.emit('error', { message: 'Failed to leave user room: Admin access required' });
           }
         } catch (error) {
           console.error('❌ Error leaving user room:', error);

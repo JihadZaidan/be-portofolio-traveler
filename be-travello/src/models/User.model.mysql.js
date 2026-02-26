@@ -40,11 +40,6 @@ const User = sequelize.define('User', {
     allowNull: true,
     field: 'profile_picture'
   },
-  provider: {
-    type: DataTypes.ENUM('manual', 'google', 'github'),
-    allowNull: false,
-    defaultValue: 'manual'
-  },
   role: {
     type: DataTypes.ENUM('user', 'admin'),
     allowNull: false,

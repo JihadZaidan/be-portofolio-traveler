@@ -1,4 +1,4 @@
-const { DataTypes, Op } = require('sequelize');
+const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database-mysql.config.js');
 
 const Portfolio = sequelize.define('Portfolio', {
@@ -16,7 +16,7 @@ const Portfolio = sequelize.define('Portfolio', {
     allowNull: true
   },
   category: {
-    type: DataTypes.ENUM('web', 'mobile', 'design', 'photography', 'video', 'other'),
+    type: DataTypes.ENUM('product-description', 'social-media', 'landing-page', 'ads-copy', 'articles', 'email-marketing', 'brand-storytelling'),
     allowNull: false,
     defaultValue: 'web'
   },
@@ -40,7 +40,7 @@ const Portfolio = sequelize.define('Portfolio', {
     allowNull: true,
     field: 'github_url'
   },
-  technologies: {
+  images: {
     type: DataTypes.JSON,
     allowNull: true,
     defaultValue: []
@@ -78,7 +78,7 @@ const Portfolio = sequelize.define('Portfolio', {
   },
   createdBy: {
     type: DataTypes.STRING,
-    allowNull: false,
+    allowNull: true,
     field: 'created_by'
   },
   createdAt: {
@@ -100,8 +100,8 @@ const Portfolio = sequelize.define('Portfolio', {
   updatedAt: 'updated_at'
 });
 
-// Initialize portfolio model
-const initPortfolio = async () => {
+// Initialize model
+export const initPortfolio = async () => {
   try {
     await Portfolio.sync({ alter: true });
     console.log('✅ Portfolio model initialized');
@@ -112,7 +112,7 @@ const initPortfolio = async () => {
 };
 
 // Create new portfolio
-const createPortfolio = async (portfolioData) => {
+export const createPortfolio = async (portfolioData) => {
   try {
     const portfolio = await Portfolio.create(portfolioData);
     return portfolio;
@@ -123,7 +123,7 @@ const createPortfolio = async (portfolioData) => {
 };
 
 // Get all portfolios
-const getAllPortfolios = async (filters = {}) => {
+export const getAllPortfolios = async (filters = {}) => {
   try {
     const whereClause = {};
     
@@ -140,6 +140,7 @@ const getAllPortfolios = async (filters = {}) => {
     }
     
     if (filters.search) {
+      const { Op } = DataTypes;
       whereClause[Op.or] = [
         { title: { [Op.like]: `%${filters.search}%` } },
         { description: { [Op.like]: `%${filters.search}%` } },
@@ -149,7 +150,11 @@ const getAllPortfolios = async (filters = {}) => {
     
     const portfolios = await Portfolio.findAll({
       where: whereClause,
-      order: [['order_index', 'ASC'], ['created_at', 'DESC']]
+      order: [['order_index', 'ASC'], ['created_at', 'DESC']],
+      include: filters.includeUser ? [{
+        model: (await import('./User.model.mysql.js')).default,
+        attributes: ['id', 'username', 'email', 'displayName']
+      }] : undefined
     });
     
     return portfolios;
@@ -160,9 +165,14 @@ const getAllPortfolios = async (filters = {}) => {
 };
 
 // Get portfolio by ID
-const getPortfolioById = async (id) => {
+export const getPortfolioById = async (id) => {
   try {
-    const portfolio = await Portfolio.findByPk(id);
+    const portfolio = await Portfolio.findByPk(id, {
+      include: [{
+        model: (await import('./User.model.mysql.js')).default,
+        attributes: ['id', 'username', 'email', 'displayName']
+      }]
+    });
     return portfolio;
   } catch (error) {
     console.error('❌ Error getting portfolio by ID:', error);
@@ -171,10 +181,11 @@ const getPortfolioById = async (id) => {
 };
 
 // Update portfolio
-const updatePortfolio = async (id, updateData) => {
+export const updatePortfolio = async (id, updateData) => {
   try {
-    const [updatedRowsCount] = await Portfolio.update(updateData, {
-      where: { id }
+    const [updatedRowsCount] = await Portfolio.update(updateData, { 
+      where: { id },
+      returning: true
     });
     
     if (updatedRowsCount > 0) {
@@ -188,7 +199,7 @@ const updatePortfolio = async (id, updateData) => {
 };
 
 // Delete portfolio
-const deletePortfolio = async (id) => {
+export const deletePortfolio = async (id) => {
   try {
     const deletedRowsCount = await Portfolio.destroy({ where: { id } });
     return deletedRowsCount > 0;
@@ -199,7 +210,7 @@ const deletePortfolio = async (id) => {
 };
 
 // Get featured portfolios
-const getFeaturedPortfolios = async (limit = 6) => {
+export const getFeaturedPortfolios = async (limit = 6) => {
   try {
     const portfolios = await Portfolio.findAll({
       where: { featured: true, published: true },
@@ -214,7 +225,7 @@ const getFeaturedPortfolios = async (limit = 6) => {
 };
 
 // Get portfolios by category
-const getPortfoliosByCategory = async (category) => {
+export const getPortfoliosByCategory = async (category) => {
   try {
     const portfolios = await Portfolio.findAll({
       where: { category, published: true },
@@ -228,7 +239,7 @@ const getPortfoliosByCategory = async (category) => {
 };
 
 // Get portfolio categories
-const getPortfolioCategories = async () => {
+export const getPortfolioCategories = async () => {
   try {
     const categories = await Portfolio.findAll({
       attributes: [[sequelize.fn('DISTINCT', sequelize.col('category')), 'category']],
@@ -249,7 +260,5 @@ module.exports = {
   getPortfolioById,
   updatePortfolio,
   deletePortfolio,
-  getFeaturedPortfolios,
-  getPortfoliosByCategory,
   getPortfolioCategories
 };

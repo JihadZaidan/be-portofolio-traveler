@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const session = require("express-session");
-const passport = require("./config/passport.config.js");
+const { passport } = require("./config/passport.config.js");
 const http = require('http');
 const { Server } = require('socket.io');
 const chatRoutes = require('./routes/chat.routes.js');
@@ -10,14 +10,12 @@ const profileRoutes = require('./routes/profile.routes.js');
 const paymentRoutes = require('./routes/payment.routes.js');
 const adminTransactionRoutes = require('./routes/admin-transaction.routes.js');
 const adminRoutes = require('./routes/admin.routes.js');
-const adminAuthRoutes = require('./routes/admin-auth.routes.js');
 const socketChatRoutes = require('./routes/socket-chat.routes.js');
 const certificationRoutes = require('./routes/certification.routes.js');
 const experienceRoutes = require('./routes/experience.routes.js');
 const portfolioRoutes = require('./routes/portfolio.routes.js');
 const landingPageRoutes = require('./routes/landing-page.routes.js');
 const travelJournalRoutes = require('./routes/travel-journal.routes.js');
-const enhancedAIChatbotRoutes = require('./routes/enhanced-ai-chatbot.routes.js');
 const { initChatMessage } = require('./models/ChatMessage.model.js');
 const { initUserAdminChatMessage } = require('./models/UserAdminChatMessage.model.js');
 const { initPortfolio } = require('./models/Portfolio.model.mysql.js');
@@ -208,7 +206,6 @@ app.use("/api/profile", profileRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/admin/transactions", adminTransactionRoutes);
 app.use("/api/admin", adminRoutes);
-app.use("/api/admin/auth", adminAuthRoutes);
 app.use("/api/socket/chat", socketChatRoutes);
 app.use("/api/certifications", certificationRoutes);
 console.log('🔧 Loading experience routes...');
@@ -220,8 +217,6 @@ app.use("/api/landing-pages", landingPageRoutes);
 console.log('✅ Landing pages routes loaded');
 app.use("/api/travel-journal", travelJournalRoutes);
 console.log('✅ Travel journal routes loaded');
-app.use("/api/enhanced-ai-chatbot", enhancedAIChatbotRoutes);
-console.log('✅ Enhanced AI Chatbot routes loaded');
 
 // Error handling
 app.use(errorHandler);
@@ -253,33 +248,10 @@ const io = new Server(server, {
 // Initialize Socket.IO chat controller
 SocketChatController.initializeSocket(io);
 
-// Initialize database models before starting server
-const initializeDatabase = async () => {
-  try {
-    console.log('🔧 Initializing database models...');
-    await Promise.all([
-      initChatMessage(),
-      initUserAdminChatMessage(),
-      initPortfolio(),
-      initTravelJournal()
-    ]);
-    console.log('✅ All database models initialized successfully');
-  } catch (error) {
-    console.error('❌ Failed to initialize database models:', error);
-    process.exit(1);
-  }
-};
-
-// Start server after database initialization
-const PORT = process.env.PORT || 5000;
-initializeDatabase().then(() => {
-  server.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`📖 API Documentation: http://localhost:${PORT}/api-docs`);
-  });
-}).catch((error) => {
-  console.error('❌ Failed to start server:', error);
-  process.exit(1);
-});
+// Initialize database models
+initChatMessage().catch(console.error);
+initUserAdminChatMessage().catch(console.error);
+initPortfolio().catch(console.error);
+initTravelJournal().catch(console.error);
 
 module.exports = server;

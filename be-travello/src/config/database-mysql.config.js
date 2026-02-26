@@ -4,7 +4,7 @@ require('dotenv').config();
 
 // Always use MySQL for development and production
 const sequelize = new Sequelize(
-  process.env.MYSQL_DATABASE || 'travello_shop',
+  process.env.MYSQL_DATABASE || 'travello_db',
   process.env.MYSQL_USER || 'root',
   process.env.MYSQL_PASSWORD || '',
   {
@@ -31,10 +31,10 @@ const sequelize = new Sequelize(
 const testConnection = async () => {
   try {
     await sequelize.authenticate();
-    console.log('✅ MySQL database connection established successfully.');
+    console.log(`✅ MySQL connection has been established successfully.`);
     return true;
   } catch (error) {
-    console.error('❌ Unable to connect to MySQL database:', error);
+    console.error(`❌ Unable to connect to MySQL database:`, error);
     return false;
   }
 };

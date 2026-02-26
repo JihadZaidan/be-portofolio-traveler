@@ -1,6 +1,6 @@
-import bcrypt from 'bcryptjs';
-import { verifyToken } from '../config/passport.config.js';
-import { User } from '../models/User.model.js';
+const bcrypt = require('bcryptjs');
+const { verifyToken } = require('../config/passport.config.js');
+const { User } = require('../models/User.model.js');
 
 class ProfileController {
   // Middleware to verify token
@@ -279,4 +279,4 @@ class ProfileController {
   }
 }
 
-export default ProfileController;
+module.exports = ProfileController;

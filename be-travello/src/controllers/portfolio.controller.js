@@ -1,4 +1,4 @@
-const {
+import {
   getAllPortfolios,
   getPortfolioById,
   createPortfolio,
@@ -7,15 +7,15 @@ const {
   getFeaturedPortfolios,
   getPortfoliosByCategory,
   getPortfolioCategories
-} = require('../models/Portfolio.model.mysql.js');
+} from '../models/Portfolio.model.mysql.js';
 
 // Get all portfolios with optional filters
-const getPortfolios = async (req, res) => {
+export const getPortfolios = async (req, res) => {
   try {
     const {
       category,
       featured,
-      published,
+      published = 'true',
       search,
       limit,
       page = 1,
@@ -54,7 +54,7 @@ const getPortfolios = async (req, res) => {
 };
 
 // Get portfolio by ID
-const getPortfolio = async (req, res) => {
+export const getPortfolio = async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -82,43 +82,22 @@ const getPortfolio = async (req, res) => {
 };
 
 // Create new portfolio
-const createNewPortfolio = async (req, res) => {
+export const createNewPortfolio = async (req, res) => {
   try {
-    console.log('📝 Received portfolio creation request');
-    console.log('📊 Request body:', JSON.stringify(req.body, null, 2));
-    
     const portfolioData = {
       ...req.body,
       createdBy: req.user?.id || 'admin'
     };
 
-    // Validate required fields
-    const requiredFields = ['title', 'description', 'category'];
-    const missingFields = requiredFields.filter(field => !portfolioData[field] || portfolioData[field].trim() === '');
-    
-    if (missingFields.length > 0) {
-      console.log('❌ Missing required fields:', missingFields);
-      return res.status(400).json({
-        success: false,
-        message: `Missing required fields: ${missingFields.join(', ')}`,
-        error: 'Validation failed'
-      });
-    }
-
-    console.log('✅ Creating portfolio with data:', JSON.stringify(portfolioData, null, 2));
     const portfolio = await createPortfolio(portfolioData);
-    console.log('✅ Portfolio created successfully:', JSON.stringify(portfolio, null, 2));
 
     res.status(201).json({
       success: true,
       message: 'Portfolio created successfully',
-      data: {
-        portfolio: portfolio
-      }
+      data: portfolio
     });
   } catch (error) {
     console.error('❌ Error creating portfolio:', error);
-    console.error('❌ Error stack:', error.stack);
     res.status(500).json({
       success: false,
       message: 'Failed to create portfolio',
@@ -128,14 +107,12 @@ const createNewPortfolio = async (req, res) => {
 };
 
 // Update portfolio
-const updatePortfolioById = async (req, res) => {
+export const updatePortfolioById = async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = req.body;
 
-    console.log('Updating portfolio:', id, 'with data:', updateData);
     const portfolio = await updatePortfolio(id, updateData);
-    console.log('Portfolio updated successfully:', portfolio);
 
     if (!portfolio) {
       return res.status(404).json({
@@ -160,7 +137,7 @@ const updatePortfolioById = async (req, res) => {
 };
 
 // Delete portfolio
-const deletePortfolioById = async (req, res) => {
+export const deletePortfolioById = async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -173,7 +150,7 @@ const deletePortfolioById = async (req, res) => {
       });
     }
 
-    res.json({
+    res.status(200).json({
       success: true,
       message: 'Portfolio deleted successfully'
     });
@@ -188,17 +165,15 @@ const deletePortfolioById = async (req, res) => {
 };
 
 // Get featured portfolios
-const getFeaturedPortfolioItems = async (req, res) => {
+export const getFeaturedPortfolioItems = async (req, res) => {
   try {
     const { limit = 6 } = req.query;
-    const portfolios = await getFeaturedPortfolios(parseInt(limit));
     
+    const portfolios = await getFeaturedPortfolios(parseInt(limit));
+
     res.status(200).json({
       success: true,
-      data: {
-        portfolios,
-        count: portfolios.length
-      }
+      data: portfolios
     });
   } catch (error) {
     console.error('❌ Error fetching featured portfolios:', error);
@@ -211,18 +186,15 @@ const getFeaturedPortfolioItems = async (req, res) => {
 };
 
 // Get portfolios by category
-const getPortfolioByCategory = async (req, res) => {
+export const getPortfolioByCategory = async (req, res) => {
   try {
     const { category } = req.params;
     
     const portfolios = await getPortfoliosByCategory(category);
-    
+
     res.status(200).json({
       success: true,
-      data: {
-        portfolios,
-        count: portfolios.length
-      }
+      data: portfolios
     });
   } catch (error) {
     console.error('❌ Error fetching portfolios by category:', error);
@@ -235,16 +207,13 @@ const getPortfolioByCategory = async (req, res) => {
 };
 
 // Get portfolio categories
-const getPortfolioCategoriesList = async (req, res) => {
+export const getPortfolioCategoriesList = async (req, res) => {
   try {
     const categories = await getPortfolioCategories();
-    
+
     res.status(200).json({
       success: true,
-      data: {
-        categories,
-        count: categories.length
-      }
+      data: categories
     });
   } catch (error) {
     console.error('❌ Error fetching portfolio categories:', error);
@@ -254,15 +223,4 @@ const getPortfolioCategoriesList = async (req, res) => {
       error: error.message
     });
   }
-};
-
-module.exports = {
-  getPortfolios,
-  getPortfolio,
-  createNewPortfolio,
-  updatePortfolioById,
-  deletePortfolioById,
-  getFeaturedPortfolioItems,
-  getPortfolioByCategory,
-  getPortfolioCategoriesList
 };

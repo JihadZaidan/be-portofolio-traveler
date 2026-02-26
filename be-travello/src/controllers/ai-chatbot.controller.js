@@ -23,7 +23,7 @@ class AIChatbotController {
     const startTime = Date.now();
     
     try {
-      const { message, sessionId, history } = req.body;
+      const { message, sessionId, history, language } = req.body;
       const user = req.user;
 
       if (!user) {
@@ -69,7 +69,7 @@ class AIChatbotController {
 
       // Generate AI response with timing and enhanced features
       const aiResponseStart = Date.now();
-      const aiResponse = this.aiService.generateResponse(message, dbHistory, currentSessionId);
+      const aiResponse = this.aiService.generateResponse(message, dbHistory, currentSessionId, language || 'en');
       const processingTime = Date.now() - aiResponseStart;
 
       // Detect intent for analytics with enhanced detection

@@ -28,16 +28,6 @@ const Shop = sequelize.define('Shop', {
     allowNull: true,
     field: 'image_url'
   },
-  deliveryTime: {
-    type: DataTypes.STRING,
-    allowNull: true,
-    field: 'delivery_time'
-  },
-  serviceCategory: {
-    type: DataTypes.STRING,
-    allowNull: true,
-    field: 'service_category'
-  },
   rating: {
     type: DataTypes.DECIMAL(3, 2),
     allowNull: true,
@@ -59,6 +49,15 @@ const Shop = sequelize.define('Shop', {
     type: DataTypes.ENUM('active', 'inactive', 'pending'),
     allowNull: false,
     defaultValue: 'active'
+  },
+  createdBy: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    field: 'created_by',
+    references: {
+      model: 'users',
+      key: 'id'
+    }
   },
   createdAt: {
     type: DataTypes.DATE,

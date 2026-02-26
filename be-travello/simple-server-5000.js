@@ -1,13 +1,20 @@
 const express = require('express');
 const cors = require('cors');
+const passport = require('passport');
+const GoogleStrategy = require('passport-google-oauth20').Strategy;
+const session = require('express-session');
+const { 
+  initUser, 
+  getAllUsers, 
+  findByEmail, 
+  create, 
+  deleteUser, 
+  getUserById,
+  findByGoogleId
+} = require('./src/models/User.model.mysql.js');
 
-// Simple in-memory user storage for testing
-let users = [];
-let userIdCounter = 1;
-
-// Simple in-memory shop storage for testing
-let shops = [];
-let shopIdCounter = 1;
+// Load environment variables
+require('dotenv').config();
 
 const app = express();
 
@@ -33,65 +40,92 @@ app.options('*', cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Session middleware for Passport
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your_session_secret_here_change_in_production',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 } // 24 hours
+}));
+
+// Initialize Passport
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Passport Google OAuth Strategy
+passport.use(new GoogleStrategy({
+  clientID: process.env.GOOGLE_CLIENT_ID,
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  callbackURL: process.env.GOOGLE_CALLBACK_URL || "http://localhost:55435/api/auth/google/callback",
+  scope: ['profile', 'email']
+}, async (accessToken, refreshToken, profile, done) => {
+  try {
+    // Check if user exists by Google ID
+    let user = await findByGoogleId(profile.id);
+    
+    if (!user) {
+      // Check if user exists by email
+      user = await findByEmail(profile.emails[0].value);
+      
+      if (!user) {
+        // Create new user
+        const userData = {
+          username: profile.emails[0].value.split('@')[0],
+          email: profile.emails[0].value,
+          googleId: profile.id,
+          displayName: profile.displayName,
+          profilePicture: profile.photos[0]?.value,
+          provider: 'google',
+          role: 'user',
+          isEmailVerified: profile.emails[0].verified || true
+        };
+        
+        user = await create(userData);
+        console.log(`✅ New Google user created: ${user.email}`);
+      } else {
+        // Update existing user with Google ID
+        user.googleId = profile.id;
+        user.profilePicture = profile.photos[0]?.value;
+        user.provider = 'google';
+        await user.save();
+        console.log(`✅ Existing user linked with Google: ${user.email}`);
+      }
+    } else {
+      console.log(`✅ Existing Google user logged in: ${user.email}`);
+    }
+    
+    return done(null, user);
+  } catch (error) {
+    console.error('❌ Google OAuth error:', error);
+    return done(error, null);
+  }
+}));
+
+// Serialize and deserialize user for session
+passport.serializeUser((user, done) => {
+  done(null, user.id);
+});
+
+passport.deserializeUser(async (id, done) => {
+  try {
+    const user = await getUserById(id);
+    done(null, user);
+  } catch (error) {
+    done(error, null);
+  }
+});
+
 // Serve static files
 app.use(express.static(__dirname + '/../public'));
 
-// Helper functions
-const findByEmail = (email) => {
-  return users.find(user => user.email === email);
-};
-
-const create = (userData) => {
-  const newUser = {
-    id: `user_${userIdCounter++}_${Date.now()}`,
-    ...userData,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  };
-  users.push(newUser);
-  return newUser;
-};
-
-const getAllUsers = () => {
-  return users.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-};
-
-// Shop helper functions
-const createShop = (shopData) => {
-  const newShop = {
-    id: `shop_${shopIdCounter++}_${Date.now()}`,
-    ...shopData,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  };
-  shops.push(newShop);
-  return newShop;
-};
-
-const getAllShops = () => {
-  return shops.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-};
-
-const findShopById = (id) => {
-  return shops.find(shop => shop.id === id);
-};
-
-const updateShop = (id, updateData) => {
-  const index = shops.findIndex(shop => shop.id === id);
-  if (index !== -1) {
-    shops[index] = { ...shops[index], ...updateData, updatedAt: new Date() };
-    return shops[index];
+// Initialize database connection
+const initializeDatabase = async () => {
+  try {
+    await initUser();
+    console.log('✅ Database initialized successfully');
+  } catch (error) {
+    console.error('❌ Failed to initialize database:', error);
   }
-  return null;
-};
-
-const deleteShop = (id) => {
-  const index = shops.findIndex(shop => shop.id === id);
-  if (index !== -1) {
-    const deleted = shops.splice(index, 1)[0];
-    return deleted;
-  }
-  return null;
 };
 
 // Serve admin login page
@@ -156,7 +190,7 @@ app.post("/api/auth/register", async (req, res) => {
 
   try {
     // Check if user already exists
-    const existingUser = findByEmail(email);
+    const existingUser = await findByEmail(email);
     if (existingUser) {
       return res.status(400).json({
         success: false,
@@ -168,15 +202,15 @@ app.post("/api/auth/register", async (req, res) => {
     const userData = {
       username: username || email.split('@')[0],
       email: email,
+      password: password || 'default123', // In production, hash this
       displayName: displayName || username || email.split('@')[0],
       provider: 'manual',
       role: 'user',
-      isEmailVerified: true,
-      lastLogin: new Date()
+      isEmailVerified: true
     };
     
-    const user = create(userData);
-    console.log('✅ New user registered:', user);
+    const user = await create(userData);
+    console.log('✅ New user registered:', user.email);
     
     // Generate token
     const token = `manual_signup_token_${user.id}_${Date.now()}`;
@@ -238,28 +272,27 @@ app.post("/api/auth/login", async (req, res) => {
   }
 
   try {
-    let user = findByEmail(email);
+    let user = await findByEmail(email);
     
     if (!user) {
       // Create new user if doesn't exist (universal access)
       const userData = {
         username: email.split('@')[0] + Math.floor(Math.random() * 1000),
         email: email,
-        displayName: email.split('@')[0].charAt(0).toUpperCase() + email.split('@')[0].slice(1),
-        provider: 'manual',
+        password: password, // In production, hash this password
+        displayName: email.split('@')[0].replace('.', ' ').replace(/\b\w/g, l => l.toUpperCase()),
         role: 'user',
         isEmailVerified: true,
-        lastLogin: new Date()
+        provider: 'local'
       };
       
-      user = create(userData);
-      console.log('✅ New user created during login:', user);
-    } else {
-      // Update last login time
-      user.lastLogin = new Date();
-      user.updatedAt = new Date();
-      console.log('✅ Existing user logged in:', user);
+      user = await create(userData);
+      console.log(`✅ Auto-created new user: ${user.email}`);
     }
+    
+    // Update last login time
+    user.lastLogin = new Date();
+    console.log('✅ User logged in:', user.email);
     
     // Generate token
     const token = `manual_login_token_${user.id}_${Date.now()}`;
@@ -306,149 +339,134 @@ app.post("/api/auth/login", async (req, res) => {
   }
 });
 
-// Get all shops (public endpoint)
-app.get("/api/shops", async (req, res) => {
-  try {
-    const allShops = getAllShops();
-    
-    console.log(`📊 Fetching ${allShops.length} shops for frontend`);
-    
-    res.json(allShops);
-  } catch (error) {
-    console.error('Error fetching shops:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch shops',
-      error: error.message
-    });
-  }
+// Google OAuth endpoints
+app.get('/api/auth/google', (req, res) => {
+  const { login_page = 'aichatbot', mode = 'login' } = req.query;
+  
+  // Use the callback URL that's already registered in Google Cloud Console
+  const callbackUrl = 'http://localhost:5000/api/auth/google/callback';
+  
+  // Redirect to Google OAuth with the correct callback
+  const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+    `client_id=${process.env.GOOGLE_CLIENT_ID}&` +
+    `redirect_uri=${encodeURIComponent(callbackUrl)}&` +
+    `response_type=code&` +
+    `scope=${encodeURIComponent('profile email')}&` +
+    `access_type=offline&` +
+    `prompt=select_account&` +
+    `state=${encodeURIComponent(JSON.stringify({ login_page, mode }))}`;
+  
+  console.log(`🔄 Redirecting to Google OAuth: ${login_page} with callback: ${callbackUrl}`);
+  res.redirect(302, googleAuthUrl);
 });
 
-// Get shop by ID
-app.get("/api/shops/:id", async (req, res) => {
+// Google OAuth callback handler
+app.get('/api/auth/google/callback', async (req, res) => {
   try {
-    const { id } = req.params;
-    const shop = findShopById(id);
+    const { code, state } = req.query;
     
-    if (!shop) {
-      return res.status(404).json({
-        success: false,
-        message: 'Shop not found'
-      });
+    if (!code) {
+      return res.redirect('/login?error=no_code');
     }
     
-    res.json(shop);
-  } catch (error) {
-    console.error('Error fetching shop:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch shop',
-      error: error.message
-    });
-  }
-});
-
-// Create shop
-app.post("/api/shops", async (req, res) => {
-  try {
-    const shopData = req.body;
+    // Parse state parameter
+    let login_page = 'aichatbot';
+    let mode = 'login';
     
-    console.log('🛍️ Creating new shop:', shopData);
-    
-    const newShop = createShop(shopData);
-    console.log('✅ New shop created:', newShop);
-    
-    res.status(201).json(newShop);
-  } catch (error) {
-    console.error('Error creating shop:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to create shop',
-      error: error.message
-    });
-  }
-});
-
-// Update shop
-app.put("/api/shops/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const updateData = req.body;
-    
-    console.log('🔄 Updating shop:', id, updateData);
-    
-    const updatedShop = updateShop(id, updateData);
-    
-    if (!updatedShop) {
-      return res.status(404).json({
-        success: false,
-        message: 'Shop not found'
-      });
+    if (state) {
+      try {
+        const stateData = JSON.parse(decodeURIComponent(state));
+        login_page = stateData.login_page || 'aichatbot';
+        mode = stateData.mode || 'login';
+      } catch (e) {
+        console.error('Error parsing state:', e);
+      }
     }
     
-    console.log('✅ Shop updated:', updatedShop);
-    res.json(updatedShop);
-  } catch (error) {
-    console.error('Error updating shop:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to update shop',
-      error: error.message
-    });
-  }
-});
-
-// Delete shop
-app.delete("/api/shops/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
+    // Exchange code for tokens (simplified for development)
+    console.log(`🔄 Received Google OAuth code for: ${login_page}`);
     
-    console.log('🗑️ Deleting shop:', id);
+    // For development, create a mock Google user profile
+    const mockGoogleUser = {
+      id: 'google_' + Date.now(),
+      email: 'google.user.' + Math.floor(Math.random() * 1000) + '@gmail.com',
+      displayName: 'Google User',
+      photos: [{ value: 'https://picsum.photos/100/100?random=' + Date.now() }],
+      emails: [{ value: 'google.user.' + Math.floor(Math.random() * 1000) + '@gmail.com', verified: true }]
+    };
     
-    const deletedShop = deleteShop(id);
+    // Check if user exists by email
+    let user = await findByEmail(mockGoogleUser.emails[0].value);
     
-    if (!deletedShop) {
-      return res.status(404).json({
-        success: false,
-        message: 'Shop not found'
-      });
+    if (!user) {
+      // Create new user
+      const userData = {
+        username: mockGoogleUser.emails[0].value.split('@')[0],
+        email: mockGoogleUser.emails[0].value,
+        googleId: mockGoogleUser.id,
+        displayName: mockGoogleUser.displayName,
+        profilePicture: mockGoogleUser.photos[0].value,
+        provider: 'google',
+        role: 'user',
+        isEmailVerified: true
+      };
+      
+      user = await create(userData);
+      console.log(`✅ New Google user created: ${user.email}`);
+    } else {
+      console.log(`✅ Existing Google user logged in: ${user.email}`);
     }
     
-    console.log('✅ Shop deleted:', deletedShop);
-    res.json({ success: true, message: 'Shop deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting shop:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to delete shop',
-      error: error.message
-    });
-  }
-});
-
-// Get shop categories
-app.get("/api/shops/categories", async (req, res) => {
-  try {
-    const allShops = getAllShops();
-    const categories = [...new Set(allShops.map(shop => shop.category))];
+    // Generate token
+    const token = `google_oauth_token_${user.id}_${Date.now()}`;
     
-    console.log(`📊 Fetching ${categories.length} categories`);
+    // Update last login
+    user.lastLogin = new Date();
+    await user.save();
     
-    res.json(categories);
+    console.log(`✅ Google OAuth success: ${user.email} (${login_page})`);
+    
+    // Redirect based on login_page
+    let redirectUrl;
+    if (login_page === 'aichatbot') {
+      redirectUrl = `http://localhost:5173/ai-chatbot?token=${token}&user=${encodeURIComponent(JSON.stringify({
+        email: user.email,
+        displayName: user.displayName,
+        profilePicture: user.profilePicture,
+        provider: 'google'
+      }))}&action=${mode}&auth=success`;
+    } else if (login_page === 'shop') {
+      redirectUrl = `http://localhost:5173/shop?token=${token}&user=${encodeURIComponent(JSON.stringify({
+        email: user.email,
+        displayName: user.displayName,
+        provider: 'google'
+      }))}&action=${mode}&auth=success`;
+    } else if (login_page === 'admin') {
+      redirectUrl = `http://localhost:5173/admin/users?token=${token}&user=${encodeURIComponent(JSON.stringify({
+        email: user.email,
+        displayName: user.displayName,
+        provider: 'google'
+      }))}&action=${mode}&auth=success`;
+    } else {
+      redirectUrl = `http://localhost:5173/admin/users?token=${token}&user=${encodeURIComponent(JSON.stringify({
+        email: user.email,
+        displayName: user.displayName,
+        provider: 'google'
+      }))}&action=${mode}&auth=success`;
+    }
+    
+    res.redirect(302, redirectUrl);
+    
   } catch (error) {
-    console.error('Error fetching categories:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch categories',
-      error: error.message
-    });
+    console.error('❌ Google OAuth callback error:', error);
+    res.redirect('/login?error=callback_failed');
   }
 });
 
 // Get all users (admin endpoint)
 app.get("/api/admin/users", async (req, res) => {
   try {
-    const allUsers = getAllUsers();
+    const allUsers = await getAllUsers();
     
     console.log(`📊 Fetching ${allUsers.length} users for admin panel`);
     
@@ -457,7 +475,15 @@ app.get("/api/admin/users", async (req, res) => {
       message: 'All users retrieved successfully',
       data: {
         users: allUsers.map(user => ({
-          ...user,
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          displayName: user.displayName,
+          role: user.role,
+          provider: user.googleId ? 'google' : 'local',
+          isEmailVerified: user.isEmailVerified,
+          lastLogin: user.lastLogin,
+          created_at: user.createdAt,
           userType: 'regular',
           source: 'Main System'
         })),
@@ -474,17 +500,48 @@ app.get("/api/admin/users", async (req, res) => {
   }
 });
 
+// Delete user (admin endpoint)
+app.delete("/api/admin/users/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const success = await deleteUser(userId);
+    
+    if (success) {
+      console.log(`🗑️ User ${userId} deleted successfully`);
+      res.json({
+        success: true,
+        message: 'User deleted successfully'
+      });
+    } else {
+      res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete user',
+      error: error.message
+    });
+  }
+});
+
 // Start server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`🚀 Travello Auth Server running on port ${PORT}`);
-  console.log(`🏥 Health check: http://localhost:${PORT}/health`);
-  console.log(`🛍️ Shops API: http://localhost:${PORT}/api/shops`);
-  console.log(`👥 Users API: http://localhost:${PORT}/api/admin/users`);
-  console.log(`🔐 Register API: http://localhost:${PORT}/api/auth/register`);
-  console.log(`🔐 Login API: http://localhost:${PORT}/api/auth/login`);
-  console.log(`📊 Current users: ${users.length}`);
-  console.log(`📊 Current shops: ${shops.length}`);
-  console.log(`📝 Admin login: http://localhost:${PORT}/admin-login`);
-  console.log(`📝 User login: http://localhost:${PORT}/login`);
-});
+const startServer = async () => {
+  await initializeDatabase();
+  
+  app.listen(PORT, () => {
+    console.log(`🚀 Travello Auth Server running on port ${PORT}`);
+    console.log(`🏥 Health check: http://localhost:${PORT}/health`);
+    console.log(`👥 Users API: http://localhost:${PORT}/api/admin/users`);
+    console.log(`🔐 Register API: http://localhost:${PORT}/api/auth/register`);
+    console.log(`🔐 Login API: http://localhost:${PORT}/api/auth/login`);
+    console.log(`📝 Admin login: http://localhost:${PORT}/admin-login`);
+    console.log(`📝 User login: http://localhost:${PORT}/login`);
+  });
+};
+
+startServer().catch(console.error);

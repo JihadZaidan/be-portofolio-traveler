@@ -82,7 +82,7 @@ router.get('/google/callback',
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
-        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+        maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days for persistent login
       });
 
       // For Swagger UI and API clients, return JSON with token

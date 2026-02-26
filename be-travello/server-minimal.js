@@ -12,9 +12,10 @@ LaragonDetector.setupLaragonEnvironment();
 LaragonDetector.logLaragonInfo();
 
 // Import API Services
-const BCAAPIService = require('./src/services/bca-api.service.js');
-const BRIAPIService = require('./src/services/bri-api.service.js');
-const PayPalAPIService = require('./src/services/paypal-api.service.js');
+// const BCAAPIService = require('./src/services/bca-api.service.js');
+// const BRIAPIService = require('./src/services/bri-api.service.js');
+// const PayPalAPIService = require('./src/services/paypal-api.service.js');
+const PaymentService = require('./src/services/payment.service.js');
 
 // Import Routes
 const authRoutes = require('./src/routes/auth.routes.js');
@@ -137,90 +138,42 @@ class MobileBankingNotification {
 const notificationService = new MobileBankingNotification();
 
 // Initialize API Services
-const bcaService = new BCAAPIService();
-const briService = new BRIAPIService();
-const paypalService = new PayPalAPIService();
+// const bcaService = new BCAAPIService();
+// const briService = new BRIAPIService();
+// const paypalService = new PayPalAPIService();
 
 // Payment Processing Functions
 async function processPayPalPayment(paymentId, amount, currency, description, customerInfo) {
   try {
-    console.log('🔵 Processing PayPal payment with real API...');
+    console.log('🔵 Processing PayPal payment (mock mode)...');
     
-    // Convert to USD if needed (assuming 1 USD = 15,000 IDR)
-    const usdAmount = currency === 'IDR' ? (amount / 15000).toFixed(2) : amount;
-    
-    // Create PayPal order
-    const orderResult = await paypalService.createOrder({
-      referenceId: paymentId,
-      amount: parseFloat(usdAmount),
-      currency: 'USD',
-      description: description
-    });
-
-    if (!orderResult.success) {
-      throw new Error(orderResult.error);
-    }
-
-    // Capture payment (in real scenario, this would be done after user approval)
-    const captureResult = await paypalService.capturePayment(orderResult.data.orderId);
-
-    if (!captureResult.success) {
-      throw new Error(captureResult.error);
-    }
-
+    // Mock PayPal payment response
     return {
       status: 'completed',
       gatewayResponse: {
-        transactionId: `PP_${orderResult.data.orderId}`,
-        paypalOrderId: orderResult.data.orderId,
-        paypalPaymentId: captureResult.data.orderId,
-        amount: `$${usdAmount}`,
-        currency: 'USD',
-        paymentStatus: captureResult.data.status,
-        payerEmail: customerInfo?.paypalEmail || customerInfo?.email || 'customer@example.com',
-        merchantId: 'TRAVELLO_MERCHANT',
-        createTime: captureResult.data.createTime,
-        updateTime: captureResult.data.updateTime
-      },
-      processedAt: new Date().toISOString()
+        orderId: `MOCK_PAYPAL_${Date.now()}`,
+        paymentId: paymentId,
+        amount: amount,
+        currency: currency,
+        description: description
+      }
     };
   } catch (error) {
     console.error('PayPal payment error:', error);
-    return {
-      status: 'failed',
-      gatewayResponse: { 
-        error: error.message,
-        errorCode: 'PAYPAL_API_ERROR'
-      },
-      processedAt: new Date().toISOString()
-    };
+    throw error;
   }
 }
 
 async function processBRIPayment(paymentId, amount, currency, description, customerInfo) {
   try {
-    console.log('🏦 Processing BRI payment with real API...');
+    console.log('🏦 Processing BRI payment (mock mode)...');
     
-    // Create BRI payment
-    const paymentResult = await briService.createPayment({
-      brivaNo: `TRAVELLO${Date.now()}`,
-      amount: amount,
-      customerName: customerInfo?.accountName || 'Customer Name',
-      description: description,
-      email: customerInfo?.email,
-      phone: customerInfo?.phone,
-      expiredDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-    });
-
-    if (!paymentResult.success) {
-      throw new Error(paymentResult.error);
-    }
-
+    // Mock BRI payment response
     return {
       status: 'pending', // BRI payments are typically pending until user pays
       gatewayResponse: {
-        transactionId: `BRI_${paymentResult.data.brivaNo}`,
-        referenceNumber: paymentResult.data.brivaNo,
+        transactionId: `BRI_MOCK_${Date.now()}`,
+        referenceNumber: `TRAVELLO${Date.now()}`,
         amount: `Rp ${amount.toLocaleString('id-ID')}`,
         currency: 'IDR',
         paymentStatus: 'PENDING',
@@ -229,10 +182,10 @@ async function processBRIPayment(paymentId, amount, currency, description, custo
         bankCode: '002',
         description: description,
         transactionTime: new Date().toISOString(),
-        brivaNo: paymentResult.data.brivaNo,
-        expiredDate: paymentResult.data.expiredDate,
-        qrUrl: paymentResult.data.qrUrl,
-        paymentUrl: paymentResult.data.paymentUrl
+        brivaNo: `TRAVELLO${Date.now()}`,
+        expiredDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        qrUrl: 'https://mock-qr-url.com/bri',
+        paymentUrl: 'https://mock-payment-url.com/bri'
       },
       processedAt: new Date().toISOString()
     };
@@ -251,38 +204,25 @@ async function processBRIPayment(paymentId, amount, currency, description, custo
 
 async function processBCAPayment(paymentId, amount, currency, description, customerInfo) {
   try {
-    console.log('🏦 Processing BCA payment with real API...');
+    console.log('🏦 Processing BCA payment (mock mode)...');
     
-    // Create BCA payment
-    const paymentResult = await bcaService.createPayment({
-      companyCode: '52053',
-      accountNumber: customerInfo?.bcaAccount || customerInfo?.accountNumber || '0987654321',
-      amount: amount,
-      currency: currency,
-      referenceId: paymentId,
-      description: description
-    });
-
-    if (!paymentResult.success) {
-      throw new Error(paymentResult.error);
-    }
-
+    // Mock BCA payment response
     return {
       status: 'completed',
       gatewayResponse: {
-        transactionId: `BCA_${paymentResult.data.paymentId}`,
+        transactionId: `BCA_MOCK_${Date.now()}`,
         billerId: '70012',
         billerName: 'TRAVELLO',
-        referenceNumber: paymentResult.data.referenceId,
+        referenceNumber: paymentId,
         amount: `Rp ${amount.toLocaleString('id-ID')}`,
         currency: 'IDR',
-        paymentStatus: paymentResult.data.status,
+        paymentStatus: 'SUCCESS',
         accountNumber: customerInfo?.bcaAccount || customerInfo?.accountNumber || '0987654321',
         accountName: customerInfo?.accountName || 'Customer Name',
         bankCode: '014',
         description: description,
-        transactionDate: paymentResult.data.transactionDate,
-        paymentId: paymentResult.data.paymentId
+        transactionDate: new Date().toISOString(),
+        paymentId: `BCA_${Date.now()}`
       },
       processedAt: new Date().toISOString()
     };
@@ -592,13 +532,28 @@ app.get('/api/payments/status/:paymentId', authenticateToken, async (req, res) =
         };
         break;
       case 'bri':
-        // For BRI, check BRIVA status
+        // For BRI, check BRIVA status (mock)
         const brivaNo = paymentId.replace('BRI_', '');
-        statusResult = await briService.getPaymentStatus(brivaNo);
+        statusResult = {
+          success: true,
+          data: {
+            paymentId: paymentId,
+            status: 'pending', // Mock pending status
+            lastUpdated: new Date().toISOString(),
+            brivaNo: brivaNo
+          }
+        };
         break;
       case 'bca':
-        // For BCA, check payment status
-        statusResult = await bcaService.getPaymentStatus(paymentId.replace('BCA_', ''));
+        // For BCA, check payment status (mock)
+        statusResult = {
+          success: true,
+          data: {
+            paymentId: paymentId,
+            status: 'completed', // Mock completed status
+            lastUpdated: new Date().toISOString()
+          }
+        };
         break;
       default:
         statusResult = {
