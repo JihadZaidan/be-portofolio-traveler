@@ -386,48 +386,46 @@ class EnhancedAIChatbotService {
   }
 
   /**
-   * Generate contextual response with memory awareness and trending integration
+   * Check if message is travel-related and appropriate
    */
-  async generateResponse(message, history = [], sessionId = null, language = 'en') {
-    const intent = this.detectIntent(message);
-    const context = this.getSessionContext(sessionId);
+  isTravelRelated(message) {
+    const travelKeywords = [
+      'travel', 'trip', 'vacation', 'holiday', 'destination', 'hotel', 'flight', 'airport',
+      'bali', 'jakarta', 'yogyakarta', 'bandung', 'surabaya', 'medan', 'makassar',
+      'indonesia', 'tourism', 'tourist', 'beach', 'mountain', 'temple', 'culture',
+      'food', 'restaurant', 'accommodation', 'transport', 'visa', 'passport',
+      'budget', 'cost', 'price', 'cheap', 'expensive', 'affordable',
+      'destinasi', 'liburan', 'wisata', 'tempat', 'hotel', 'pesawat', 'bandara',
+      'pantai', 'gunung', 'candi', 'budaya', 'makanan', 'restoran', 'penginapan',
+      'transportasi', 'visa', 'paspor', 'biaya', 'harga', 'murah', 'mahal',
+      'destinations', 'accommodations', 'transportation', 'activities', 'attractions',
+      'when to visit', 'best time', 'weather', 'season', 'climate',
+      'what to do', 'things to do', 'activities', 'experiences',
+      'how to get', 'directions', 'location', 'map', 'route',
+      'safety', 'security', 'health', 'emergency', 'insurance'
+    ];
     
-    // Get trending data for contextual responses
-    const trendingData = await this.getTrendingData();
-    
-    // Handle greeting with dynamic response
-    if (intent && intent.category === 'general' && intent.subcategory === 'greeting') {
-      return await this.generateGreetingResponse(message, language);
-    }
-    
-    // Check for ongoing conversation flow
-    if (context.currentFlow) {
-      const flowResponse = this.handleConversationFlow(message, context);
-      if (flowResponse) {
-        return flowResponse;
-      }
-    }
-
-    // Generate response based on intent using Gemini for all languages
-    if (intent) {
-      // Use Gemini service for intelligent multilingual responses
-      try {
-        const geminiResponse = await chatWithGemini(message, [], language);
-        return geminiResponse;
-      } catch (error) {
-        console.error('Gemini service error, using fallback:', error);
-        const response = this.generateIntentBasedResponse(intent, context, trendingData, language);
-        return response;
-      }
-    }
-
-    // Fallback to contextual response with trending data using Gemini
-    return this.generateContextualResponse(message, context, trendingData, language);
+    const messageLower = message.toLowerCase();
+    return travelKeywords.some(keyword => 
+      messageLower.includes(keyword.toLowerCase()) || 
+      this.isPartialMatch(messageLower, keyword.toLowerCase())
+    );
   }
 
   /**
-   * Generate dynamic greeting response using Gemini
+   * Generate out-of-topic response
    */
+  generateOutOfTopicResponse(language = 'en') {
+    const responses = {
+      en: '🤖 I\'m here to help with Indonesia travel information. Could you ask me about destinations, accommodations, food, or travel tips?',
+      id: '🤖 Saya di sini untuk membantu informasi perjalanan Indonesia. Bisa tanya saya tentang destinasi, akomodasi, makanan, atau tips perjalanan?',
+      he: '🤖 אני כאן כדי לעזור במידע על נסיעות באינדונזיה. האם אתה יכול לשאול אותי על יעדים, לינה, אוכל, או טיפים לנסיעה?',
+      ar: '🤖 أنا هنا للمساعدة في معلومات السفر إلى إندونيسيا. هل يمكنك سؤالي عن الوجهات أو الإقامة أو الطعام أو نصائح السفر؟',
+      // Add more languages as needed
+    };
+    
+    return responses[language] || responses.en;
+  }
   async generateGreetingResponse(message, language = 'en') {
     try {
       // Use Gemini service for intelligent multilingual greetings

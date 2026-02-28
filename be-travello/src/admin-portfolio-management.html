@@ -203,12 +203,13 @@
             text-transform: uppercase;
         }
         
-        .category-web { background: #dbeafe; color: #1e40af; }
-        .category-mobile { background: #dcfce7; color: #166534; }
-        .category-design { background: #fef3c7; color: #92400e; }
-        .category-photography { background: #ede9fe; color: #6d28d9; }
-        .category-video { background: #fce7f3; color: #be185d; }
-        .category-other { background: #f3f4f6; color: #374151; }
+        .category-product-description { background: #dbeafe; color: #1e40af; }
+        .category-social-media { background: #dcfce7; color: #166534; }
+        .category-landing-page { background: #fef3c7; color: #92400e; }
+        .category-ads-copy { background: #ede9fe; color: #6d28d9; }
+        .category-articles { background: #fce7f3; color: #be185d; }
+        .category-email-marketing { background: #e0e7ff; color: #3730a3; }
+        .category-brand-storytelling { background: #f3f4f6; color: #374151; }
         
         .portfolio-description {
             color: #475569;
@@ -231,6 +232,31 @@
         
         .meta-item strong {
             color: #374151;
+        }
+        
+        .portfolio-images {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .portfolio-thumb {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 0.25rem;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .more-images {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f1f5f9;
+            color: #64748b;
+            font-size: 0.75rem;
+            font-weight: 500;
         }
         
         .portfolio-tags {
@@ -442,12 +468,13 @@
             </div>
             <select class="filter-select" id="categoryFilter">
                 <option value="">All Categories</option>
-                <option value="web">Web</option>
-                <option value="mobile">Mobile</option>
-                <option value="design">Design</option>
-                <option value="photography">Photography</option>
-                <option value="video">Video</option>
-                <option value="other">Other</option>
+                <option value="product-description">Product Description</option>
+                <option value="social-media">Social Media</option>
+                <option value="landing-page">Landing Page</option>
+                <option value="ads-copy">Ads Copy</option>
+                <option value="articles">Articles</option>
+                <option value="email-marketing">Email Marketing</option>
+                <option value="brand-storytelling">Brand Storytelling</option>
             </select>
             <select class="filter-select" id="statusFilter">
                 <option value="">All Status</option>
@@ -489,12 +516,13 @@
                         <label for="category">Category *</label>
                         <select id="category" name="category" required>
                             <option value="">Select Category</option>
-                            <option value="web">Web</option>
-                            <option value="mobile">Mobile</option>
-                            <option value="design">Design</option>
-                            <option value="photography">Photography</option>
-                            <option value="video">Video</option>
-                            <option value="other">Other</option>
+                            <option value="product-description">Product Description</option>
+                            <option value="social-media">Social Media</option>
+                            <option value="landing-page">Landing Page</option>
+                            <option value="ads-copy">Ads Copy</option>
+                            <option value="articles">Articles</option>
+                            <option value="email-marketing">Email Marketing</option>
+                            <option value="brand-storytelling">Brand Storytelling</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -528,6 +556,10 @@
                     <div class="form-group">
                         <label for="tags">Tags (comma-separated)</label>
                         <input type="text" id="tags" name="tags" placeholder="frontend, web, responsive">
+                    </div>
+                    <div class="form-group">
+                        <label for="images">Images (JSON format)</label>
+                        <textarea id="images" name="images" placeholder='["https://example.com/image1.jpg", "https://example.com/image2.jpg"]'></textarea>
                     </div>
                     <div class="form-group">
                         <label for="orderIndex">Order Index</label>
@@ -570,7 +602,7 @@
         // Load all portfolios
         async function loadPortfolios() {
             try {
-                const response = await fetch('/api/portfolios?includeUser=true');
+                const response = await fetch('/api/portfolios');
                 const result = await response.json();
                 
                 if (result.success) {
@@ -578,9 +610,10 @@
                     displayPortfolios(allPortfolios);
                     updateStats(allPortfolios);
                 } else {
-                    showError('Failed to load portfolios');
+                    showError('Failed to load portfolios: ' + (result.message || 'Unknown error'));
                 }
             } catch (error) {
+                console.error('Load portfolios error:', error);
                 showError('Error loading portfolios: ' + error.message);
             }
         }
@@ -602,14 +635,14 @@
 
             grid.innerHTML = portfolios.map(item => `
                 <div class="portfolio-card">
-                    ${item.imageUrl ? `<img src="${item.imageUrl}" alt="${item.title}" class="portfolio-image">` : '<div class="portfolio-image"></div>'}
+                    ${item.imageUrl ? `<img src="${item.imageUrl}" alt="${item.title}" class="portfolio-image" onerror="this.src='/placeholder-image.jpg'">` : '<div class="portfolio-image"></div>'}
                     <div class="portfolio-content">
                         <div class="portfolio-header">
                             <div>
                                 <h3 class="portfolio-title">${item.title}</h3>
                                 ${item.clientName ? `<p class="meta-item">Client: <strong>${item.clientName}</strong></p>` : ''}
                             </div>
-                            <span class="portfolio-category category-${item.category}">${item.category}</span>
+                            <span class="portfolio-category category-${item.category}">${item.category.replace('-', ' ')}</span>
                         </div>
                         ${item.description ? `<p class="portfolio-description">${item.description}</p>` : ''}
                         
@@ -618,15 +651,19 @@
                             ${item.orderIndex !== undefined ? `<span class="meta-item">Order: <strong>${item.orderIndex}</strong></span>` : ''}
                         </div>
                         
-                        ${item.technologies && item.technologies.length > 0 ? `
-                            <div class="portfolio-tags">
-                                ${item.technologies.map(tech => `<span class="tag">${tech}</span>`).join('')}
+                        ${item.images && item.images.length > 0 ? `
+                            <div class="portfolio-images">
+                                ${item.images.slice(0, 3).map(img => `
+                                    <img src="${img}" alt="Portfolio image" class="portfolio-thumb" onerror="this.src='/placeholder-image.jpg'">
+                                `).join('')}
+                                ${item.images.length > 3 ? `<div class="portfolio-thumb more-images">+${item.images.length - 3}</div>` : ''}
                             </div>
                         ` : ''}
                         
-                        ${item.tags && item.tags.length > 0 ? `
+                        ${item.technologies && item.technologies.length > 0 ? `
                             <div class="portfolio-tags">
-                                ${item.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+                                ${item.technologies.slice(0, 4).map(tech => `<span class="tag">${tech}</span>`).join('')}
+                                ${item.technologies.length > 4 ? `<span class="tag">+${item.technologies.length - 4}</span>` : ''}
                             </div>
                         ` : ''}
                         
@@ -703,6 +740,7 @@
                     form.completionDate.value = item.completionDate ? item.completionDate.split('T')[0] : '';
                     form.technologies.value = item.technologies ? item.technologies.join(', ') : '';
                     form.tags.value = item.tags ? item.tags.join(', ') : '';
+                    form.images.value = item.images && item.images.length > 0 ? JSON.stringify(item.images, null, 2) : '';
                     form.orderIndex.value = item.orderIndex || 0;
                     form.featured.checked = item.featured || false;
                     form.published.checked = item.published !== false;
@@ -728,6 +766,16 @@
             const form = document.getElementById('portfolioForm');
             const formData = new FormData(form);
             
+            let images = [];
+            const imagesText = formData.get('images');
+            if (imagesText) {
+                try {
+                    images = JSON.parse(imagesText);
+                } catch (e) {
+                    console.warn('Invalid JSON in images field, using empty array');
+                }
+            }
+            
             const data = {
                 title: formData.get('title'),
                 description: formData.get('description'),
@@ -740,7 +788,8 @@
                 completionDate: formData.get('completionDate') || null,
                 technologies: formData.get('technologies') ? formData.get('technologies').split(',').map(t => t.trim()).filter(t => t) : [],
                 tags: formData.get('tags') ? formData.get('tags').split(',').map(t => t.trim()).filter(t => t) : [],
-                orderIndex: parseInt(formData.get('orderIndex')),
+                images: images,
+                orderIndex: parseInt(formData.get('orderIndex')) || 0,
                 featured: formData.get('featured') === 'on',
                 published: formData.get('published') === 'on',
                 createdBy: 'admin-001' // In real app, get from logged-in user
@@ -765,9 +814,10 @@
                     closeModal();
                     loadPortfolios();
                 } else {
-                    showError(result.message);
+                    showError(result.message || 'Failed to save portfolio');
                 }
             } catch (error) {
+                console.error('Save portfolio error:', error);
                 showError('Error saving portfolio: ' + error.message);
             }
         }

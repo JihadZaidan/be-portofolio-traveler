@@ -11,14 +11,15 @@ const paymentRoutes = require('./routes/payment.routes.js');
 const adminTransactionRoutes = require('./routes/admin-transaction.routes.js');
 const adminRoutes = require('./routes/admin.routes.js');
 const socketChatRoutes = require('./routes/socket-chat.routes.js');
+const userAdminChatRoutes = require('./routes/user-admin-chat.routes.js');
 const certificationRoutes = require('./routes/certification.routes.js');
 const experienceRoutes = require('./routes/experience.routes.js');
-const portfolioRoutes = require('./routes/portfolio.routes.js');
+// const portfolioRoutes = require('./routes/portfolio.routes.js'); // Temporarily disabled
 const landingPageRoutes = require('./routes/landing-page.routes.js');
 const travelJournalRoutes = require('./routes/travel-journal.routes.js');
 const { initChatMessage } = require('./models/ChatMessage.model.js');
 const { initUserAdminChatMessage } = require('./models/UserAdminChatMessage.model.js');
-const { initPortfolio } = require('./models/Portfolio.model.mysql.js');
+// const { initPortfolio } = require('./models/Portfolio.model.mysql.js'); // Temporarily disabled
 const { initTravelJournal } = require('./models/TravelJournal.model.mysql.js');
 const SocketChatController = require('./controllers/socket-chat.controller.js');
 console.log('🔧 Experience routes imported:', typeof experienceRoutes);
@@ -207,16 +208,17 @@ app.use("/api/payments", paymentRoutes);
 app.use("/api/admin/transactions", adminTransactionRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/socket/chat", socketChatRoutes);
+app.use("/api/user-admin-chat", userAdminChatRoutes);
 app.use("/api/certifications", certificationRoutes);
 console.log('🔧 Loading experience routes...');
 app.use("/api/experiences", experienceRoutes);
 console.log('✅ Experience routes loaded');
-app.use("/api/portfolios", portfolioRoutes);
-console.log('✅ Portfolio routes loaded');
+// app.use("/api/portfolios", portfolioRoutes); // Temporarily disabled
+// console.log('✅ Portfolio routes loaded');
 app.use("/api/landing-pages", landingPageRoutes);
 console.log('✅ Landing pages routes loaded');
-app.use("/api/travel-journal", travelJournalRoutes);
-console.log('✅ Travel journal routes loaded');
+// app.use("/api/travel-journal", travelJournalRoutes); // Temporarily disabled
+// console.log('✅ Travel journal routes loaded');
 
 // Error handling
 app.use(errorHandler);
@@ -239,7 +241,13 @@ app.use((req, res) => {
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    origin: [
+      process.env.FRONTEND_URL || "http://localhost:5173",
+      "http://localhost:5173",
+      "http://127.0.0.1:5173",
+      /^http:\/\/localhost:\d+$/,
+      /^http:\/\/127\.0\.0\.1:\d+$/
+    ],
     methods: ["GET", "POST"],
     credentials: true
   }
@@ -251,7 +259,7 @@ SocketChatController.initializeSocket(io);
 // Initialize database models
 initChatMessage().catch(console.error);
 initUserAdminChatMessage().catch(console.error);
-initPortfolio().catch(console.error);
-initTravelJournal().catch(console.error);
+// initPortfolio().catch(console.error); // Temporarily disabled
+// initTravelJournal().catch(console.error); // Temporarily disabled
 
 module.exports = server;

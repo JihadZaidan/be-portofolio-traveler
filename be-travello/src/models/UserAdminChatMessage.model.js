@@ -180,7 +180,7 @@ const getConversationsWithUnreadCount = async () => {
       cm.room_id
     FROM users u
     INNER JOIN user_admin_chat_messages cm ON (
-      u.id = cm.sender_id OR u.id = cm.receiver_id
+      u.email = cm.sender_id OR u.email = cm.receiver_id OR u.id = cm.sender_id OR u.id = cm.receiver_id
     )
     WHERE u.role = 'user'
     GROUP BY u.id, u.username, u.email, cm.room_id

@@ -331,28 +331,23 @@ app.get("/api/test/users", async (req, res) => {
   }
 });
 
-// Get all users (admin endpoint) - Unified for regular and shop users
+// Get all users (admin endpoint)
 app.get("/api/admin/users", async (req, res) => {
   try {
     await initUser();
-    await initShopUser();
     
     const regularUsers = await getAllUsers();
-    const shopUsers = await getAllShopUsers();
     
-    // Combine and format users
-    const allUsers = [
-      ...regularUsers.map(user => ({
-        ...user.toJSON(),
-        userType: 'regular',
-        source: 'Main System'
-      })),
-      ...shopUsers.map(user => ({
-        ...user.toJSON(),
-        userType: 'shop',
-        source: 'Shop System'
-      }))
-    ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    // Format users for frontend
+    const allUsers = regularUsers.map(user => ({
+      ...user.toJSON(),
+      userType: 'regular',
+      source: 'Main System',
+      provider: user.google_id ? 'google' : 'local',
+      isEmailVerified: user.is_email_verified || false,
+      lastLogin: user.last_login || null,
+      createdAt: user.created_at || new Date()
+    })).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     
     res.json({
       success: true,
@@ -361,7 +356,7 @@ app.get("/api/admin/users", async (req, res) => {
         users: allUsers,
         count: allUsers.length,
         regularUsersCount: regularUsers.length,
-        shopUsersCount: shopUsers.length
+        shopUsersCount: 0
       }
     });
   } catch (error) {
@@ -1950,9 +1945,9 @@ app.use('/api/payments', paymentRoutes);
 const adminTransactionsRoutes = require('./routes/admin-transactions.routes.js');
 app.use('/api/admin/transactions', adminTransactionsRoutes);
 
-// Travel journal routes - Temporarily disabled
-// const travelJournalRoutes = require('./routes/travel-journal.routes.js');
-// app.use('/api/travel-journal', travelJournalRoutes);
+// Travel journal routes
+const travelJournalRoutes = require('./routes/travel-journal.routes.js');
+app.use('/api/travel-journal', travelJournalRoutes);
 
 // AI Chatbot routes
 const aiChatbotRoutes = require('./routes/ai-chatbot.routes.js');

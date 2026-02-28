@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Travel Journal Management - Admin</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: #f8fafc;
+            color: #1e293b;
+        }
+        
+        .header {
+            background: white;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+        
+        .nav-buttons {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+        
+        .btn-secondary {
+            background: #64748b;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #475569;
+        }
+        
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+        
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #059669;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .stat-card h3 {
+            font-size: 0.875rem;
+            color: #64748b;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+        
+        .controls {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 2rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .search-box {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .search-box input {
+            width: 100%;
+            padding: 0.5rem 1rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+        }
+        
+        .filter-select {
+            padding: 0.5rem 1rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+        }
+        
+        .journal-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+        
+        .journal-card {
+            background: white;
+            border-radius: 0.75rem;
+            border: 1px solid #e2e8f0;
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .journal-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .journal-cover {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            background: #f1f5f9;
+        }
+        
+        .journal-content {
+            padding: 1.5rem;
+        }
+        
+        .journal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 1rem;
+        }
+        
+        .journal-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 0.25rem;
+        }
+        
+        .journal-meta {
+            font-size: 0.75rem;
+            color: #64748b;
+            margin-bottom: 1rem;
+        }
+        
+        .journal-images {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .journal-image-thumb {
+            width: 50px;
+            height: 50px;
+            object-fit: cover;
+            border-radius: 0.25rem;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .more-images {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f1f5f9;
+            color: #64748b;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .status-active { background: #dcfce7; color: #166534; }
+        .status-inactive { background: #fee2e2; color: #dc2626; }
+        
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        
+        .btn-sm {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 1rem;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+        
+        .close-btn {
+            width: 2rem;
+            height: 2rem;
+            border: none;
+            background: #f1f5f9;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .close-btn:hover {
+            background: #e2e8f0;
+        }
+        
+        .modal-body {
+            padding: 1.5rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #374151;
+        }
+        
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+        }
+        
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        .modal-footer {
+            padding: 1.5rem;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #64748b;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #64748b;
+        }
+        
+        .empty-state h3 {
+            margin-bottom: 1rem;
+        }
+        
+        .image-preview {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .image-preview-item {
+            position: relative;
+            width: 60px;
+            height: 60px;
+        }
+        
+        .image-preview-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 0.25rem;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .image-preview-item .remove-btn {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📸 Travel Journal Management</h1>
+        <div class="nav-buttons">
+            <button class="btn btn-secondary" onclick="window.location.href='/admin/users'">← Back to Admin</button>
+            <button class="btn btn-primary" onclick="openModal()">+ Add Journal</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Statistics -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>Total Journals</h3>
+                <div class="value" id="totalCount">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Active Journals</h3>
+                <div class="value" id="activeCount">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Total Images</h3>
+                <div class="value" id="imageCount">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>This Week</h3>
+                <div class="value" id="weekCount">0</div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Search journals...">
+            </div>
+            <select class="filter-select" id="statusFilter">
+                <option value="">All Status</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+            </select>
+            <button class="btn btn-secondary" onclick="loadJournals()">Refresh</button>
+        </div>
+
+        <!-- Journals Grid -->
+        <div id="journalGrid" class="journal-grid">
+            <div class="loading">Loading journals...</div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="journalModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalTitle">Add Travel Journal</h2>
+                <button class="close-btn" onclick="closeModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <form id="journalForm">
+                    <div class="form-group">
+                        <label for="name">Journal Name *</label>
+                        <input type="text" id="name" name="name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="cover">Cover Image URL *</label>
+                        <input type="text" id="cover" name="cover" required placeholder="https://example.com/image.jpg">
+                    </div>
+                    <div class="form-group">
+                        <label for="images">Additional Images (one per line)</label>
+                        <textarea id="images" name="images" placeholder="https://example.com/image1.jpg&#10;https://example.com/image2.jpg"></textarea>
+                        <div class="image-preview" id="imagePreview"></div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveJournal()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentEditId = null;
+        let allJournals = [];
+
+        // Load journals on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadJournals();
+            
+            // Add event listeners
+            document.getElementById('searchInput').addEventListener('input', filterJournals);
+            document.getElementById('statusFilter').addEventListener('change', filterJournals);
+            document.getElementById('images').addEventListener('input', updateImagePreview);
+        });
+
+        // Load all journals
+        async function loadJournals() {
+            try {
+                const response = await fetch('/api/travel-journal');
+                const result = await response.json();
+                
+                if (result.success) {
+                    allJournals = result.data.journals;
+                    displayJournals(allJournals);
+                    updateStats(allJournals);
+                } else {
+                    showError('Failed to load journals: ' + (result.message || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Load journals error:', error);
+                showError('Error loading journals: ' + error.message);
+            }
+        }
+
+        // Display journals
+        function displayJournals(journals) {
+            const grid = document.getElementById('journalGrid');
+            
+            if (journals.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No journals found</h3>
+                        <p>Start by adding your first travel journal.</p>
+                        <button class="btn btn-primary" onclick="openModal()">Add Journal</button>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = journals.map(item => `
+                <div class="journal-card">
+                    <img src="${item.cover}" alt="${item.name}" class="journal-cover" onerror="this.src='/placeholder-image.jpg'">
+                    <div class="journal-content">
+                        <div class="journal-header">
+                            <div>
+                                <h3 class="journal-title">${item.name}</h3>
+                                <div class="journal-meta">
+                                    Created: ${new Date(item.createdAt).toLocaleDateString()} • 
+                                    ${item.timestamp || 'Just now'}
+                                </div>
+                            </div>
+                            <span class="status-badge status-${item.status}">${item.status}</span>
+                        </div>
+                        
+                        ${item.images && item.images.length > 0 ? `
+                            <div class="journal-images">
+                                ${item.images.slice(0, 4).map(img => `
+                                    <img src="${img}" alt="Journal image" class="journal-image-thumb" onerror="this.src='/placeholder-image.jpg'">
+                                `).join('')}
+                                ${item.images.length > 4 ? `<div class="journal-image-thumb more-images">+${item.images.length - 4}</div>` : ''}
+                            </div>
+                        ` : ''}
+                        
+                        <div class="action-buttons">
+                            <button class="btn btn-sm btn-secondary" onclick="editJournal('${item.id}')">Edit</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteJournal('${item.id}')">Delete</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Update statistics
+        function updateStats(journals) {
+            document.getElementById('totalCount').textContent = journals.length;
+            document.getElementById('activeCount').textContent = journals.filter(item => item.status === 'active').length;
+            
+            const totalImages = journals.reduce((sum, item) => sum + (item.images ? item.images.length : 0), 0);
+            document.getElementById('imageCount').textContent = totalImages;
+            
+            // Count journals from this week
+            const oneWeekAgo = new Date();
+            oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+            const weekCount = journals.filter(item => new Date(item.createdAt) >= oneWeekAgo).length;
+            document.getElementById('weekCount').textContent = weekCount;
+        }
+
+        // Filter journals
+        function filterJournals() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const statusFilter = document.getElementById('statusFilter').value;
+
+            const filtered = allJournals.filter(item => {
+                const matchesSearch = !searchTerm || 
+                    item.name.toLowerCase().includes(searchTerm);
+                
+                const matchesStatus = !statusFilter || item.status === statusFilter;
+
+                return matchesSearch && matchesStatus;
+            });
+
+            displayJournals(filtered);
+        }
+
+        // Update image preview
+        function updateImagePreview() {
+            const imagesText = document.getElementById('images').value;
+            const preview = document.getElementById('imagePreview');
+            
+            if (!imagesText.trim()) {
+                preview.innerHTML = '';
+                return;
+            }
+            
+            const imageUrls = imagesText.split('\n').filter(url => url.trim());
+            
+            preview.innerHTML = imageUrls.map((url, index) => `
+                <div class="image-preview-item">
+                    <img src="${url.trim()}" alt="Preview ${index + 1}" onerror="this.src='/placeholder-image.jpg'">
+                    <button type="button" class="remove-btn" onclick="removeImage(${index})">×</button>
+                </div>
+            `).join('');
+        }
+
+        // Remove image from preview
+        function removeImage(index) {
+            const imagesTextarea = document.getElementById('images');
+            const imageUrls = imagesTextarea.value.split('\n').filter(url => url.trim());
+            imageUrls.splice(index, 1);
+            imagesTextarea.value = imageUrls.join('\n');
+            updateImagePreview();
+        }
+
+        // Open modal
+        function openModal(id = null) {
+            currentEditId = id;
+            const modal = document.getElementById('journalModal');
+            const form = document.getElementById('journalForm');
+            const title = document.getElementById('modalTitle');
+
+            if (id) {
+                title.textContent = 'Edit Travel Journal';
+                // Load existing data
+                const item = allJournals.find(item => item.id === id);
+                if (item) {
+                    form.name.value = item.name;
+                    form.cover.value = item.cover;
+                    form.images.value = item.images ? item.images.join('\n') : '';
+                    updateImagePreview();
+                }
+            } else {
+                title.textContent = 'Add Travel Journal';
+                form.reset();
+                document.getElementById('imagePreview').innerHTML = '';
+            }
+
+            modal.classList.add('active');
+        }
+
+        // Close modal
+        function closeModal() {
+            document.getElementById('journalModal').classList.remove('active');
+            currentEditId = null;
+        }
+
+        // Save journal
+        async function saveJournal() {
+            const form = document.getElementById('journalForm');
+            const formData = new FormData(form);
+            
+            const imagesText = formData.get('images');
+            const images = imagesText ? imagesText.split('\n').map(url => url.trim()).filter(url => url) : [];
+            
+            const data = {
+                name: formData.get('name'),
+                cover: formData.get('cover'),
+                images: images
+            };
+
+            try {
+                const url = currentEditId ? `/api/travel-journal/${currentEditId}` : '/api/travel-journal';
+                const method = currentEditId ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showSuccess(currentEditId ? 'Journal updated successfully' : 'Journal created successfully');
+                    closeModal();
+                    loadJournals();
+                } else {
+                    showError(result.message);
+                }
+            } catch (error) {
+                showError('Error saving journal: ' + error.message);
+            }
+        }
+
+        // Edit journal
+        function editJournal(id) {
+            openModal(id);
+        }
+
+        // Delete journal
+        async function deleteJournal(id) {
+            if (!confirm('Are you sure you want to delete this travel journal?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/travel-journal/${id}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showSuccess('Journal deleted successfully');
+                    loadJournals();
+                } else {
+                    showError(result.message);
+                }
+            } catch (error) {
+                showError('Error deleting journal: ' + error.message);
+            }
+        }
+
+        // Show success message
+        function showSuccess(message) {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #10b981;
+                color: white;
+                padding: 1rem;
+                border-radius: 0.5rem;
+                z-index: 2000;
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+
+        // Show error message
+        function showError(message) {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #ef4444;
+                color: white;
+                padding: 1rem;
+                border-radius: 0.5rem;
+                z-index: 2000;
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
