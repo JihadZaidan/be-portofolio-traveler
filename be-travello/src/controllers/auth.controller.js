@@ -1,235 +1,226 @@
 const bcrypt = require('bcryptjs');
-const { generateToken, verifyToken } = require('../config/passport.config.js');
-const { User, findByEmail, create, initUser } = require('../models/User.model.js');
+const jwt = require('jsonwebtoken');
 
-class AuthController {
-  static async login(req, res) {
+// In-memory storage for testing (when MongoDB is not available)
+let users = [];
+
+// Generate JWT Token
+const generateToken = (userId) => {
+    return jwt.sign(
+        { userId },
+        process.env.JWT_SECRET,
+        { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+    );
+};
+
+// Register new user
+const register = async (req, res) => {
     try {
-      const { email, password } = req.body;
+        const { email, username, displayName, password, profilePicture, login_page } = req.body;
 
-      if (!email || !password) {
-        res.status(400).json({
-          success: false,
-          message: 'Email and password are required'
-        });
-        return;
-      }
+        console.log('📝 Registration attempt:', { email, username, displayName, login_page });
 
-      // Find user by email in userlist table (phpMyAdmin)
-      let user = await findByEmail(email);
-      
-      if (!user) {
-        // Create new user jika tidak ada (universal access)
-        const hashedPassword = await bcrypt.hash(password, 12);
-        
-        const userData = {
-          username: email.split('@')[0] + Math.floor(Math.random() * 1000),
-          email: email.toLowerCase().trim(),
-          password: hashedPassword,
-          role: 'user',
-          isEmailVerified: true,
-          displayName: email.split('@')[0].charAt(0).toUpperCase() + email.split('@')[0].slice(1)
-        };
-        
-        user = await create(userData);
-        console.log('✅ New user created in users table (phpMyAdmin):', user.toJSON());
-      } else {
-        // Verify password untuk existing user
-        if (user.password && password) {
-          const isPasswordValid = await bcrypt.compare(password, user.password);
-          if (!isPasswordValid) {
-            res.status(401).json({
-              success: false,
-              message: 'Invalid email or password'
+        // Validate required fields
+        if (!email || !username || !displayName || !password) {
+            return res.status(400).json({
+                success: false,
+                message: 'All fields are required'
             });
-            return;
-          }
         }
-        
+
+        // Check if user already exists in memory
+        const existingUser = users.find(user => user.email === email || user.username === username);
+
+        if (existingUser) {
+            return res.status(400).json({
+                success: false,
+                message: 'User with this email or username already exists'
+            });
+        }
+
+        // Hash password
+        const salt = await bcrypt.genSalt(12);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        // Create new user object
+        const newUser = {
+            id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            email,
+            username,
+            displayName,
+            password: hashedPassword,
+            profilePicture: profilePicture || null,
+            isActive: true,
+            lastLogin: new Date(),
+            loginPage: login_page || 'default',
+            createdAt: new Date()
+        };
+
+        // Store in memory
+        users.push(newUser);
+
+        // Generate token
+        const token = generateToken(newUser.id);
+
+        console.log('✅ User registered successfully:', { userId: newUser.id, email });
+
+        res.status(201).json({
+            success: true,
+            message: 'User registered successfully',
+            data: {
+                token,
+                user: {
+                    id: newUser.id,
+                    email: newUser.email,
+                    username: newUser.username,
+                    displayName: newUser.displayName,
+                    profilePicture: newUser.profilePicture,
+                    isActive: newUser.isActive,
+                    loginPage: newUser.loginPage
+                }
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ Registration error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error during registration'
+        });
+    }
+};
+
+// Login user
+const login = async (req, res) => {
+    try {
+        const { email, password, login_page } = req.body;
+
+        console.log('🔐 Login attempt:', { email, login_page });
+
+        // Validate required fields
+        if (!email || !password) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email and password are required'
+            });
+        }
+
+        // Find user by email in memory
+        const user = users.find(u => u.email === email);
+
+        if (!user) {
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid email or password'
+            });
+        }
+
+        // Check if user is active
+        if (!user.isActive) {
+            return res.status(401).json({
+                success: false,
+                message: 'Account is deactivated'
+            });
+        }
+
+        // Compare password
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+
+        if (!isPasswordValid) {
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid email or password'
+            });
+        }
+
         // Update last login
         user.lastLogin = new Date();
-        await user.save();
-        console.log('✅ Existing user logged in from users table (phpMyAdmin):', user.toJSON());
-      }
-
-      // Generate token
-      const token = generateToken(user);
-
-      // Return response
-      res.status(200).json({
-        success: true,
-        message: 'Login successful! Welcome back.',
-        data: {
-          user: {
-            id: user.id,
-            email: user.email,
-            username: user.username,
-            displayName: user.displayName || user.username
-          },
-          token
+        if (login_page) {
+            user.loginPage = login_page;
         }
-      });
-    } catch (error) {
-      console.error('Login error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Login failed. Please try again.',
-        error: error.message
-      });
-    }
-  }
 
-  static async register(req, res) {
-    try {
-      const { username, email, password, displayName } = req.body;
+        // Generate token
+        const token = generateToken(user.id);
 
-      // Minimal validation - hanya cek field required
-      if (!email || !password) {
-        res.status(400).json({
-          success: false,
-          message: 'Email and password are required'
-        });
-        return;
-      }
+        console.log('✅ User logged in successfully:', { userId: user.id, email });
 
-      // Auto-generate username jika tidak ada
-      const finalUsername = username || email.split('@')[0] + Math.floor(Math.random() * 1000);
-      
-      // Auto-generate displayName jika tidak ada
-      const finalDisplayName = displayName || finalUsername;
-
-      // Check if user already exists in users table (phpMyAdmin)
-      const existingUser = await findByEmail(email);
-      if (existingUser) {
-        // Jika user sudah ada, langsung login saja
-        const token = generateToken(existingUser);
-        
         res.status(200).json({
-          success: true,
-          message: 'Welcome back! You are now logged in.',
-          data: {
-            user: {
-              id: existingUser.id,
-              email: existingUser.email,
-              username: existingUser.username,
-              displayName: existingUser.displayName || existingUser.username
-            },
-            token
-          }
+            success: true,
+            message: 'Login successful',
+            data: {
+                token,
+                user: {
+                    id: user.id,
+                    email: user.email,
+                    username: user.username,
+                    displayName: user.displayName,
+                    profilePicture: user.profilePicture,
+                    isActive: user.isActive,
+                    loginPage: user.loginPage
+                }
+            }
         });
-        return;
-      }
 
-      // Hash password (jika ada)
-      let hashedPassword = password;
-      if (password && password.length > 0) {
-        hashedPassword = await bcrypt.hash(password, 12);
-      }
-
-      // Create new user dengan role default 'user' di users table (phpMyAdmin)
-      const userData = {
-        username: finalUsername.trim(),
-        email: email.toLowerCase().trim(),
-        password: hashedPassword,
-        role: 'user',
-        isEmailVerified: true, // Auto-verify
-        displayName: finalDisplayName.trim()
-      };
-
-      const newUser = await create(userData);
-      console.log('✅ New user created in users table (phpMyAdmin):', newUser.toJSON());
-
-      // Generate token untuk auto-login
-      const token = generateToken(newUser);
-
-      // Update last login
-      newUser.lastLogin = new Date();
-      await newUser.save();
-
-      res.status(201).json({
-        success: true,
-        message: 'Registration successful! You are now logged in.',
-        data: {
-          user: {
-            id: newUser.id,
-            email: newUser.email,
-            username: newUser.username,
-            displayName: newUser.displayName || newUser.username
-          },
-          token
-        }
-      });
     } catch (error) {
-      console.error('Registration error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Registration failed. Please try again.',
-        error: error.message
-      });
+        console.error('❌ Login error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error during login'
+        });
     }
-  }
+};
 
-  static async logout(req, res) {
+// Get current user profile
+const getProfile = async (req, res) => {
     try {
-      res.clearCookie('token');
-      res.json({
-        success: true,
-        message: 'Logged out successfully'
-      });
-    } catch (error) {
-      console.error('Logout error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Internal server error',
-        error: error.message
-      });
-    }
-  }
+        const userId = req.user.userId;
 
-  static async getMe(req, res) {
-    try {
-      const token = req.cookies?.token || req.headers?.authorization?.replace('Bearer ', '');
-      
-      if (!token) {
-        res.status(401).json({
-          success: false,
-          message: 'No token provided'
-        });
-        return;
-      }
+        const user = users.find(u => u.id === userId);
 
-      const decoded = verifyToken(token);
-      const user = await User.findByPk(decoded.id);
-      
-      if (!user) {
-        res.status(401).json({
-          success: false,
-          message: 'User not found'
-        });
-        return;
-      }
-
-      res.json({
-        success: true,
-        message: 'User retrieved successfully',
-        data: {
-          user: {
-            id: user.id,
-            email: user.email,
-            username: user.username,
-            displayName: user.displayName || user.username
-          }
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
         }
-      });
-    } catch (error) {
-      console.error('Get user error:', error);
-      res.status(401).json({
-        success: false,
-        message: 'Invalid token',
-        error: error.message
-      });
-    }
-  }
-}
 
-module.exports = AuthController;
+        res.status(200).json({
+            success: true,
+            data: {
+                user: {
+                    id: user.id,
+                    email: user.email,
+                    username: user.username,
+                    displayName: user.displayName,
+                    profilePicture: user.profilePicture,
+                    isActive: user.isActive,
+                    loginPage: user.loginPage,
+                    lastLogin: user.lastLogin,
+                    createdAt: user.createdAt
+                }
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ Get profile error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error'
+        });
+    }
+};
+
+// Logout user (client-side token removal)
+const logout = (req, res) => {
+    res.status(200).json({
+        success: true,
+        message: 'Logout successful'
+    });
+};
+
+module.exports = {
+    register,
+    login,
+    getProfile,
+    logout
+};
