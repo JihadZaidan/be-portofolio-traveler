@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google OAuth Success Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #4285f4;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 10px;
+            transition: background-color 0.3s;
+        }
+        .btn:hover {
+            background-color: #3367d6;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .logs {
+            background: #000;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            margin-top: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Google OAuth Success Test</h1>
+        
+        <div class="info">
+            <strong>🚀 Ready for Testing!</strong><br>
+            Backend berjalan dengan error handling yang diperbaiki.<br>
+            Server logs akan menampilkan detail proses OAuth.
+        </div>
+
+        <h2>📱 Test Google Login</h2>
+        <a href="http://localhost:55435/api/auth/google" class="btn">🔑 Login with Google</a>
+        
+        <h2>📊 Expected Flow</h2>
+        <div class="info">
+            <ol>
+                <li>Click "Login with Google"</li>
+                <li>Pilih akun Google Anda</li>
+                <li>Berikan izin akses</li>
+                <li>✅ Success: Redirect ke frontend dengan token</li>
+                <li>❌ Error: Cek server logs untuk detail</li>
+            </ol>
+        </div>
+
+        <h2>🔧 Debug Information</h2>
+        <div id="debug-info" class="info">
+            <strong>Current Status:</strong> <span id="status">Ready to test</span><br>
+            <strong>Current URL:</strong> <span id="current-url">-</span><br>
+            <strong>Timestamp:</strong> <span id="timestamp">-</span>
+        </div>
+
+        <h2>📝 Server Logs</h2>
+        <div class="logs">
+            📋 Check server console for detailed OAuth logs:<br>
+            • 🔗 Google OAuth Init<br>
+            • 🔍 Google OAuth Profile received<br>
+            • ✅ User login successful<br>
+            • 🔄 Google OAuth Callback received<br>
+            • 🎉 Token generated and redirect sent
+        </div>
+    </div>
+
+    <script>
+        function updateDebugInfo() {
+            document.getElementById('current-url').textContent = window.location.href;
+            document.getElementById('timestamp').textContent = new Date().toISOString();
+            
+            // Check URL parameters
+            const params = new URLSearchParams(window.location.search);
+            
+            if (window.location.pathname.includes('/auth/callback')) {
+                const token = params.get('token');
+                const user = params.get('user');
+                const action = params.get('action');
+                
+                if (token) {
+                    document.getElementById('status').innerHTML = '✅ <strong>LOGIN SUCCESS!</strong> Token received';
+                    document.getElementById('status').className = 'success';
+                } else {
+                    document.getElementById('status').innerHTML = '⚠️ Callback received but no token';
+                }
+            }
+            
+            if (window.location.pathname.includes('/auth/error')) {
+                const message = params.get('message');
+                document.getElementById('status').innerHTML = `❌ <strong>LOGIN FAILED:</strong> ${message}`;
+                document.getElementById('status').className = 'error';
+            }
+        }
+
+        // Update debug info every second
+        setInterval(updateDebugInfo, 1000);
+        updateDebugInfo();
+    </script>
+</body>
+</html>

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Midtrans Popup</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        button { padding: 10px 20px; font-size: 16px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .result { margin-top: 20px; padding: 10px; background: #f8f9fa; border-radius: 5px; }
+        .loading { color: #007bff; }
+        .error { color: #dc3545; }
+        .success { color: #28a745; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test Midtrans Popup</h1>
+    <button onclick="testPayment()">Test Midtrans Payment</button>
+    <div id="result"></div>
+
+    <script>
+        async function testPayment() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<div class="loading">🔄 Testing payment...</div>';
+
+            try {
+                // Step 1: Create payment transaction
+                console.log('🚀 Creating payment transaction...');
+                const response = await fetch('http://localhost:55435/api/payments/create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        itemTitle: 'Test Service',
+                        packageTitle: 'Standard',
+                        quantity: 1,
+                        unitPrice: 20,
+                        subtotal: 20,
+                        serviceFee: 3,
+                        total: 23,
+                        customerInfo: {
+                            name: 'Test User',
+                            email: 'test@example.com'
+                        }
+                    })
+                });
+
+                const data = await response.json();
+                console.log('📤 Transaction response:', data);
+
+                if (data.success && data.data?.token) {
+                    resultDiv.innerHTML = `
+                        <div class="success">✅ Transaction created successfully!</div>
+                        <div>Token: ${data.data.token.substring(0, 20)}...</div>
+                        <div>Environment: ${data.data.environment}</div>
+                        <button onclick="testMidtransPopup('${data.data.token}')">🚀 Open Midtrans Popup</button>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Failed to create transaction: ${data.message}</div>`;
+                }
+
+            } catch (error) {
+                console.error('❌ Error:', error);
+                resultDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            }
+        }
+
+        function testMidtransPopup(token) {
+            console.log('🔧 Testing Midtrans popup with token:', token);
+            
+            // Load Midtrans script
+            if (!window.snap) {
+                const script = document.createElement('script');
+                script.src = 'https://app.sandbox.midtrans.com/snap/snap.js';
+                script.setAttribute('data-client-key', 'Mid-client-hnw3QaclfueMkZ4z');
+                script.onload = () => {
+                    console.log('✅ Midtrans script loaded');
+                    openMidtransPopup(token);
+                };
+                script.onerror = () => {
+                    console.error('❌ Failed to load Midtrans script');
+                    document.getElementById('result').innerHTML += '<div class="error">❌ Failed to load Midtrans script</div>';
+                };
+                document.head.appendChild(script);
+            } else {
+                openMidtransPopup(token);
+            }
+        }
+
+        function openMidtransPopup(token) {
+            console.log('🚀 Opening Midtrans popup...');
+            
+            snap.pay(token, {
+                onSuccess: function(result) {
+                    console.log('💰 Payment success:', result);
+                    document.getElementById('result').innerHTML = `
+                        <div class="success">💰 Payment Successful!</div>
+                        <pre>${JSON.stringify(result, null, 2)}</pre>
+                    `;
+                },
+                onPending: function(result) {
+                    console.log('⏳ Payment pending:', result);
+                    document.getElementById('result').innerHTML = `
+                        <div class="loading">⏳ Payment Pending</div>
+                        <pre>${JSON.stringify(result, null, 2)}</pre>
+                    `;
+                },
+                onError: function(result) {
+                    console.log('❌ Payment error:', result);
+                    document.getElementById('result').innerHTML = `
+                        <div class="error">❌ Payment Failed</div>
+                        <pre>${JSON.stringify(result, null, 2)}</pre>
+                    `;
+                },
+                onClose: function() {
+                    console.log('🔒 Payment popup closed');
+                }
+            });
+        }
+    </script>
+</body>
+</html>

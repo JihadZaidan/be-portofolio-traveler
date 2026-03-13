@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Admin Chat</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-btn {
+            background: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+            width: 100%;
+        }
+        .test-btn:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Test Admin Chat Messages</h1>
+        <p>Click the buttons below to send test messages to admin chat</p>
+        
+        <button class="test-btn" onclick="testPostMessage()">📤 Send Test Message (PostMessage)</button>
+        <button class="test-btn" onclick="openAdminChat()">🖥️ Open Admin Chat</button>
+        <button class="test-btn" onclick="testMultipleMessages()">📨 Send Multiple Messages</button>
+        <button class="test-btn" onclick="clearResults()">🗑️ Clear Results</button>
+        
+        <div id="results"></div>
+    </div>
+
+    <script>
+        let messageCount = 0;
+        
+        function addResult(message, type = 'info') {
+            const resultsEl = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            resultsEl.appendChild(div);
+            resultsEl.scrollTop = resultsEl.scrollHeight;
+        }
+
+        function testPostMessage() {
+            messageCount++;
+            
+            const testMessage = {
+                type: 'NEW_USER_MESSAGE',
+                userName: 'Test User',
+                message: `This is test message #${messageCount}`,
+                userId: Date.now(),
+                timestamp: new Date().toISOString()
+            };
+
+            addResult('📤 Sending test message via postMessage...', 'info');
+            
+            try {
+                // Try to send to parent window (if admin chat is in same window)
+                if (window.parent !== window) {
+                    window.parent.postMessage(testMessage, '*');
+                    addResult('✅ Message sent to parent window', 'success');
+                }
+                
+                // Try to send to opener window (if admin chat is in different tab)
+                if (window.opener && !window.opener.closed) {
+                    window.opener.postMessage(testMessage, '*');
+                    addResult('✅ Message sent to opener window', 'success');
+                }
+                
+                // Try to send to top window
+                if (window.top !== window) {
+                    window.top.postMessage(testMessage, '*');
+                    addResult('✅ Message sent to top window', 'success');
+                }
+                
+                addResult(`📨 Test message #${messageCount} prepared: ${testMessage.userName}: ${testMessage.message}`, 'info');
+                
+            } catch (error) {
+                addResult(`❌ Error sending message: ${error.message}`, 'error');
+            }
+        }
+
+        function openAdminChat() {
+            addResult('🖥️ Opening admin chat...', 'info');
+            const adminWindow = window.open('http://localhost:5174/admin/chat', '_blank');
+            
+            if (adminWindow) {
+                addResult('✅ Admin chat opened in new tab', 'success');
+                
+                // Wait a bit then send a test message
+                setTimeout(() => {
+                    const testMessage = {
+                        type: 'NEW_USER_MESSAGE',
+                        userName: 'Test User',
+                        message: 'Hello from test page!',
+                        userId: Date.now(),
+                        timestamp: new Date().toISOString()
+                    };
+                    
+                    try {
+                        adminWindow.postMessage(testMessage, '*');
+                        addResult('📤 Message sent to admin chat window', 'success');
+                    } catch (error) {
+                        addResult(`❌ Error sending to admin window: ${error.message}`, 'error');
+                    }
+                }, 1000);
+            } else {
+                addResult('❌ Failed to open admin chat', 'error');
+            }
+        }
+
+        function testMultipleMessages() {
+            addResult('📨 Sending multiple test messages...', 'info');
+            
+            const messages = [
+                'Hello admin, I need help with copywriting services',
+                'What are your pricing options?',
+                'Do you offer content writing packages?',
+                'Thank you for your help!'
+            ];
+            
+            messages.forEach((message, index) => {
+                setTimeout(() => {
+                    const testMessage = {
+                        type: 'NEW_USER_MESSAGE',
+                        userName: 'Test User',
+                        message: message,
+                        userId: Date.now() + index,
+                        timestamp: new Date().toISOString()
+                    };
+                    
+                    // Try to send to all possible windows
+                    if (window.parent !== window) {
+                        window.parent.postMessage(testMessage, '*');
+                    }
+                    if (window.opener && !window.opener.closed) {
+                        window.opener.postMessage(testMessage, '*');
+                    }
+                    if (window.top !== window) {
+                        window.top.postMessage(testMessage, '*');
+                    }
+                    
+                    addResult(`📨 Message ${index + 1}: ${message}`, 'success');
+                }, index * 1000);
+            });
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+            messageCount = 0;
+            addResult('🗑️ Results cleared', 'info');
+        }
+
+        // Initialize
+        window.addEventListener('load', () => {
+            addResult('🚀 Test page loaded', 'info');
+            addResult('📝 Instructions:', 'info');
+            addResult('1. Open admin chat in another tab', 'info');
+            addResult('2. Click "Send Test Message" to send messages', 'info');
+            addResult('3. Check admin chat for incoming messages', 'info');
+        });
+
+        // Listen for admin responses
+        window.addEventListener('message', (event) => {
+            const data = event.data;
+            
+            if (data.type === 'ADMIN_RESPONSE') {
+                addResult(`💬 Admin response: ${data.message}`, 'success');
+            }
+        });
+    </script>
+</body>
+</html>

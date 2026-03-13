@@ -1,0 +1,38 @@
+#!/usr/bin/env node
+
+console.log('🔧 Google OAuth Setup Script for TRAVELLO');
+console.log('');
+console.log('📋 INSTRUKSI LENGKAP:');
+console.log('');
+console.log('1. Buka Google Cloud Console: https://console.cloud.google.com/');
+console.log('2. Buat project baru atau pilih project yang ada');
+console.log('3. Enable Google+ API atau People API');
+console.log('4. Setup OAuth Consent Screen (External)');
+console.log('5. Create OAuth 2.0 Client ID dengan redirect URI:');
+console.log('   http://localhost:55435/api/auth/google/callback');
+console.log('6. Copy Client ID dan Client Secret');
+console.log('');
+console.log('🔑 SETELAN ENVIRONMENT VARIABLES:');
+console.log('');
+console.log('Di file .env, update:');
+console.log('GOOGLE_CLIENT_ID=your_client_id_here');
+console.log('GOOGLE_CLIENT_SECRET=your_client_secret_here');
+console.log('GOOGLE_CALLBACK_URL=http://localhost:55435/api/auth/google/callback');
+console.log('');
+console.log('🚀 RESTART SERVER:');
+console.log('taskkill /F /IM node.exe');
+console.log('npm start');
+console.log('');
+console.log('✅ VERIFICATION:');
+console.log('Server harus menampilkan: "✅ Google OAuth configured successfully"');
+console.log('');
+console.log('📱 TESTING:');
+console.log('1. Buka frontend: http://localhost:5173');
+console.log('2. Klik "Sign up with Google"');
+console.log('3. Login dengan Google account');
+console.log('4. Success: Redirect ke aplikasi');
+console.log('');
+console.log('🚨 TROUBLESHOOTING:');
+console.log('- Jika redirect_uri_mismatch: Pastikan URI sama persis di Google Cloud Console');
+console.log('- Jika access_denied: Tambahkan email di Test Users');
+console.log('- Jika invalid_client: Periksa Client ID dan Secret di .env');

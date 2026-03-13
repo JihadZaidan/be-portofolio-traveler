@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Google OAuth Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+        .card { background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        button { padding: 12px 24px; font-size: 16px; background: #4285f4; color: white; border: none; border-radius: 5px; cursor: pointer; margin: 10px 5px; }
+        button:hover { background: #3367d6; }
+        .error { color: #d93025; background: #fce8e6; padding: 15px; border-radius: 5px; }
+        .success { color: #1e8e3e; background: #e6f4ea; padding: 15px; border-radius: 5px; }
+        .info { color: #1967d2; background: #e8f0fe; padding: 15px; border-radius: 5px; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 5px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🔐 Google OAuth Test</h1>
+    
+    <div class="card">
+        <h2>📋 Konfigurasi Google OAuth</h2>
+        <p><strong>Client ID:</strong> 861209908201-nqe32tsj61ht3msht9rr6ve2el5dlfkr.apps.googleusercontent.com</p>
+        <p><strong>Callback URL:</strong> http://localhost:55435/api/auth/google/callback</p>
+        <p><strong>Environment:</strong> Development (localhost:55435)</p>
+    </div>
+
+    <div class="card">
+        <h2>🚀 Test Google OAuth Flow</h2>
+        <button onclick="testGoogleLogin()">🔑 Test Google Login</button>
+        <button onclick="testGoogleSignup()">👤 Test Google Signup</button>
+        <button onclick="testGoogleWithLoginPage()">📄 Test with Login Page</button>
+    </div>
+
+    <div class="card">
+        <h2>📊 Test Results</h2>
+        <div id="result"></div>
+    </div>
+
+    <div class="card info">
+        <h2>⚠️ Jika Error Redirect URI Mismatch:</h2>
+        <ol>
+            <li>Buka <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Google Cloud Console</a></li>
+            <li>Pilih project yang sesuai</li>
+            <li>Cari OAuth 2.0 Client ID dengan email: 861209908201-nqe32tsj61ht3msht9rr6ve2el5dlfkr.apps.googleusercontent.com</li>
+            <li>Klik edit dan tambahkan callback URL: <code>http://localhost:55435/api/auth/google/callback</code></li>
+            <li>Simpan perubahan</li>
+            <li>Tunggu beberapa menit untuk propagasi</li>
+        </ol>
+    </div>
+
+    <script>
+        function testGoogleLogin() {
+            const url = 'http://localhost:55435/api/auth/google?mode=login';
+            window.open(url, '_blank');
+            updateResult('🔑 Membuka Google OAuth untuk login...', 'info');
+        }
+
+        function testGoogleSignup() {
+            const url = 'http://localhost:55435/api/auth/google?mode=signup';
+            window.open(url, '_blank');
+            updateResult('👤 Membuka Google OAuth untuk signup...', 'info');
+        }
+
+        function testGoogleWithLoginPage() {
+            const url = 'http://localhost:55435/api/auth/google?mode=login&login_page=aichatbot';
+            window.open(url, '_blank');
+            updateResult('📄 Membuka Google OAuth dengan login page parameter...', 'info');
+        }
+
+        function updateResult(message, type = 'info') {
+            const resultDiv = document.getElementById('result');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : 'info';
+            
+            resultDiv.innerHTML += `
+                <div class="${className}">
+                    <strong>[${timestamp}]</strong> ${message}
+                </div>
+            `;
+        }
+
+        // Check URL parameters for callback results
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+        const userParam = urlParams.get('user');
+        const action = urlParams.get('action');
+        const error = urlParams.get('error');
+
+        if (error) {
+            updateResult(`❌ Error: ${error}`, 'error');
+        } else if (token && userParam) {
+            try {
+                const user = JSON.parse(decodeURIComponent(userParam));
+                updateResult(`✅ ${action === 'signup' ? 'Signup' : 'Login'} successful!`, 'success');
+                updateResult(`👤 User: ${user.displayName} (${user.email})`, 'success');
+                updateResult(`🔑 Token: ${token.substring(0, 20)}...`, 'success');
+                updateResult(`📄 Login Page: ${user.loginPage}`, 'success');
+                
+                // Display full user data
+                document.getElementById('result').innerHTML += `
+                    <div class="info">
+                        <h3>📋 User Data:</h3>
+                        <pre>${JSON.stringify(user, null, 2)}</pre>
+                    </div>
+                `;
+            } catch (e) {
+                updateResult(`❌ Error parsing user data: ${e.message}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

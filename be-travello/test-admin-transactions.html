@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Transactions Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .header {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        .btn.success {
+            background: #28a745;
+        }
+        .btn.warning {
+            background: #ffc107;
+            color: #333;
+        }
+        .btn.danger {
+            background: #dc3545;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .response {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 15px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .transaction-list {
+            margin-top: 20px;
+        }
+        .transaction-item {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 10px;
+        }
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .status-completed {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        .status-paid {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .status-failed {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .status-cancelled {
+            background: #e2e3e5;
+            color: #383d41;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="header">💰 Admin Transactions Test Interface</h1>
+        <p>Test payment success/failed handling and admin transaction management</p>
+    </div>
+
+    <div class="grid">
+        <!-- Create Test Transaction -->
+        <div class="container">
+            <h2>🧪 Create Test Transaction</h2>
+            <div class="section">
+                <div class="form-group">
+                    <label>Item Title:</label>
+                    <input type="text" id="itemTitle" value="Copywriting Service" />
+                </div>
+                <div class="form-group">
+                    <label>Package Title:</label>
+                    <select id="packageTitle">
+                        <option value="Basic Package">Basic Package</option>
+                        <option value="Standard Package">Standard Package</option>
+                        <option value="Premium Package">Premium Package</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Quantity:</label>
+                    <input type="number" id="quantity" value="1" min="1" />
+                </div>
+                <div class="form-group">
+                    <label>Unit Price (IDR):</label>
+                    <input type="number" id="unitPrice" value="500000" min="0" />
+                </div>
+                <div class="form-group">
+                    <label>Service Fee (IDR):</label>
+                    <input type="number" id="serviceFee" value="10000" min="0" />
+                </div>
+                <div class="form-group">
+                    <label>Customer Name:</label>
+                    <input type="text" id="customerName" value="Test Customer" />
+                </div>
+                <div class="form-group">
+                    <label>Customer Email:</label>
+                    <input type="email" id="customerEmail" value="test@example.com" />
+                </div>
+                <button class="btn" onclick="createTestTransaction()">Create Transaction</button>
+                <button class="btn success" onclick="simulatePaymentSuccess()">Simulate Success</button>
+                <button class="btn danger" onclick="simulatePaymentFailed()">Simulate Failed</button>
+            </div>
+            <div id="createResponse" class="response"></div>
+        </div>
+
+        <!-- Admin Transactions Management -->
+        <div class="container">
+            <h2>📊 Admin Transactions Management</h2>
+            <div class="section">
+                <div class="form-group">
+                    <label>Filter by Status:</label>
+                    <select id="statusFilter">
+                        <option value="">All Status</option>
+                        <option value="pending">Pending</option>
+                        <option value="paid">Paid</option>
+                        <option value="failed">Failed</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Filter by Payment Status:</label>
+                    <select id="paymentStatusFilter">
+                        <option value="">All Payment Status</option>
+                        <option value="pending">Pending</option>
+                        <option value="paid">Paid</option>
+                        <option value="failed">Failed</option>
+                        <option value="refunded">Refunded</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Search:</label>
+                    <input type="text" id="searchFilter" placeholder="Search by transaction ID, service name..." />
+                </div>
+                <button class="btn" onclick="getAllTransactions()">Get All Transactions</button>
+                <button class="btn warning" onclick="getTransactionStats()">Get Statistics</button>
+            </div>
+            <div id="adminResponse" class="response"></div>
+        </div>
+    </div>
+
+    <!-- Transaction List -->
+    <div class="container">
+        <h2>📋 Transaction List</h2>
+        <div id="transactionList" class="transaction-list"></div>
+    </div>
+
+    <!-- Update Transaction Status -->
+    <div class="container">
+        <h2>✏️ Update Transaction Status</h2>
+        <div class="section">
+            <div class="form-group">
+                <label>Transaction ID:</label>
+                <input type="text" id="updateTransactionId" placeholder="Enter transaction ID" />
+            </div>
+            <div class="form-group">
+                <label>New Status:</label>
+                <select id="newStatus">
+                    <option value="">Keep Current</option>
+                    <option value="pending">Pending</option>
+                    <option value="confirmed">Confirmed</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                    <option value="cancelled">Cancelled</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>New Payment Status:</label>
+                <select id="newPaymentStatus">
+                    <option value="">Keep Current</option>
+                    <option value="pending">Pending</option>
+                    <option value="paid">Paid</option>
+                    <option value="failed">Failed</option>
+                    <option value="refunded">Refunded</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Admin Notes:</label>
+                <textarea id="adminNotes" rows="3" placeholder="Add admin notes..."></textarea>
+            </div>
+            <button class="btn" onclick="updateTransactionStatus()">Update Transaction</button>
+            <button class="btn success" onclick="getTransactionDetails()">Get Details</button>
+        </div>
+        <div id="updateResponse" class="response"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:55435/api';
+        let currentTransactionId = null;
+
+        // Create test transaction
+        async function createTestTransaction() {
+            const data = {
+                itemTitle: document.getElementById('itemTitle').value,
+                packageTitle: document.getElementById('packageTitle').value,
+                quantity: parseInt(document.getElementById('quantity').value),
+                unitPrice: parseInt(document.getElementById('unitPrice').value),
+                subtotal: parseInt(document.getElementById('unitPrice').value) * parseInt(document.getElementById('quantity').value),
+                serviceFee: parseInt(document.getElementById('serviceFee').value),
+                total: (parseInt(document.getElementById('unitPrice').value) * parseInt(document.getElementById('quantity').value)) + parseInt(document.getElementById('serviceFee').value),
+                customerInfo: {
+                    name: document.getElementById('customerName').value,
+                    email: document.getElementById('customerEmail').value
+                },
+                userId: null // Guest user - akan diupdate jika ada user login
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/payments/create`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+                document.getElementById('createResponse').textContent = JSON.stringify(result, null, 2);
+                
+                if (result.success) {
+                    currentTransactionId = result.data.orderId;
+                    document.getElementById('updateTransactionId').value = currentTransactionId;
+                    logAction('✅ Transaction created:', result.data.orderId);
+                    logAction('👤 User ID:', result.data.userId || 'Guest user');
+                }
+            } catch (error) {
+                document.getElementById('createResponse').textContent = 'Error: ' + error.message;
+                logAction('❌ Create transaction error:', error.message);
+            }
+        }
+
+        // Simulate payment success webhook
+        async function simulatePaymentSuccess() {
+            if (!currentTransactionId) {
+                alert('Please create a transaction first');
+                return;
+            }
+
+            const webhookData = {
+                order_id: currentTransactionId,
+                transaction_status: 'settlement',
+                payment_type: 'bank_transfer',
+                transaction_time: new Date().toISOString(),
+                settlement_time: new Date().toISOString(),
+                gross_amount: 1000000, // Adjust based on your test data
+                fraud_status: 'accept',
+                status_code: '200',
+                signature_key: 'test-signature' // This would be real in production
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/payments/webhook`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(webhookData)
+                });
+
+                const result = await response.json();
+                document.getElementById('createResponse').textContent = JSON.stringify(result, null, 2);
+                logAction('✅ Payment success simulated:', currentTransactionId);
+                
+                // Refresh transaction list
+                setTimeout(() => getAllTransactions(), 1000);
+            } catch (error) {
+                document.getElementById('createResponse').textContent = 'Error: ' + error.message;
+                logAction('❌ Simulate success error:', error.message);
+            }
+        }
+
+        // Simulate payment failed webhook
+        async function simulatePaymentFailed() {
+            if (!currentTransactionId) {
+                alert('Please create a transaction first');
+                return;
+            }
+
+            const webhookData = {
+                order_id: currentTransactionId,
+                transaction_status: 'expire',
+                payment_type: 'bank_transfer',
+                transaction_time: new Date().toISOString(),
+                gross_amount: 1000000,
+                fraud_status: 'deny',
+                status_code: '202',
+                signature_key: 'test-signature'
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/payments/webhook`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(webhookData)
+                });
+
+                const result = await response.json();
+                document.getElementById('createResponse').textContent = JSON.stringify(result, null, 2);
+                logAction('❌ Payment failed simulated:', currentTransactionId);
+                
+                // Refresh transaction list
+                setTimeout(() => getAllTransactions(), 1000);
+            } catch (error) {
+                document.getElementById('createResponse').textContent = 'Error: ' + error.message;
+                logAction('❌ Simulate failed error:', error.message);
+            }
+        }
+
+        // Get all transactions (admin)
+        async function getAllTransactions() {
+            const status = document.getElementById('statusFilter').value;
+            const paymentStatus = document.getElementById('paymentStatusFilter').value;
+            const search = document.getElementById('searchFilter').value;
+
+            const params = new URLSearchParams();
+            if (status) params.append('status', status);
+            if (paymentStatus) params.append('paymentStatus', paymentStatus);
+            if (search) params.append('search', search);
+            params.append('limit', '20');
+
+            try {
+                const response = await fetch(`${API_BASE}/admin/transactions?${params}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': 'Bearer admin-token', // This would be real in production
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const result = await response.json();
+                document.getElementById('adminResponse').textContent = JSON.stringify(result, null, 2);
+                
+                if (result.success) {
+                    displayTransactionList(result.data.transactions);
+                    logAction(`📊 Retrieved ${result.data.transactions.length} transactions`);
+                }
+            } catch (error) {
+                document.getElementById('adminResponse').textContent = 'Error: ' + error.message;
+                logAction('❌ Get transactions error:', error.message);
+            }
+        }
+
+        // Get transaction statistics
+        async function getTransactionStats() {
+            try {
+                const response = await fetch(`${API_BASE}/admin/transactions?limit=1`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': 'Bearer admin-token',
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const result = await response.json();
+                
+                if (result.success && result.data.stats) {
+                    const stats = result.data.stats;
+                    const statsText = `
+📈 Transaction Statistics:
+• Total Transactions: ${stats.totalTransactions}
+• Total Revenue: IDR ${stats.totalRevenue.toLocaleString()}
+• Paid Transactions: ${stats.paidTransactions}
+• Pending Transactions: ${stats.pendingTransactions}
+• Completed Transactions: ${stats.completedTransactions}
+• Average Transaction Value: IDR ${stats.avgTransactionValue.toLocaleString()}
+                    `;
+                    document.getElementById('adminResponse').textContent = statsText;
+                    logAction('📈 Statistics retrieved successfully');
+                }
+            } catch (error) {
+                document.getElementById('adminResponse').textContent = 'Error: ' + error.message;
+                logAction('❌ Get stats error:', error.message);
+            }
+        }
+
+        // Update transaction status
+        async function updateTransactionStatus() {
+            const transactionId = document.getElementById('updateTransactionId').value;
+            const status = document.getElementById('newStatus').value;
+            const paymentStatus = document.getElementById('newPaymentStatus').value;
+            const adminNotes = document.getElementById('adminNotes').value;
+
+            if (!transactionId) {
+                alert('Please enter a transaction ID');
+                return;
+            }
+
+            const updateData = {};
+            if (status) updateData.status = status;
+            if (paymentStatus) updateData.paymentStatus = paymentStatus;
+            if (adminNotes) updateData.adminNotes = adminNotes;
+
+            try {
+                const response = await fetch(`${API_BASE}/admin/transactions/${transactionId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': 'Bearer admin-token',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(updateData)
+                });
+
+                const result = await response.json();
+                document.getElementById('updateResponse').textContent = JSON.stringify(result, null, 2);
+                
+                if (result.success) {
+                    logAction('✅ Transaction updated:', transactionId);
+                    setTimeout(() => getAllTransactions(), 1000);
+                }
+            } catch (error) {
+                document.getElementById('updateResponse').textContent = 'Error: ' + error.message;
+                logAction('❌ Update transaction error:', error.message);
+            }
+        }
+
+        // Get transaction details
+        async function getTransactionDetails() {
+            const transactionId = document.getElementById('updateTransactionId').value;
+
+            if (!transactionId) {
+                alert('Please enter a transaction ID');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/admin/transactions/${transactionId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': 'Bearer admin-token',
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const result = await response.json();
+                document.getElementById('updateResponse').textContent = JSON.stringify(result, null, 2);
+                
+                if (result.success) {
+                    logAction('📋 Transaction details retrieved:', transactionId);
+                }
+            } catch (error) {
+                document.getElementById('updateResponse').textContent = 'Error: ' + error.message;
+                logAction('❌ Get details error:', error.message);
+            }
+        }
+
+        // Display transaction list
+        function displayTransactionList(transactions) {
+            const listContainer = document.getElementById('transactionList');
+            
+            if (!transactions || transactions.length === 0) {
+                listContainer.innerHTML = '<p>No transactions found</p>';
+                return;
+            }
+
+            const html = transactions.map(transaction => {
+                // Use buyerEmail from formatted data
+                const buyerEmail = transaction.buyerEmail || 'Guest User';
+                const buyerName = transaction.buyerName || 'Guest User';
+                
+                return `
+                <div class="transaction-item">
+                    <h4>${transaction.transactionId}</h4>
+                    <p><strong>Service:</strong> ${transaction.serviceName}</p>
+                    <p><strong>Description:</strong> ${transaction.description}</p>
+                    <p><strong>Amount:</strong> IDR ${transaction.finalAmount.toLocaleString()}</p>
+                    <p><strong>Buyer:</strong> ${buyerName} (${buyerEmail})</p>
+                    <p>
+                        <strong>Status:</strong> 
+                        <span class="status-badge status-${transaction.status}">${transaction.status}</span>
+                    </p>
+                    <p>
+                        <strong>Payment Status:</strong> 
+                        <span class="status-badge status-${transaction.paymentStatus}">${transaction.paymentStatus}</span>
+                    </p>
+                    <p><strong>Created:</strong> ${new Date(transaction.createdAt).toLocaleString()}</p>
+                    ${transaction.paymentDate ? `<p><strong>Paid:</strong> ${new Date(transaction.paymentDate).toLocaleString()}</p>` : ''}
+                    ${transaction.adminNotes ? `<p><strong>Admin Notes:</strong> ${transaction.adminNotes}</p>` : ''}
+                    <button class="btn" onclick="document.getElementById('updateTransactionId').value='${transaction.transactionId}'; document.getElementById('adminNotes').focus();">Select for Update</button>
+                </div>
+            `;
+            }).join('');
+
+            listContainer.innerHTML = html;
+        }
+
+        // Log action
+        function logAction(message, data = '') {
+            console.log(message, data);
+            // You could also display this in a dedicated log section
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            getAllTransactions();
+            logAction('🚀 Admin Transactions Test Interface loaded');
+        });
+    </script>
+</body>
+</html>

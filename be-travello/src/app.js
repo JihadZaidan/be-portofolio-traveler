@@ -1,265 +1,299 @@
-const express = require("express");
-const cors = require("cors");
-const session = require("express-session");
-const { passport } = require("./config/passport.config.js");
-const http = require('http');
-const { Server } = require('socket.io');
-const chatRoutes = require('./routes/chat.routes.js');
-const authRoutes = require('./routes/auth.routes.js');
-const profileRoutes = require('./routes/profile.routes.js');
-const paymentRoutes = require('./routes/payment.routes.js');
-const adminTransactionRoutes = require('./routes/admin-transaction.routes.js');
-const adminRoutes = require('./routes/admin.routes.js');
-const socketChatRoutes = require('./routes/socket-chat.routes.js');
-const userAdminChatRoutes = require('./routes/user-admin-chat.routes.js');
-const certificationRoutes = require('./routes/certification.routes.js');
-const experienceRoutes = require('./routes/experience.routes.js');
-// const portfolioRoutes = require('./routes/portfolio.routes.js'); // Temporarily disabled
-const landingPageRoutes = require('./routes/landing-page.routes.js');
-const travelJournalRoutes = require('./routes/travel-journal.routes.js');
-const { initChatMessage } = require('./models/ChatMessage.model.js');
-const { initUserAdminChatMessage } = require('./models/UserAdminChatMessage.model.js');
-// const { initPortfolio } = require('./models/Portfolio.model.mysql.js'); // Temporarily disabled
-const { initTravelJournal } = require('./models/TravelJournal.model.mysql.js');
-const SocketChatController = require('./controllers/socket-chat.controller.js');
-console.log('🔧 Experience routes imported:', typeof experienceRoutes);
-const { errorHandler } = require("./middlewares/error.middleware.js");
-const swaggerUi = require('swagger-ui-express');
-const swaggerDocument = require('./swagger.json');
+const express = require('express');
+const cors = require('cors');
+const dotenv = require('dotenv');
 const path = require('path');
+const session = require('express-session');
+const http = require('http');
+const socketIo = require('socket.io');
+const cookieParser = require('cookie-parser');
+
+// Swagger UI imports
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./config/swagger.config');
+
+// Load environment variables
+dotenv.config();
+
+// Database connection
+const mysql = require('mysql2/promise');
+const mongoose = require('mongoose');
+
+// Connect to MySQL/MariaDB (primary database for phpMyAdmin)
+let mysqlConnection = null;
+
+async function connectMySQL() {
+    try {
+        if (process.env.DATABASE_TYPE === 'mysql') {
+            mysqlConnection = await mysql.createConnection({
+                host: process.env.MYSQL_HOST || '127.0.0.1',
+                port: Number(process.env.MYSQL_PORT) || 3306,
+                user: process.env.MYSQL_USER || 'root',
+                password: process.env.MYSQL_PASSWORD || '',
+                database: process.env.MYSQL_DATABASE || 'travello_db'
+            });
+            
+            console.log('✅ MySQL User model initialized');
+            console.log('🗄️ Connected to MySQL/MariaDB');
+            
+            // Create users table if not exists
+            await mysqlConnection.execute(`
+                CREATE TABLE IF NOT EXISTS users (
+                    id VARCHAR(255) PRIMARY KEY,
+                    googleId VARCHAR(255),
+                    email VARCHAR(255) UNIQUE NOT NULL,
+                    username VARCHAR(255) UNIQUE NOT NULL,
+                    displayName VARCHAR(255),
+                    password VARCHAR(255),
+                    profilePicture TEXT,
+                    avatar TEXT,
+                    provider ENUM('local', 'google', 'facebook') DEFAULT 'local',
+                    loginPage VARCHAR(50) DEFAULT 'default',
+                    phone VARCHAR(20),
+                    dateOfBirth DATE,
+                    gender ENUM('male', 'female', 'other') DEFAULT 'other',
+                    address_street TEXT,
+                    address_city VARCHAR(100),
+                    address_province VARCHAR(100),
+                    address_postalCode VARCHAR(10),
+                    address_country VARCHAR(100) DEFAULT 'Indonesia',
+                    travelPreferences_favoriteDestinations JSON,
+                    travelPreferences_travelStyle VARCHAR(50) DEFAULT 'budget',
+                    travelPreferences_interests JSON,
+                    isVerified BOOLEAN DEFAULT false,
+                    isActive BOOLEAN DEFAULT true,
+                    lastLogin TIMESTAMP NULL,
+                    role ENUM('user', 'admin') DEFAULT 'user',
+                    totalTransactions INT DEFAULT 0,
+                    totalSpent DECIMAL(10,2) DEFAULT 0.00,
+                    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                )
+            `);
+            
+            console.log('📋 Users table created/verified');
+            
+        } else {
+            console.log('⚠️  MySQL not configured, skipping MySQL connection');
+        }
+    } catch (error) {
+        console.error('❌ MySQL connection failed:', error);
+    }
+}
+
+// Connect to MongoDB (for AdminChat model)
+async function connectMongoDB() {
+    try {
+        if (process.env.DATABASE_TYPE !== 'mongodb') {
+            console.log('ℹ️  MongoDB disabled (DATABASE_TYPE is not "mongodb")');
+            return;
+        }
+        await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/travello_db', {
+            useNewUrlParser: true,
+            useUnifiedTopology: true,
+            serverSelectionTimeoutMS: 5000, // 5 seconds timeout
+            socketTimeoutMS: 45000, // 45 seconds timeout
+            bufferMaxEntries: 0, // Disable mongoose buffering
+            bufferCommands: false, // Disable mongoose buffering
+        });
+        console.log('✅ MongoDB connected');
+        
+        // Test connection
+        const db = mongoose.connection.db;
+        await db.admin().ping();
+        console.log('✅ MongoDB connection verified');
+    } catch (error) {
+        console.log('⚠️  MongoDB not connected, using MySQL only');
+        console.error('MongoDB connection error:', error.message);
+    }
+}
+
+// Initialize models
+async function initializeModels() {
+    try {
+        // Wait for UserMySQL to initialize properly
+        const UserMySQL = require('./models/UserMySQL');
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Give time for connection
+        
+        require('./models/AdminChat');
+        require('./models/Portfolio');
+        require('./models/Transaction');
+        
+        // Initialize ShopItem with proper error handling
+        try {
+            const ShopItem = require('./models/ShopItem');
+            console.log('✅ ShopItem model initialized');
+        } catch (error) {
+            console.error('❌ Error initializing ShopItem model:', error);
+        }
+        
+        // Initialize AdminChatMySQL tables
+        try {
+            const AdminChatMySQL = require('./models/AdminChatMySQL');
+            console.log('🔄 Initializing AdminChatMySQL tables...');
+            await AdminChatMySQL.initializeTable();
+            console.log('✅ AdminChatMySQL tables initialized successfully');
+        } catch (error) {
+            console.error('❌ Error initializing AdminChatMySQL:', error);
+        }
+        
+        console.log('📋 Database models initialized');
+    } catch (error) {
+        console.error('❌ Error initializing models:', error);
+    }
+}
+
+// Initialize connections and models
+async function initializeApp() {
+    await connectMySQL();
+    await connectMongoDB();
+    await initializeModels();
+    
+    // Start server after initialization
+    startServer();
+}
+
+// Start server function
+function startServer() {
+    server.listen(PORT, () => {
+        console.log(`🚀 TRAVELLO Server running on port ${PORT}`);
+        console.log(`📁 Static files served from: ${path.join(__dirname, '../public')}`);
+        console.log(`🌐 Health check: http://localhost:${PORT}/api/health`);
+        console.log(`🔌 Socket.IO server ready for real-time chat`);
+    });
+}
 
 const app = express();
+const PORT = process.env.PORT || 55435;
 
-// Swagger documentation with OAuth2 redirect/popup authentication
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
-  customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: "Travello API Documentation",
-  swaggerOptions: {
-    persistAuthorization: true,
-    displayRequestDuration: true,
-    filter: true,
-    showExtensions: true,
-    showCommonExtensions: true,
-    docExpansion: "none",
-    defaultModelsExpandDepth: 2,
-    defaultModelExpandDepth: 2,
-    tryItOutEnabled: true,
-    oauth2RedirectUrl: `http://localhost:5001/swagger-oauth2-redirect`,
-    initOAuth: {
-      usePkceWithAuthorizationCodeGrant: true,
-      clientId: process.env.GOOGLE_CLIENT_ID || '',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
-      appName: "Travello API",
-      scopeSeparator: " ",
-      scopes: ["profile", "email"],
-      additionalQueryStringParams: {
-        access_type: "offline",
-        prompt: "select_account"
-      }
-    }
-  }
-}));
-
-// Session middleware for Passport
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'your_session_secret_here',
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: process.env.NODE_ENV === 'production',
-    httpOnly: true,
-    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-  }
+// Middleware
+app.use(cors({
+    origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:3000', 'http://localhost:8080'],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 // Initialize Passport
+const passport = require('./config/passport.config');
 app.use(passport.initialize());
-app.use(passport.session());
 
-// Middleware - Enhanced CORS for Swagger UI
-app.use(cors({ 
-  origin: [
-    process.env.CORS_ORIGIN || "http://localhost:5173",
-    "http://localhost:5000",
-    "http://127.0.0.1:5000",
-    "http://localhost:5000/api-docs",
-    "http://127.0.0.1:5000/api-docs",
-    /^http:\/\/localhost:\d+$/,
-    /^http:\/\/127\.0\.0\.1:\d+$/
-  ], 
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With', 'X-API-Key'],
-  exposedHeaders: ['Set-Cookie', 'X-Total-Count'],
-  maxAge: 86400
+// Session middleware for Passport
+app.use(session({
+    secret: process.env.SESSION_SECRET || 'travello-secret-key',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        secure: false,
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    }
 }));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(cookieParser());
 
-// Serve static files from public directory
-app.use(express.static(path.join(__dirname, '..', 'public')));
+// Static files
+app.use(express.static(path.join(__dirname, '../public')));
 
-// Explicit route for OAuth2 redirect
-app.get('/swagger-oauth2-redirect', (req, res) => {
-    res.sendFile(path.join(__dirname, 'swagger-oauth2-redirect.html'));
+// Routes
+const landingPageRoutes = require('./routes/landingPage.routes');
+const travelJournalRoutes = require('./routes/travelJournal.routes');
+const portfolioRoutes = require('./routes/portfolio.routes');
+const certServiceRoutes = require('./routes/certService.routes');
+const experienceRoutes = require('./routes/experience.routes');
+const authRoutes = require('./routes/auth.routes');
+const adminRoutes = require('./routes/admin.routes');
+const dynamicAuthRoutes = require('./routes/dynamic-auth.routes');
+const shopRoutes = require('./routes/shop.routes');
+const paymentRoutes = require('./routes/payment.routes');
+const debugRoutes = require('./routes/debug.routes');
+const mediaRoutes = require('./routes/media.routes');
+const { chat } = require('./controllers/ai-chatbot.controller');
+
+// Test Midtrans service initialization
+try {
+    const midtransService = require('./services/midtrans.service');
+    console.log('🔧 Midtrans service loaded successfully');
+} catch (error) {
+    console.error('❌ Failed to load Midtrans service:', error.message);
+}
+
+// Swagger UI Documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+    explorer: true,
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: 'TRAVELLO API Documentation'
+}));
+
+// API JSON Documentation
+app.get('/api-docs.json', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.send(swaggerSpec);
 });
 
-// Explicit route for google-auth-test
-app.get('/google-auth-test', (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'public', 'google-auth-test.html'));
-});
+app.use('/api/landing-page', landingPageRoutes);
+app.use('/api/travel-journal', travelJournalRoutes);
+app.use('/api/portfolio', portfolioRoutes);
+app.use('/api/cert-service', certServiceRoutes);
+app.use('/api/experience', experienceRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/dynamic-auth', dynamicAuthRoutes);
+app.use('/api/media', mediaRoutes);
+app.use('/api/shop', shopRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/debug', debugRoutes);
 
-// Explicit route for auth page
-app.get('/auth.html', (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'public', 'auth.html'));
-});
+// AI Chatbot endpoint
+app.post('/api/chat', chat);
 
-// Explicit route for dashboard
-app.get('/dashboard.html', (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'public', 'dashboard.html'));
-});
+// Socket.IO Chat Controller
+const SocketChatController = require('./controllers/socket-chat.controller');
+const socketChatController = new SocketChatController();
 
-// Explicit route for payment
-app.get('/payment.html', (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'payment.html'));
-});
-
-// Explicit route for shop/payment
-app.get('/shop/payment', (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'payment.html'));
-});
-
-// Default route redirect to auth
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'public', 'auth.html'));
-});
-
-// Health check endpoint
-app.get("/health", (req, res) => {
-    res.status(200).json({ status: "OK", timestamp: new Date().toISOString() });
-});
-
-// API info endpoint
-app.get("/api", (req, res) => {
-    res.status(200).json({ 
-        message: "TRAVELLO API",
-        endpoints: {
-            chat: "POST /api/chat - Chat with Gemini AI",
-            auth: {
-                login: "POST /api/auth/login - User login",
-                register: "POST /api/auth/register - User registration",
-                logout: "POST /api/auth/logout - User logout",
-                me: "GET /api/auth/me - Get current user",
-                google: "GET /api/auth/google - Google OAuth login",
-                googleCallback: "GET /api/auth/google/callback - Google OAuth callback",
-                config: "GET /api/auth/config - Check OAuth config"
-            },
-            profile: {
-                get: "GET /api/profile - Get user profile",
-                update: "PUT /api/profile - Update user profile",
-                updatePassword: "PUT /api/profile/password - Update password",
-                uploadPicture: "PUT /api/profile/picture - Upload profile picture",
-                delete: "DELETE /api/profile - Delete account"
-            },
-            payments: {
-                process: "POST /api/payments/process - Process payment",
-                methods: "GET /api/payments/methods - Get payment methods",
-                history: "GET /api/payments/history - Get payment history",
-                details: "GET /api/payments/details/:paymentId - Get payment details",
-                refund: "POST /api/payments/refund/:paymentId - Refund payment",
-                verify: "GET /api/payments/verify/:paymentId - Verify payment status"
-            },
-            health: "GET /health - Health check"
-        }
-    });
-});
-
-// Works endpoint (portfolio/projects)
-app.get("/works", (req, res) => {
-    res.status(200).json({ 
-        message: "Portfolio Works API",
-        data: {
-            projects: [
-                {
-                    id: 1,
-                    title: "AI Chatbot",
-                    description: "Interactive chatbot powered by Gemini AI",
-                    technology: ["React", "Node.js", "Gemini API"],
-                    status: "completed"
-                },
-                {
-                    id: 2,
-                    title: "Portfolio Website",
-                    description: "Personal portfolio and travel blog",
-                    technology: ["React", "Vite", "Tailwind CSS"],
-                    status: "in-progress"
-                }
-            ]
-        }
-    });
-});
-
-// API routes
-app.use("/api/chat", chatRoutes);
-app.use("/api/auth", authRoutes);
-app.use("/api/profile", profileRoutes);
-app.use("/api/payments", paymentRoutes);
-app.use("/api/admin/transactions", adminTransactionRoutes);
-app.use("/api/admin", adminRoutes);
-app.use("/api/socket/chat", socketChatRoutes);
-app.use("/api/user-admin-chat", userAdminChatRoutes);
-app.use("/api/certifications", certificationRoutes);
-console.log('🔧 Loading experience routes...');
-app.use("/api/experiences", experienceRoutes);
-console.log('✅ Experience routes loaded');
-// app.use("/api/portfolios", portfolioRoutes); // Temporarily disabled
-// console.log('✅ Portfolio routes loaded');
-app.use("/api/landing-pages", landingPageRoutes);
-console.log('✅ Landing pages routes loaded');
-// app.use("/api/travel-journal", travelJournalRoutes); // Temporarily disabled
-// console.log('✅ Travel journal routes loaded');
-
-// Error handling
-app.use(errorHandler);
-
-// Catch-all handler for undefined routes (must be last)
-app.use((req, res) => {
-    res.status(404).json({ 
-        error: "Route not found",
-        message: `Cannot ${req.method} ${req.originalUrl}`,
-        availableRoutes: {
-            "GET /health": "Health check",
-            "GET /api": "API information",
-            "GET /works": "Portfolio works",
-            "POST /api/chat": "Chat with AI"
-        }
-    });
-});
+// Create HTTP server for Socket.IO
+const server = http.createServer(app);
 
 // Initialize Socket.IO
-const server = http.createServer(app);
-const io = new Server(server, {
+const io = socketIo(server, {
   cors: {
-    origin: [
-      process.env.FRONTEND_URL || "http://localhost:5173",
-      "http://localhost:5173",
-      "http://127.0.0.1:5173",
-      /^http:\/\/localhost:\d+$/,
-      /^http:\/\/127\.0\.0\.1:\d+$/
-    ],
+    origin: ["http://localhost:5173", "http://localhost:5174", "http://localhost:5175", "http://localhost:3000"],
     methods: ["GET", "POST"],
     credentials: true
   }
 });
 
-// Initialize Socket.IO chat controller
-SocketChatController.initializeSocket(io);
+// Handle Socket.IO connections
+io.on('connection', (socket) => {
+  console.log('🔗 Socket.IO client connected:', socket.id);
+  socketChatController.handleConnection(io, socket);
+});
 
-// Initialize database models
-initChatMessage().catch(console.error);
-initUserAdminChatMessage().catch(console.error);
-// initPortfolio().catch(console.error); // Temporarily disabled
-// initTravelJournal().catch(console.error); // Temporarily disabled
+// Broadcast connection stats every 30 seconds
+setInterval(() => {
+  const stats = socketChatController.getStats();
+  io.emit('connection_stats', stats);
+  console.log('📊 Connection Stats:', stats);
+}, 30000);
 
-module.exports = server;
+// Routes
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/auth.html'));
+});
+
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'OK',
+    message: 'TRAVELLO Backend API is running',
+    timestamp: new Date().toISOString(),
+    version: '1.0.0'
+  });
+});
+
+// Start server
+// Note: server is started in startServer() function called from initializeApp()
+
+// Initialize connections and models
+initializeApp();
+
+module.exports = app;

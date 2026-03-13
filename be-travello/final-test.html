@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Final Admin Response Test</title>
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+</head>
+<body>
+    <h2>🧪 Final Test: Admin Response to User</h2>
+    <button onclick="testAdminResponse()">Test Admin Response</button>
+    <div id="result"></div>
+    <script>
+        const socket = io('http://localhost:55435');
+        socket.on('connect', () => {
+            socket.emit('admin:join', {
+                adminInfo: { name: 'Test Admin', id: 'admin-1' },
+                adminId: 'admin-1'
+            });
+        });
+        socket.on('message:new', (data) => {
+            document.getElementById('result').innerHTML = '✅ Admin response received!';
+        });
+        function testAdminResponse() {
+            socket.emit('admin:message:send', {
+                message: 'Hello from admin!',
+                sessionId: 'test-session',
+                adminInfo: { name: 'Test Admin', id: 'admin-1' }
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Chat Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-btn {
+            background: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+            width: 100%;
+        }
+        .test-btn:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .instructions {
+            background: #fff3cd;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>👤 User Chat Test</h1>
+        <p>Testing user messages to admin chat</p>
+        
+        <div class="instructions">
+            <strong>Instructions:</strong><br>
+            1. Open admin chat in another tab: <a href="http://localhost:5174/admin/chat" target="_blank">Admin Chat</a><br>
+            2. Click the buttons below to send test messages<br>
+            3. Check if messages appear in admin chat
+        </div>
+        
+        <button class="test-btn" onclick="testUserMessage()">📝 Send Test Message</button>
+        <button class="test-btn" onclick="testMultipleMessages()">📨 Send Multiple Messages</button>
+        <button class="test-btn" onclick="testCSMode()">👋 Test CS Mode</button>
+        <button class="test-btn" onclick="openAdminChat()">🖥️ Open Admin Chat</button>
+        
+        <div id="results"></div>
+    </div>
+
+    <script>
+        let sessionId = `session-${Date.now()}`;
+        let messageCount = 0;
+
+        function addResult(message, type = 'info') {
+            const resultsEl = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            resultsEl.appendChild(div);
+            resultsEl.scrollTop = resultsEl.scrollHeight;
+        }
+
+        function sendUserMessage(message) {
+            messageCount++;
+            
+            // Send message to admin windows
+            const messageData = {
+                type: 'NEW_USER_MESSAGE',
+                userName: 'Test User',
+                message: message,
+                userId: sessionId,
+                timestamp: new Date().toISOString()
+            };
+
+            // Try to send to parent window
+            if (window.parent !== window) {
+                window.parent.postMessage(messageData, '*');
+                addResult(`📤 Sent to parent window: "${message}"`, 'success');
+            }
+            
+            // Try to send to opener window
+            if (window.opener && !window.opener.closed) {
+                window.opener.postMessage(messageData, '*');
+                addResult(`📤 Sent to opener window: "${message}"`, 'success');
+            }
+            
+            // Try to send to top window
+            if (window.top !== window) {
+                window.top.postMessage(messageData, '*');
+                addResult(`📤 Sent to top window: "${message}"`, 'success');
+            }
+            
+            addResult(`📨 Message #${messageCount} sent: "${message}"`, 'info');
+        }
+
+        function testUserMessage() {
+            const testMessage = `Hello admin, this is test message #${messageCount + 1}`;
+            sendUserMessage(testMessage);
+        }
+
+        function testMultipleMessages() {
+            const messages = [
+                'Halo admin, saya butuh bantuan',
+                'Apakah ada layanan copywriter?',
+                'Berapa harga untuk artikel blog?',
+                'Terima kasih informasinya'
+            ];
+            
+            messages.forEach((message, index) => {
+                setTimeout(() => {
+                    sendUserMessage(message);
+                }, index * 1000);
+            });
+            
+            addResult(`📨 Sending ${messages.length} messages...`, 'info');
+        }
+
+        function testCSMode() {
+            addResult('👋 Simulating CS mode connection...', 'info');
+            sendUserMessage('👋 Saya ingin terhubung ke customer service');
+            setTimeout(() => {
+                sendUserMessage('Saya butuh bantuan untuk layanan copywriter');
+            }, 1000);
+        }
+
+        function openAdminChat() {
+            addResult('🖥️ Opening admin chat...', 'info');
+            window.open('http://localhost:5174/admin/chat', '_blank');
+        }
+
+        // Initialize
+        window.addEventListener('load', () => {
+            addResult('🚀 User chat test initialized', 'info');
+            addResult(`Session ID: ${sessionId}`, 'info');
+        });
+
+        // Listen for admin responses
+        window.addEventListener('message', (event) => {
+            const data = event.data;
+            
+            if (data.type === 'ADMIN_RESPONSE') {
+                addResult(`💬 Admin response: ${data.message}`, 'success');
+            }
+        });
+    </script>
+</body>
+</html>

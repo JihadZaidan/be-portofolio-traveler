@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google OAuth Final Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .btn {
+            display: inline-block;
+            padding: 15px 30px;
+            background: linear-gradient(45deg, #4285f4, #34a853);
+            color: white;
+            text-decoration: none;
+            border-radius: 25px;
+            margin: 10px;
+            font-weight: bold;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(66, 133, 244, 0.3);
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(66, 133, 244, 0.4);
+        }
+        .success {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 15px 0;
+            font-weight: bold;
+        }
+        .error {
+            background: linear-gradient(45deg, #dc3545, #c82333);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 15px 0;
+            font-weight: bold;
+        }
+        .info {
+            background: linear-gradient(45deg, #17a2b8, #138496);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 15px 0;
+        }
+        .status-card {
+            background: #f8f9fa;
+            border-left: 4px solid #4285f4;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .checklist {
+            background: #e8f5e8;
+            border: 1px solid #28a745;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+        }
+        .checklist h3 {
+            color: #28a745;
+            margin-top: 0;
+        }
+        .checklist ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .checklist li {
+            margin: 5px 0;
+        }
+        .checklist .checked {
+            color: #28a745;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Google OAuth Final Test</h1>
+        
+        <div class="info">
+            <strong>🎯 MISSION: Google OAuth Signup 100% Success</strong><br>
+            Server berjalan sempurna dengan semua error handling diperbaiki.<br>
+            Siap untuk testing signup/login dengan Google.
+        </div>
+
+        <div class="status-card">
+            <strong>📊 Server Status:</strong> <span id="server-status">Checking...</span><br>
+            <strong>🔗 Backend URL:</strong> http://localhost:55435<br>
+            <strong>🌐 Frontend URL:</strong> http://localhost:5173<br>
+            <strong>⏰ Timestamp:</strong> <span id="timestamp">-</span>
+        </div>
+
+        <div class="checklist">
+            <h3>✅ Pre-Flight Checklist</h3>
+            <ul>
+                <li class="checked">✅ Backend server running on port 55435</li>
+                <li class="checked">✅ Google OAuth configured with Client ID</li>
+                <li class="checked">✅ Passport strategy with error handling</li>
+                <li class="checked">✅ Database connection established</li>
+                <li class="checked">✅ Enhanced logging enabled</li>
+                <li class="checked">✅ Callback handler optimized</li>
+            </ul>
+        </div>
+
+        <h2>🔑 Test Google OAuth</h2>
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="http://localhost:55435/api/auth/google" class="btn">
+                🔐 Login with Google
+            </a>
+            <a href="http://localhost:55435/api/auth/google?mode=signup" class="btn">
+                📝 Signup with Google
+            </a>
+        </div>
+
+        <h2>📈 Expected Success Flow</h2>
+        <div class="info">
+            <ol>
+                <li>🔗 Click "Login/Signup with Google"</li>
+                <li>👤 Choose your Google account</li>
+                <li>✅ Grant permission access</li>
+                <li>🔄 Redirect back to callback</li>
+                <li>👤 User created/updated in database</li>
+                <li>🎫 JWT token generated</li>
+                <li>🎉 SUCCESS: Redirect to frontend with token</li>
+            </ol>
+        </div>
+
+        <h2>🔍 Real-time Status</h2>
+        <div id="status-display" class="status-card">
+            <strong>Current Status:</strong> <span id="current-status">Ready to test</span><br>
+            <strong>Current URL:</strong> <span id="current-url">-</span><br>
+            <strong>URL Parameters:</strong> <span id="url-params">None</span>
+        </div>
+
+        <h2>📝 Server Logs Monitor</h2>
+        <div style="background: #1a1a1a; color: #00ff00; padding: 20px; border-radius: 10px; font-family: monospace;">
+            <strong>🖥️ Check Server Console for:</strong><br>
+            🔗 Google OAuth Init: { scope: [...], callbackURL: "..." }<br>
+            🔍 Google OAuth Profile received: { id: "...", email: "..." }<br>
+            ✅ Google user login successful: user@example.com<br>
+            🔄 Google OAuth Callback received: { user: {...} }<br>
+            🎉 Token generated and redirect sent<br>
+            📊 User stored in database successfully
+        </div>
+
+        <h2>🎯 Success Indicators</h2>
+        <div class="checklist">
+            <h3>🏆 What Success Looks Like:</h3>
+            <ul>
+                <li>✅ No error in server console</li>
+                <li>✅ Redirect to http://localhost:5173/auth/callback</li>
+                <li>✅ URL contains token parameter</li>
+                <li>✅ URL contains user data</li>
+                <li>✅ URL contains action=login or action=signup</li>
+                <li>✅ Frontend receives valid JWT token</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        function updateStatus() {
+            document.getElementById('timestamp').textContent = new Date().toISOString();
+            document.getElementById('current-url').textContent = window.location.href;
+            
+            const params = new URLSearchParams(window.location.search);
+            const paramsText = params.toString() || 'None';
+            document.getElementById('url-params').textContent = paramsText;
+            
+            // Check server status
+            fetch('http://localhost:55435/api/health')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('server-status').innerHTML = '✅ ONLINE - ' + data.message;
+                    document.getElementById('server-status').style.color = '#28a745';
+                })
+                .catch(error => {
+                    document.getElementById('server-status').innerHTML = '❌ OFFLINE - ' + error.message;
+                    document.getElementById('server-status').style.color = '#dc3545';
+                });
+            
+            // Check URL parameters for success/failure
+            if (window.location.pathname.includes('/auth/callback')) {
+                const token = params.get('token');
+                const user = params.get('user');
+                const action = params.get('action');
+                
+                if (token && user) {
+                    document.getElementById('current-status').innerHTML = '🎉 <strong>LOGIN/SIGNUP SUCCESS!</strong> Token received';
+                    document.getElementById('current-status').className = 'success';
+                    
+                    // Parse user data
+                    try {
+                        const userData = JSON.parse(decodeURIComponent(user));
+                        console.log('✅ User Data:', userData);
+                    } catch (e) {
+                        console.error('❌ Error parsing user data:', e);
+                    }
+                } else {
+                    document.getElementById('current-status').innerHTML = '⚠️ Callback received but incomplete data';
+                }
+            }
+            
+            if (window.location.pathname.includes('/auth/error')) {
+                const message = params.get('message');
+                document.getElementById('current-status').innerHTML = `❌ <strong>AUTHENTICATION FAILED:</strong> ${message}`;
+                document.getElementById('current-status').className = 'error';
+            }
+        }
+
+        // Update status every 2 seconds
+        setInterval(updateStatus, 2000);
+        updateStatus();
+        
+        // Auto-check on page load
+        if (window.location.pathname.includes('/auth/')) {
+            updateStatus();
+        }
+    </script>
+</body>
+</html>

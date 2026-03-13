@@ -1,480 +1,483 @@
-const { 
-  UserAdminChatMessage, 
-  createUserAdminMessage, 
-  getMessagesByRoom, 
-  getMessagesByUser, 
-  getAllUnreadMessages, 
-  markMessagesAsRead, 
-  getUnreadCount,
-  getUnreadCountForAdmin,
-  getUnreadCountForUser,
-  getLatestMessageForRoom,
-  getConversationsWithUnreadCount
-} = require('../models/UserAdminChatMessage.model.js');
+const AdminChat = require('../models/AdminChat');
+const AdminChatMySQL = require('../models/AdminChatMySQL');
+const mongoose = require('mongoose');
 
 class SocketChatController {
-  static initializeSocket(io) {
-    // Store connected users and admins
-    const connectedUsers = new Map();
-    const connectedAdmins = new Map();
-    const typingUsers = new Set();
+    constructor() {
+        this.connectedUsers = new Map(); // userId -> socket
+        this.connectedAdmins = new Map(); // adminId -> socket
+        this.userSockets = new Map(); // socketId -> userInfo
+        this.adminSockets = new Map(); // socketId -> adminInfo
+    }
 
-    io.on('connection', (socket) => {
-      console.log(`🔗 New socket connection: ${socket.id}`);
-      console.log(`🔗 Total connected sockets: ${io.sockets.sockets.size}`);
+    handleConnection(io, socket) {
+        console.log('🔗 New socket connection:', socket.id);
 
-      // User joins chat
-      socket.on('join_chat', async (userData) => {
-        try {
-          console.log('📥 Received join_chat data:', userData);
-          const { userId, userName, userEmail, role } = userData;
-          
-          // Validate required fields
-          if (!userId || !userName || !userEmail || !role) {
-            console.error('❌ Missing required fields for join_chat:', { userId, userName, userEmail, role });
-            socket.emit('error', { 
-              message: 'Failed to join chat: Missing required information (userId, userName, userEmail, role)' 
-            });
-            return;
-          }
-          
-          // Store user info
-          socket.userId = userId;
-          socket.userName = userName;
-          socket.userEmail = userEmail;
-          socket.role = role;
-          
-          console.log('👤 Socket user info set:', { 
-            socketId: socket.id, 
-            userId: socket.userId, 
-            userName: socket.userName, 
-            role: socket.role 
-          });
-
-          if (role === 'admin') {
-            connectedAdmins.set(userId, socket.id);
-            socket.join('admin_room');
-            console.log(`👨‍💼 Admin ${userName} joined admin room`);
-            console.log(`👨‍💼 Admin room members: ${io.sockets.adapter.rooms.get('admin_room')?.size || 0}`);
-            
-            // Send unread count to admin
+        // Handle user connection
+        socket.on('user:join', async (data) => {
             try {
-              const unreadCount = await getUnreadCount();
-              socket.emit('unread_count', { count: unreadCount });
-              console.log(`📊 Sent unread count to admin: ${unreadCount}`);
-            } catch (unreadError) {
-              console.error('❌ Error getting unread count:', unreadError);
-            }
-            
-            // Send all online users to admin
-            const onlineUsers = Array.from(connectedUsers.entries()).map(([userId, socketId]) => ({
-              id: userId,
-              socketId,
-              status: 'online'
-            }));
-            socket.emit('online_users', { users: onlineUsers });
-            console.log(`👥 Sent online users to admin: ${onlineUsers.length} users`);
-            
-            // Auto-join admin to all existing user rooms for real-time message reception
-            try {
-              const allMessages = await getAllUnreadMessages();
-              const uniqueUserIds = [...new Set(allMessages.map(msg => msg.senderId))];
-              
-              for (const userId of uniqueUserIds) {
-                const roomId = `user_${userId}_admin`;
-                socket.join(roomId);
-                console.log(`👨‍💼 Admin auto-joined room: ${roomId}`);
-              }
+                const { userInfo, userId } = data;
+                
+                // Store user connection
+                this.userSockets.set(socket.id, { userInfo, userId, socket });
+                if (userId) {
+                    this.connectedUsers.set(userId, socket);
+                }
+
+                // Join user to their personal room
+                const userRoom = `user_${userId || userInfo.email}`;
+                socket.join(userRoom);
+
+                // Find or create chat session with error handling
+                let chatSession;
+                try {
+                    if (mongoose.connection.readyState === 1) {
+                        // Use MongoDB if available
+                        chatSession = await AdminChat.findOrCreateChat(userInfo, userId);
+                    } else {
+                        // Use MySQL fallback
+                        chatSession = await AdminChatMySQL.findOrCreateChat(userInfo, userId);
+                    }
+                } catch (dbError) {
+                    console.warn('⚠️ Could not create/find chat session:', dbError.message);
+                    // Create a mock session for fallback
+                    chatSession = {
+                        sessionId: `session-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+                        status: 'waiting',
+                        assignedAdmin: null,
+                        unreadCount: { user: 0, admin: 0 }
+                    };
+                }
+                
+                // Join admin room for this chat
+                socket.join(`chat_${chatSession.sessionId}`);
+
+                console.log(`👤 User joined: ${userInfo.name} (${userInfo.email})`);
+                console.log(`📱 User socket rooms: ${socket.rooms}`);
+
+                // Notify all admins about new user
+                io.to('admins').emit('admin:user_joined', {
+                    userInfo,
+                    sessionId: chatSession.sessionId,
+                    timestamp: new Date()
+                });
+
+                // Send current chat status to user
+                socket.emit('chat:status', {
+                    sessionId: chatSession.sessionId,
+                    status: chatSession.status,
+                    assignedAdmin: chatSession.assignedAdmin,
+                    unreadCount: chatSession.unreadCount?.user || 0
+                });
+
             } catch (error) {
-              console.error('❌ Error auto-joining admin to user rooms:', error);
+                console.error('❌ Error in user:join:', error);
+                socket.emit('error', { message: 'Failed to join chat' });
             }
-          } else {
-            connectedUsers.set(userId, socket.id);
-            const roomId = `user_${userId}_admin`; // Unique room for each user-admin pair
-            
+        });
+
+        // Handle admin connection
+        socket.on('admin:join', async (data) => {
             try {
-              socket.join(roomId);
-              console.log(`👤 User ${userName} joined room: ${roomId}`);
+                const { adminInfo, adminId } = data;
+                
+                // Store admin connection
+                this.adminSockets.set(socket.id, { adminInfo, adminId, socket });
+                if (adminId) {
+                    this.connectedAdmins.set(adminId, socket);
+                }
 
-              // Get user's chat history
-              const messages = await getMessagesByRoom(roomId);
-              socket.emit('chat_history', { messages });
-              console.log(`📜 Sent ${messages.length} messages to user ${userName}`);
-              
-              // Add user to admin list
-              const userInfo = {
-                id: userId,
-                name: userName,
-                email: userEmail,
-                status: 'online',
-                lastMessage: messages.length > 0 ? messages[messages.length - 1].message : 'No messages yet',
-                unreadCount: 0,
-                roomId: roomId
-              };
-              console.log('👤 Adding user to admin list (connected):', userInfo);
-              io.to('admin_room').emit('user_update', userInfo);
-              
-            } catch (joinError) {
-              console.error('❌ Error joining user room:', joinError);
-              socket.emit('error', { 
-                message: `Failed to join chat: Could not join room ${roomId}` 
-              });
+                // Join admin to admin room
+                socket.join('admins');
+
+                console.log(`👨‍💼 Admin joined: ${adminInfo.name} (${adminInfo.email})`);
+
+                // Get active chats for admin with error handling
+                let activeChats = [];
+                try {
+                    // Check if MongoDB is connected
+                    if (mongoose.connection.readyState === 1) {
+                        activeChats = await AdminChat.getActiveChats(adminId);
+                    } else {
+                        // Use MySQL fallback
+                        activeChats = await AdminChatMySQL.getActiveChats(adminId);
+                    }
+                } catch (dbError) {
+                    console.warn('⚠️ Could not fetch active chats from database:', dbError.message);
+                    // Continue with empty chats array
+                }
+                
+                // Send active chats to admin
+                socket.emit('admin:active_chats', {
+                    chats: activeChats,
+                    timestamp: new Date()
+                });
+
+                // Notify other admins about new admin
+                socket.broadcast.to('admins').emit('admin:admin_joined', {
+                    adminInfo,
+                    timestamp: new Date()
+                });
+
+            } catch (error) {
+                console.error('❌ Error in admin:join:', error);
+                socket.emit('error', { message: 'Failed to join admin chat' });
             }
-          }
+        });
 
-          // Broadcast user status
-          io.emit('user_status', {
-            userId,
-            userName,
-            status: 'online',
-            role
-          });
+        // Handle user message
+        socket.on('message:send', async (data) => {
+            try {
+                const { message, sessionId, userInfo } = data;
+                
+                console.log(`💬 User message from ${socket.id}:`, message);
 
-        } catch (error) {
-          console.error('❌ Error in join_chat:', error);
-          socket.emit('error', { message: 'Failed to join chat' });
-        }
-      });
+                // Find chat session with error handling
+                let chatSession;
+                try {
+                    if (mongoose.connection.readyState === 1) {
+                        chatSession = await AdminChat.findOne({ sessionId });
+                    } else {
+                        // For MySQL, we'll handle differently
+                        chatSession = { sessionId, _id: true }; // Mock for compatibility
+                    }
+                } catch (dbError) {
+                    console.warn('⚠️ Could not find chat session:', dbError.message);
+                    chatSession = null;
+                }
 
-      // Send message
-      socket.on('send_message', async (messageData) => {
-        try {
-          console.log('📥 Received send_message event:', messageData);
-          console.log('👤 Socket info:', { 
-            socketId: socket.id, 
-            userId: socket.userId, 
-            userName: socket.userName, 
-            role: socket.role 
-          });
-          
-          const { message, receiverId, receiverName, messageType = 'user_to_admin', attachmentUrl, attachmentType } = messageData;
-          
-          // Create message in database
-          const newMessage = await createUserAdminMessage({
-            senderId: socket.userId,
-            senderName: socket.userName,
-            senderEmail: socket.userEmail,
-            receiverId,
-            receiverName,
-            message,
-            messageType,
-            roomId: socket.role === 'admin' ? `user_${receiverId}_admin` : `user_${socket.userId}_admin`,
-            attachmentUrl,
-            attachmentType,
-            status: 'sent'
-          });
+                if (!chatSession) {
+                    // Create new session if not exists
+                    try {
+                        if (mongoose.connection.readyState === 1) {
+                            chatSession = await AdminChat.create({
+                                userInfo,
+                                status: 'waiting'
+                            });
+                        } else {
+                            // Use MySQL fallback
+                            chatSession = await AdminChatMySQL.findOrCreateChat(userInfo, null);
+                        }
+                    } catch (createError) {
+                        console.warn('⚠️ Could not create chat session:', createError.message);
+                        // Create mock session for fallback
+                        chatSession = {
+                            sessionId: sessionId || `session-${Date.now()}`,
+                            unreadCount: { admin: 1, user: 0 },
+                            _id: true
+                        };
+                    }
+                }
 
-          const messageToSend = newMessage.toJSON();
+                // Add message to chat if real session exists
+                if (chatSession._id || chatSession.sessionId) {
+                    try {
+                        if (mongoose.connection.readyState === 1) {
+                            await chatSession.addMessage('user', message, userInfo.name);
+                        } else {
+                            // Use MySQL fallback
+                            await AdminChatMySQL.addMessage(chatSession.sessionId, 'user', message, userInfo.name, null, 'text');
+                        }
+                    } catch (msgError) {
+                        console.warn('⚠️ Could not add message to database:', msgError.message);
+                    }
+                }
 
-          if (socket.role === 'admin') {
-            // Admin sends message to specific user
-            const userSocketId = connectedUsers.get(receiverId);
-            const roomId = `user_${receiverId}_admin`;
-            
-            // Send to specific user if online
-            if (userSocketId) {
-              io.to(userSocketId).emit('receive_message', messageToSend);
-              console.log(`📤 Admin message sent to user ${receiverId} via socket ${userSocketId}`);
-              
-              // Update message status to delivered
-              await UserAdminChatMessage.update(
-                { status: 'delivered' },
-                { where: { id: newMessage.id } }
-              );
+                // Join rooms if not already joined
+                socket.join(`chat_${sessionId}`);
+                socket.join(`user_${userInfo.email}`);
+
+                // Broadcast message to admins
+                const messageData = {
+                    sessionId: chatSession.sessionId,
+                    message: {
+                        sender: 'user',
+                        senderName: userInfo.name,
+                        message: message,
+                        timestamp: new Date()
+                    },
+                    userInfo,
+                    unreadCount: chatSession.unreadCount?.admin || 1
+                };
+
+                // Send to all admins
+                io.to('admins').emit('message:new', messageData);
+                
+                // Send to specific admin room
+                io.to(`chat_${sessionId}`).emit('message:new', messageData);
+
+                console.log(`📤 Message broadcasted to admins`);
+
+            } catch (error) {
+                console.error('❌ Error in message:send:', error);
+                socket.emit('error', { message: 'Failed to send message' });
             }
-            
-            // Send to specific room (includes all admins in this room)
-            io.to(roomId).emit('receive_message', messageToSend);
-            console.log(`📤 Admin message sent to room ${roomId}`);
-            
-            // Also send to admin room for admins not in this specific room
-            socket.to('admin_room').emit('receive_message', messageToSend);
-            console.log(`📤 Admin message also sent to admin_room`);
-            
-            // Send back to user for confirmation
-            socket.emit('message_sent', messageToSend);
-          } else {
-            // User sends message to all admins
-            console.log('📤 Sending message from user to admin_room:', messageToSend);
-            
-            // Send to all admins in admin_room
-            io.to('admin_room').emit('receive_message', messageToSend);
-            console.log('📤 User message sent to admin_room');
-            
-            // Send back to user for confirmation
-            socket.emit('message_sent', messageToSend);
-            
-            // Update user info in admins' user list when they send a message
-            const userRoomId = `user_${socket.userId}_admin`;
-            const userInfo = {
-              id: socket.userId,
-              name: socket.userName,
-              email: socket.userEmail,
-              status: 'online',
-              lastMessage: message,
-              unreadCount: 1, // This message is unread
-              roomId: userRoomId
-            };
-            console.log('👤 Updating user in admin list (new message):', userInfo);
-            io.to('admin_room').emit('user_update', userInfo);
-          }
+        });
 
-          // Update unread count for admins
-          if (socket.role !== 'admin') {
-            const unreadCount = await getUnreadCount();
-            io.to('admin_room').emit('unread_count', { count: unreadCount });
-          }
+        // Handle admin message
+        socket.on('admin:message:send', async (data) => {
+            try {
+                const { message, sessionId, adminInfo } = data;
+                
+                console.log(`💬 Admin message from ${socket.id}:`, message);
 
-          console.log(`💬 Message sent from ${socket.userName} (${socket.role})`);
+                // Find chat session with error handling
+                let chatSession;
+                try {
+                    if (mongoose.connection.readyState === 1) {
+                        chatSession = await AdminChat.findOne({ sessionId });
+                    } else {
+                        // Use MySQL fallback
+                        chatSession = await AdminChatMySQL.findChatBySessionId(sessionId);
+                    }
+                } catch (dbError) {
+                    console.warn('⚠️ Could not find chat session:', dbError.message);
+                    chatSession = null;
+                }
 
-        } catch (error) {
-          console.error('❌ Error sending message:', error);
-          socket.emit('error', { message: 'Failed to send message' });
-        }
-      });
+                if (!chatSession) {
+                    console.warn('⚠️ Chat session not found, creating fallback session');
+                    // Create a fallback session for message delivery
+                    chatSession = {
+                        sessionId: sessionId,
+                        userInfo: { name: 'User', email: 'user@example.com' },
+                        status: 'active',
+                        assignedAdmin: adminInfo.id,
+                        unreadCount: { user: 1, admin: 0 }
+                    };
+                }
 
-      // Mark messages as read
-      socket.on('mark_read', async (messageIds) => {
-        try {
-          await markMessagesAsRead(messageIds);
-          
-          if (socket.role === 'admin') {
-            // Update unread count for all admins
-            const unreadCount = await getUnreadCount();
-            io.to('admin_room').emit('unread_count', { count: unreadCount });
-          }
-          
-          socket.emit('messages_marked_read', { messageIds });
-        } catch (error) {
-          console.error('❌ Error marking messages as read:', error);
-          socket.emit('error', { message: 'Failed to mark messages as read' });
-        }
-      });
+                // Assign admin and add message if real session exists
+                if (chatSession._id || chatSession.sessionId) {
+                    try {
+                        if (mongoose.connection.readyState === 1 && chatSession._id) {
+                            // MongoDB operations
+                            if (!chatSession.assignedAdmin) {
+                                await chatSession.assignAdmin(adminInfo.id);
+                            }
+                            await chatSession.addMessage('admin', message, adminInfo.name, adminInfo.id);
+                        } else {
+                            // MySQL fallback operations
+                            await AdminChatMySQL.addMessage(sessionId, 'admin', message, adminInfo.name, adminInfo.id, 'text');
+                        }
+                    } catch (msgError) {
+                        console.warn('⚠️ Could not add message to database:', msgError.message);
+                    }
+                }
 
-      // Get unread messages for admin
-      socket.on('get_unread_messages', async () => {
-        try {
-          if (socket.role === 'admin') {
-            const unreadMessages = await getAllUnreadMessages();
-            socket.emit('unread_messages', { messages: unreadMessages });
-          }
-        } catch (error) {
-          console.error('❌ Error getting unread messages:', error);
-          socket.emit('error', { message: 'Failed to get unread messages' });
-        }
-      });
+                // Broadcast message to user
+                const messageData = {
+                    sessionId: chatSession.sessionId,
+                    message: {
+                        sender: 'admin',
+                        senderName: adminInfo.name,
+                        message: message,
+                        timestamp: new Date()
+                    },
+                    adminInfo,
+                    unreadCount: chatSession.unreadCount?.user || 0
+                };
 
-      // Typing indicators
-      socket.on('typing_start', (data) => {
-        if (socket.role === 'admin') {
-          const userSocketId = connectedUsers.get(data.receiverId);
-          if (userSocketId) {
-            io.to(userSocketId).emit('user_typing', { 
-              userName: socket.userName,
-              isTyping: true 
+                // Broadcast message to user room
+                io.to(`chat_${sessionId}`).emit('message:new', messageData);
+                
+                // Also try to send to user-specific room
+                if (chatSession.userInfo?.email) {
+                    io.to(`user_${chatSession.userInfo.email}`).emit('message:new', messageData);
+                }
+
+                console.log(`📤 Admin message sent to user in session: ${sessionId}`);
+
+            } catch (error) {
+                console.error('❌ Error in admin:message:send:', error);
+                socket.emit('error', { message: 'Failed to send admin message' });
+            }
+        });
+
+        // Handle user joining room
+        socket.on('join', (data) => {
+            console.log('🔗 User joined room:', data.room);
+            
+            // If admin joins a chat room, notify user in that room
+            if (data.room && data.room.startsWith('chat_')) {
+                const sessionId = data.room.replace('chat_', '');
+                
+                // Get the user session
+                AdminChat.findOne({ sessionId }).then(chatSession => {
+                    if (chatSession) {
+                        // Notify user that admin has joined
+                        socket.emit('message:new', {
+                            sessionId: sessionId,
+                            message: {
+                                sender: 'system',
+                                senderName: 'System',
+                                message: `👨‍💼 Admin has joined this chat. How can I help you?`,
+                                timestamp: new Date()
+                            },
+                            userInfo: chatSession.userInfo,
+                            unreadCount: chatSession.unreadCount.user + 1
+                        });
+                        
+                        console.log('📤 Notified user that admin joined room:', data.room);
+                    }
+                }).catch(err => {
+                    console.error('❌ Error finding chat session for room join:', err);
+                });
+            }
+        });
+        socket.on('message:read', async (data) => {
+            try {
+                const { sessionId, reader } = data;
+                
+                const chatSession = await AdminChat.findOne({ sessionId });
+                if (!chatSession) return;
+
+                await chatSession.markAsRead(reader);
+
+                // Notify other party
+                const otherParty = reader === 'admin' ? 'user' : 'admin';
+                io.to(`chat_${sessionId}`).emit('message:read', {
+                    sessionId,
+                    reader,
+                    unreadCount: chatSession.unreadCount[otherParty]
+                });
+
+            } catch (error) {
+                console.error('❌ Error in message:read:', error);
+            }
+        });
+
+        // Handle typing indicators
+        socket.on('typing:start', (data) => {
+            const { sessionId, sender } = data;
+            socket.to(`chat_${sessionId}`).emit('typing:start', {
+                sessionId,
+                sender
             });
-          }
-        } else {
-          typingUsers.add(socket.userId);
-          io.to('admin_room').emit('user_typing', { 
-            userName: socket.userName,
-            userId: socket.userId,
-            isTyping: true 
-          });
-        }
-      });
+        });
 
-      socket.on('typing_stop', (data) => {
-        if (socket.role === 'admin') {
-          const userSocketId = connectedUsers.get(data.receiverId);
-          if (userSocketId) {
-            io.to(userSocketId).emit('user_typing', { 
-              userName: socket.userName,
-              isTyping: false 
+        socket.on('typing:stop', (data) => {
+            const { sessionId, sender } = data;
+            socket.to(`chat_${sessionId}`).emit('typing:stop', {
+                sessionId,
+                sender
             });
-          }
-        } else {
-          typingUsers.delete(socket.userId);
-          io.to('admin_room').emit('user_typing', { 
-            userName: socket.userName,
-            userId: socket.userId,
-            isTyping: false 
-          });
-        }
-      });
-
-      // Get online users
-      socket.on('get_online_users', () => {
-        if (socket.role === 'admin') {
-          const onlineUsers = Array.from(connectedUsers.entries()).map(([userId, socketId]) => ({
-            id: userId,
-            socketId,
-            status: 'online'
-          }));
-          socket.emit('online_users', { users: onlineUsers });
-        }
-      });
-
-      // Handle disconnect
-      socket.on('disconnect', () => {
-        console.log(`🔌 User disconnected: ${socket.id}`);
-
-        if (socket.role === 'admin') {
-          connectedAdmins.delete(socket.userId);
-          socket.leave('admin_room');
-        } else {
-          connectedUsers.delete(socket.userId);
-          typingUsers.delete(socket.userId);
-        }
-
-        // Broadcast user status
-        if (socket.userId) {
-          io.emit('user_status', {
-            userId: socket.userId,
-            userName: socket.userName,
-            status: 'offline',
-            role: socket.role
-          });
-        }
-
-        // Notify admins about user disconnect
-        if (socket.role !== 'admin') {
-          io.to('admin_room').emit('user_left', {
-            userId: socket.userId,
-            userName: socket.userName
-          });
-        }
-      });
-
-      // Get chat history for specific user
-      socket.on('get_chat_history', async (data) => {
-        try {
-          const { userId } = data;
-          const roomId = `user_${userId}_admin`;
-          const messages = await getMessagesByRoom(roomId);
-          
-          console.log(`📜 Getting chat history for user ${userId} from room ${roomId}: ${messages.length} messages`);
-          
-          // Send chat history to the requesting socket
-          socket.emit('chat_history', { messages });
-          
-        } catch (error) {
-          console.error('❌ Error getting chat history:', error);
-          socket.emit('error', { message: 'Failed to get chat history' });
-        }
-      });
-
-      // Join specific user room
-      socket.on('join_user_room', async (userId) => {
-        try {
-          if (socket.role === 'admin') {
-            const roomId = `user_${userId}_admin`;
-            socket.join(roomId);
-            console.log(`👤 ${socket.userName} joined user room: ${roomId}`);
-            
-            // Get and send chat history for this room
-            const messages = await getMessagesByRoom(roomId);
-            socket.emit('chat_history', { messages });
-            console.log(`📜 Sent ${messages.length} messages from room ${roomId}`);
-          } else {
-            console.error('❌ Only admins can join user rooms');
-            socket.emit('error', { message: 'Failed to join user room: Admin access required' });
-          }
-        } catch (error) {
-          console.error('❌ Error joining user room:', error);
-          socket.emit('error', { message: 'Failed to join user room' });
-        }
-      });
-
-      // Leave specific room for admin
-      socket.on('leave_user_room', (userId) => {
-        try {
-          if (socket.role === 'admin') {
-            const roomId = `user_${userId}_admin`;
-            socket.leave(roomId);
-            console.log(`👨‍💼 Admin ${socket.userName} left user room: ${roomId}`);
-          } else {
-            console.log('❌ Only admins can leave user rooms');
-            socket.emit('error', { message: 'Failed to leave user room: Admin access required' });
-          }
-        } catch (error) {
-          console.error('❌ Error leaving user room:', error);
-          socket.emit('error', { message: 'Failed to leave user room' });
-        }
-      });
-    });
-  }
-
-  static getChatHistory = async (req, res) => {
-    try {
-      const { userId, roomId, limit } = req.query;
-      
-      if (userId) {
-        const messages = await getMessagesByUser(userId);
-        res.json({
-          success: true,
-          data: {
-            messages: messages
-          }
         });
-      } else if (roomId) {
-        const messages = await getMessagesByRoom(roomId);
-        res.json({
-          success: true,
-          data: {
-            messages: messages
-          }
-        });
-      } else {
-        res.status(400).json({
-          success: false,
-          message: 'userId or roomId is required'
-        });
-      }
-    } catch (error) {
-      console.error('❌ Error in getChatHistory:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to get chat history'
-      });
-    }
-  };
 
-  static getUnreadCount = async (req, res) => {
-    try {
-      const unreadCount = await getUnreadCount();
-      res.json({
-        success: true,
-        data: {
-          count: unreadCount
-        }
-      });
-    } catch (error) {
-      console.error('❌ Error in getUnreadCount:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to get unread count'
-      });
-    }
-  };
+        // Handle chat status changes
+        socket.on('chat:status_change', async (data) => {
+            try {
+                const { sessionId, status, adminId } = data;
+                
+                const chatSession = await AdminChat.findOne({ sessionId });
+                if (!chatSession) return;
 
-  static getOnlineUsers = async (req, res) => {
-    try {
-      // This is a placeholder - needs io instance to get connected users
-      res.json({
-        success: true,
-        data: {
-          users: []
-        }
-      });
-    } catch (error) {
-      console.error('❌ Error in getOnlineUsers:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to get online users'
-      });
+                chatSession.status = status;
+                if (status === 'active' && adminId) {
+                    chatSession.assignedAdmin = adminId;
+                }
+                await chatSession.save();
+
+                // Broadcast status change
+                io.to(`chat_${sessionId}`).emit('chat:status', {
+                    sessionId,
+                    status,
+                    assignedAdmin: chatSession.assignedAdmin
+                });
+
+                io.to('admins').emit('admin:chat_updated', {
+                    sessionId,
+                    status,
+                    assignedAdmin: chatSession.assignedAdmin
+                });
+
+            } catch (error) {
+                console.error('❌ Error in chat:status_change:', error);
+            }
+        });
+
+        // Handle disconnection
+        socket.on('disconnect', () => {
+            console.log('🔌 Socket disconnected:', socket.id);
+
+            // Remove from user connections
+            const userInfo = this.userSockets.get(socket.id);
+            if (userInfo) {
+                this.userSockets.delete(socket.id);
+                if (userInfo.userId && this.connectedUsers.get(userInfo.userId) === socket) {
+                    this.connectedUsers.delete(userInfo.userId);
+                }
+
+                // Notify admins about user disconnect
+                socket.broadcast.emit('admin:user_left', {
+                    userInfo: userInfo.userInfo,
+                    timestamp: new Date()
+                });
+            }
+
+            // Remove from admin connections
+            const adminInfo = this.adminSockets.get(socket.id);
+            if (adminInfo) {
+                this.adminSockets.delete(socket.id);
+                if (adminInfo.adminId && this.connectedAdmins.get(adminInfo.adminId) === socket) {
+                    this.connectedAdmins.delete(adminInfo.adminId);
+                }
+
+                // Notify other admins about admin disconnect
+                socket.broadcast.to('admins').emit('admin:admin_left', {
+                    adminInfo: adminInfo.adminInfo,
+                    timestamp: new Date()
+                });
+            }
+        });
+
+        // Error handling
+        socket.on('error', (error) => {
+            console.error('❌ Socket error:', error);
+        });
     }
-  };
+
+    // Get connection statistics
+    getStats() {
+        return {
+            connectedUsers: this.connectedUsers.size,
+            connectedAdmins: this.connectedAdmins.size,
+            totalUserSockets: this.userSockets.size,
+            totalAdminSockets: this.adminSockets.size
+        };
+    }
+
+    // Send message to specific user
+    sendToUser(userId, event, data) {
+        const socket = this.connectedUsers.get(userId);
+        if (socket) {
+            socket.emit(event, data);
+            return true;
+        }
+        return false;
+    }
+
+    // Send message to specific admin
+    sendToAdmin(adminId, event, data) {
+        const socket = this.connectedAdmins.get(adminId);
+        if (socket) {
+            socket.emit(event, data);
+            return true;
+        }
+        return false;
+    }
+
+    // Broadcast to all admins
+    broadcastToAdmins(io, event, data) {
+        io.to('admins').emit(event, data);
+    }
+
+    // Broadcast to all users
+    broadcastToUsers(io, event, data) {
+        this.userSockets.forEach(({ socket }) => {
+            socket.emit(event, data);
+        });
+    }
 }
 
 module.exports = SocketChatController;

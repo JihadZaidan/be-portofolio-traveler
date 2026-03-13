@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login/Signup Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: 1px solid #ddd;
+            background: #f8f9fa;
+        }
+        .tab.active {
+            background: #007bff;
+            color: white;
+        }
+        .form-container {
+            display: none;
+        }
+        .form-container.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 TRAVELLO Authentication Test</h1>
+        
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('signup')">Sign Up</div>
+            <div class="tab" onclick="switchTab('login')">Log In</div>
+            <div class="tab" onclick="switchTab('profile')">Get Profile</div>
+        </div>
+
+        <!-- Sign Up Form -->
+        <div id="signup-form" class="form-container active">
+            <h2>Sign Up Test</h2>
+            <div class="form-group">
+                <label>First Name:</label>
+                <input type="text" id="signup-firstname" value="John">
+            </div>
+            <div class="form-group">
+                <label>Last Name:</label>
+                <input type="text" id="signup-lastname" value="Doe">
+            </div>
+            <div class="form-group">
+                <label>Email:</label>
+                <input type="email" id="signup-email" value="john.doe@example.com">
+            </div>
+            <div class="form-group">
+                <label>Password:</label>
+                <input type="password" id="signup-password" value="password123">
+            </div>
+            <button onclick="testSignup()">Test Sign Up</button>
+        </div>
+
+        <!-- Login Form -->
+        <div id="login-form" class="form-container">
+            <h2>Log In Test</h2>
+            <div class="form-group">
+                <label>Email:</label>
+                <input type="email" id="login-email" value="john.doe@example.com">
+            </div>
+            <div class="form-group">
+                <label>Password:</label>
+                <input type="password" id="login-password" value="password123">
+            </div>
+            <button onclick="testLogin()">Test Log In</button>
+        </div>
+
+        <!-- Profile Form -->
+        <div id="profile-form" class="form-container">
+            <h2>Get Profile Test</h2>
+            <div class="form-group">
+                <label>Token:</label>
+                <input type="text" id="profile-token" placeholder="Paste token from login/signup">
+            </div>
+            <button onclick="testProfile()">Test Get Profile</button>
+        </div>
+
+        <div id="result" class="result" style="display: none;"></div>
+    </div>
+
+    <script>
+        let currentToken = '';
+
+        function switchTab(tab) {
+            // Hide all forms
+            document.querySelectorAll('.form-container').forEach(form => {
+                form.classList.remove('active');
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab').forEach(tabElement => {
+                tabElement.classList.remove('active');
+            });
+            
+            // Show selected form and activate tab
+            document.getElementById(tab + '-form').classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        function showResult(message, isSuccess = true) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.textContent = message;
+            resultDiv.className = `result ${isSuccess ? 'success' : 'error'}`;
+            resultDiv.style.display = 'block';
+        }
+
+        async function testSignup() {
+            const firstName = document.getElementById('signup-firstname').value;
+            const lastName = document.getElementById('signup-lastname').value;
+            const email = document.getElementById('signup-email').value;
+            const password = document.getElementById('signup-password').value;
+
+            try {
+                showResult('🔄 Testing signup...', true);
+
+                const response = await fetch('http://localhost:55435/api/auth/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        username: `${firstName.toLowerCase()}${lastName.toLowerCase()}`,
+                        displayName: `${firstName} ${lastName}`,
+                        password: password
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    currentToken = result.data.token;
+                    showResult(`✅ SIGNUP SUCCESSFUL!\n\nUser ID: ${result.data.user.id}\nEmail: ${result.data.user.email}\nDisplay Name: ${result.data.user.displayName}\nToken: ${result.data.token.substring(0, 50)}...\n\nToken stored for profile test.`, true);
+                    
+                    // Auto-fill login form
+                    document.getElementById('login-email').value = email;
+                    document.getElementById('login-password').value = password;
+                    document.getElementById('profile-token').value = result.data.token;
+                } else {
+                    showResult(`❌ SIGNUP FAILED!\n\n${result.message}`, false);
+                }
+            } catch (error) {
+                showResult(`❌ SIGNUP ERROR!\n\n${error.message}`, false);
+            }
+        }
+
+        async function testLogin() {
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+
+            try {
+                showResult('🔄 Testing login...', true);
+
+                const response = await fetch('http://localhost:55435/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        password: password
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    currentToken = result.data.token;
+                    showResult(`✅ LOGIN SUCCESSFUL!\n\nUser ID: ${result.data.user.id}\nEmail: ${result.data.user.email}\nDisplay Name: ${result.data.user.displayName}\nRole: ${result.data.user.role}\nToken: ${result.data.token.substring(0, 50)}...\n\nToken stored for profile test.`, true);
+                    
+                    // Auto-fill profile token
+                    document.getElementById('profile-token').value = result.data.token;
+                } else {
+                    showResult(`❌ LOGIN FAILED!\n\n${result.message}`, false);
+                }
+            } catch (error) {
+                showResult(`❌ LOGIN ERROR!\n\n${error.message}`, false);
+            }
+        }
+
+        async function testProfile() {
+            const token = document.getElementById('profile-token').value || currentToken;
+
+            if (!token) {
+                showResult('❌ No token available. Please signup or login first.', false);
+                return;
+            }
+
+            try {
+                showResult('🔄 Testing profile fetch...', true);
+
+                const response = await fetch('http://localhost:55435/api/auth/profile', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    showResult(`✅ PROFILE FETCH SUCCESSFUL!\n\nUser ID: ${result.data.user.id}\nEmail: ${result.data.user.email}\nUsername: ${result.data.user.username}\nDisplay Name: ${result.data.user.displayName}\nActive: ${result.data.user.isActive}\nLogin Page: ${result.data.user.loginPage}\nLast Login: ${result.data.user.lastLogin}\nCreated: ${result.data.user.createdAt}`, true);
+                } else {
+                    showResult(`❌ PROFILE FETCH FAILED!\n\n${result.message}`, false);
+                }
+            } catch (error) {
+                showResult(`❌ PROFILE FETCH ERROR!\n\n${error.message}`, false);
+            }
+        }
+
+        // Auto-test on page load
+        window.onload = function() {
+            showResult('🧪 TRAVELLO Authentication Test Ready!\n\n1. Test Sign Up first\n2. Then Test Log In\n3. Finally Test Get Profile\n\nAll tests will communicate with the backend at http://localhost:55435', true);
+        };
+    </script>
+</body>
+</html>

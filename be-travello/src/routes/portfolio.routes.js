@@ -1,38 +1,20 @@
 const express = require('express');
 const router = express.Router();
-const {
-  getPortfolios,
-  getPortfolio,
-  createNewPortfolio,
-  updatePortfolioById,
-  deletePortfolioById,
-  getFeaturedPortfolioItems,
-  getPortfolioByCategory,
-  getPortfolioCategoriesList
-} = require('../controllers/portfolio.controller.js');
+const portfolioController = require('../controllers/portfolio.controller');
 
-// GET /api/portfolios - Get all portfolios with optional filters
-router.get('/', getPortfolios);
+// Public routes - for users
+router.get('/active', portfolioController.getActivePortfolios);
+router.get('/featured', portfolioController.getActivePortfolios); // with featured=true query
+router.get('/categories', portfolioController.getCategories);
+router.get('/:id', portfolioController.getPortfolioById);
 
-// GET /api/portfolios/featured - Get featured portfolios
-router.get('/featured', getFeaturedPortfolioItems);
-
-// GET /api/portfolios/categories - Get portfolio categories
-router.get('/categories', getPortfolioCategoriesList);
-
-// GET /api/portfolios/category/:category - Get portfolios by category
-router.get('/category/:category', getPortfolioByCategory);
-
-// GET /api/portfolios/:id - Get portfolio by ID
-router.get('/:id', getPortfolio);
-
-// POST /api/portfolios - Create new portfolio
-router.post('/', createNewPortfolio);
-
-// PUT /api/portfolios/:id - Update portfolio
-router.put('/:id', updatePortfolioById);
-
-// DELETE /api/portfolios/:id - Delete portfolio
-router.delete('/:id', deletePortfolioById);
+// Admin routes - for content management
+router.get('/', portfolioController.getAllPortfolios);
+router.get('/stats/overview', portfolioController.getPortfolioStats);
+router.post('/', portfolioController.createPortfolio);
+router.put('/:id', portfolioController.updatePortfolio);
+router.delete('/:id', portfolioController.deletePortfolio);
+router.patch('/:id/toggle-status', portfolioController.togglePortfolioStatus);
+router.patch('/:id/toggle-featured', portfolioController.toggleFeaturedStatus);
 
 module.exports = router;

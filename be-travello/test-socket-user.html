@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Socket.IO User Test</title>
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 500px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .chat-container {
+            border: 1px solid #ddd;
+            padding: 20px;
+            border-radius: 8px;
+            background: white;
+        }
+        .message {
+            margin: 10px 0;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        .user-message {
+            background: #e3f2fd;
+            text-align: right;
+        }
+        .admin-message {
+            background: #f3e5f5;
+            text-align: left;
+        }
+        input {
+            width: 70%;
+            padding: 8px;
+            margin-right: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            padding: 8px 15px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .connected {
+            background: #d4edda;
+            color: #155724;
+        }
+        .disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        #messages {
+            height: 300px;
+            overflow-y: auto;
+            border: 1px solid #eee;
+            padding: 10px;
+            margin: 10px 0;
+            background: #fafafa;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <h2>👤 Socket.IO User Test</h2>
+        <div class="status" id="status">Connecting...</div>
+        
+        <div>
+            <button onclick="joinAsUser()">👤 Join as User</button>
+            <button onclick="sendMessage()">📝 Send Message</button>
+            <button onclick="disconnect()">🔌 Disconnect</button>
+        </div>
+        
+        <div id="messages"></div>
+        
+        <div>
+            <input type="text" id="messageInput" placeholder="Type your message here..." />
+            <button onclick="sendMessage()">Send</button>
+        </div>
+        
+        <div style="margin-top: 20px; font-size: 12px; color: #666;">
+            <strong>Instructions:</strong><br>
+            1. Click "Join as User" to connect<br>
+            2. Open admin chat: <a href="http://localhost:5173/admin/chat" target="_blank">Admin Chat</a><br>
+            3. Send messages and check if they appear in admin chat
+        </div>
+    </div>
+
+    <script>
+        const socket = io('http://localhost:55435', {
+            transports: ['websocket', 'polling'],
+            withCredentials: true
+        });
+
+        const statusDiv = document.getElementById('status');
+        const messagesDiv = document.getElementById('messages');
+        const messageInput = document.getElementById('messageInput');
+        
+        let currentUser = null;
+        let sessionId = null;
+
+        function addMessage(content, type = 'info', sender = '') {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}-message`;
+            const time = new Date().toLocaleTimeString();
+            messageDiv.innerHTML = `<small>${time}</small><br><strong>${sender}:</strong> ${content}`;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function updateStatus(message, type = 'info') {
+            statusDiv.className = `status ${type}`;
+            statusDiv.innerHTML = message;
+        }
+
+        socket.on('connect', () => {
+            updateStatus('✅ Connected to server', 'connected');
+            console.log('Connected to Socket.IO server with ID:', socket.id);
+        });
+
+        socket.on('disconnect', () => {
+            updateStatus('❌ Disconnected from server', 'disconnected');
+        });
+
+        socket.on('chat:status', (data) => {
+            console.log('Chat status:', data);
+            sessionId = data.sessionId;
+            updateStatus(`📱 Chat Session: ${data.sessionId} (${data.status})`, 'info');
+            addMessage(`Session created: ${data.sessionId}`, 'info', 'System');
+        });
+
+        socket.on('message:new', (data) => {
+            console.log('New message received:', data);
+            if (data.message.sender === 'admin') {
+                addMessage(data.message.message, 'admin', data.message.senderName);
+            }
+        });
+
+        socket.on('error', (error) => {
+            console.error('Socket error:', error);
+            updateStatus(`❌ Error: ${error.message}`, 'disconnected');
+        });
+
+        function joinAsUser() {
+            currentUser = {
+                name: `Test User ${Math.floor(Math.random() * 1000)}`,
+                email: `test${Date.now()}@example.com`,
+                phone: '+1234567890'
+            };
+
+            socket.emit('user:join', {
+                userInfo: currentUser,
+                userId: `user-${Date.now()}`
+            });
+
+            updateStatus(`👤 Joined as ${currentUser.name}`, 'info');
+            addMessage(`Joined chat as ${currentUser.name}`, 'info', 'System');
+        }
+
+        function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message || !sessionId) {
+                if (!sessionId) {
+                    updateStatus('❌ Please join as user first', 'disconnected');
+                }
+                return;
+            }
+
+            socket.emit('message:send', {
+                message: message,
+                sessionId: sessionId,
+                userInfo: currentUser
+            });
+
+            addMessage(message, 'user', currentUser.name);
+            messageInput.value = '';
+        }
+
+        function disconnect() {
+            socket.disconnect();
+            updateStatus('🔌 Disconnected', 'disconnected');
+        }
+
+        // Allow Enter key to send message
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Initialize
+        updateStatus('🔄 Connecting to server...', 'info');
+    </script>
+</body>
+</html>

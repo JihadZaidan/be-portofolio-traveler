@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Midtrans Payment Test</title>
+    <script src="https://app.midtrans.com/snap/snap.js" data-client-key="Mid-client-VHK7BW-ePv5sXtzW"></script>
+</head>
+<body>
+    <h2>🧪 Midtrans Payment Debug Test</h2>
+    <button onclick="testPayment()">Test Create Payment</button>
+    <div id="result"></div>
+
+    <script>
+        async function testPayment() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '🔄 Testing payment...';
+
+            try {
+                const response = await fetch('http://localhost:55435/api/payments/create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        itemTitle: 'Test Service',
+                        packageTitle: 'Standard',
+                        quantity: 1,
+                        unitPrice: 20,
+                        subtotal: 20,
+                        serviceFee: 3,
+                        total: 23,
+                        customerInfo: {
+                            name: 'Test User',
+                            email: 'test@example.com'
+                        }
+                    })
+                });
+
+                const data = await response.json();
+                
+                resultDiv.innerHTML = `
+                    <h3>Response:</h3>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                    <button onclick="testSnap('${data.data?.token || ''}')" ${!data.data?.token ? 'disabled' : ''}>
+                        Test Snap Payment
+                    </button>
+                `;
+
+            } catch (error) {
+                resultDiv.innerHTML = `❌ Error: ${error.message}`;
+            }
+        }
+
+        function testSnap(token) {
+            if (!token) {
+                alert('No token available');
+                return;
+            }
+
+            console.log('🧪 Testing Snap with token:', token);
+            
+            snap.pay(token, {
+                onSuccess: function(result) {
+                    console.log('✅ Payment success:', result);
+                    alert('Payment successful!');
+                },
+                onPending: function(result) {
+                    console.log('⏳ Payment pending:', result);
+                    alert('Payment pending');
+                },
+                onError: function(result) {
+                    console.log('❌ Payment error:', result);
+                    alert('Payment error: ' + JSON.stringify(result));
+                },
+                onClose: function() {
+                    console.log('🔒 Payment popup closed');
+                }
+            });
+        }
+    </script>
+</body>
+</html>

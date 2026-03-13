@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google OAuth Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #4285f4;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 10px;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .btn:hover {
+            background: #357ae8;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Google OAuth Test</h1>
+        <p>Test Google OAuth functionality for TRAVELLO application</p>
+        
+        <div class="status info">
+            <strong>Backend URL:</strong> http://localhost:55435<br>
+            <strong>Frontend URL:</strong> http://localhost:5173<br>
+            <strong>Google Client ID:</strong> 861209908201-nqe32tsj61ht3msht9rr6ve2el5dlfkr.apps.googleusercontent.com
+        </div>
+
+        <h3>Test Google Login</h3>
+        
+        <button class="btn" onclick="testGoogleLogin('login')">
+            🔑 Test Google Login
+        </button>
+        
+        <button class="btn" onclick="testGoogleLogin('signup')">
+            📝 Test Google Signup
+        </button>
+        
+        <button class="btn" onclick="testGoogleLogin('admin')">
+            👨‍💼 Test Admin Login
+        </button>
+
+        <h3>Direct Backend Test</h3>
+        
+        <a href="http://localhost:55435/api/auth/google" class="btn">
+            🌐 Direct Google OAuth (Backend)
+        </a>
+
+        <h3>Test Results</h3>
+        <div id="results"></div>
+
+        <h3>Current Status</h3>
+        <div id="status"></div>
+    </div>
+
+    <script>
+        function testGoogleLogin(loginPage) {
+            const isSignup = loginPage === 'signup';
+            const mode = isSignup ? 'signup' : 'login';
+            
+            const googleOAuthUrl = `http://localhost:55435/api/auth/google?mode=${mode}&login_page=${loginPage}`;
+            
+            logResult(`Redirecting to: ${googleOAuthUrl}`, 'info');
+            
+            // Open in new window for testing
+            window.open(googleOAuthUrl, 'googleOAuth', 'width=600,height=700');
+        }
+
+        function logResult(message, type = 'info') {
+            const resultsDiv = document.getElementById('results');
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = `status ${type}`;
+            entry.innerHTML = `<strong>[${timestamp}]</strong> ${message}`;
+            resultsDiv.appendChild(entry);
+        }
+
+        function checkStatus() {
+            fetch('http://localhost:55435/api/health')
+                .then(response => response.json())
+                .then(data => {
+                    const statusDiv = document.getElementById('status');
+                    statusDiv.innerHTML = `
+                        <div class="status success">
+                            ✅ Backend is running!<br>
+                            Status: ${data.status}<br>
+                            Message: ${data.message}<br>
+                            Timestamp: ${data.timestamp}
+                        </div>
+                    `;
+                })
+                .catch(error => {
+                    const statusDiv = document.getElementById('status');
+                    statusDiv.innerHTML = `
+                        <div class="status error">
+                            ❌ Backend connection failed!<br>
+                            Error: ${error.message}<br>
+                            Please make sure the backend server is running on port 55435
+                        </div>
+                    `;
+                });
+        }
+
+        // Check status on page load
+        checkStatus();
+
+        // Check status every 5 seconds
+        setInterval(checkStatus, 5000);
+
+        // Listen for messages from popup window (for OAuth callback testing)
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.type === 'oauth-success') {
+                logResult('OAuth successful! User data received.', 'success');
+                console.log('OAuth user data:', event.data.user);
+            } else if (event.data && event.data.type === 'oauth-error') {
+                logResult('OAuth failed: ' + event.data.error, 'error');
+            }
+        });
+    </script>
+</body>
+</html>

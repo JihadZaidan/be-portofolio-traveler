@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OAuth Debug Tool</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 20px auto; padding: 20px; }
+        .code { background: #f4f4f4; padding: 10px; border-radius: 5px; font-family: monospace; margin: 10px 0; }
+        .error { color: red; }
+        .success { color: green; }
+        .warning { color: orange; }
+        .step { margin: 20px 0; padding: 15px; border-left: 4px solid #007cba; background: #f9f9f9; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Google OAuth Debug Tool</h1>
+    
+    <div class="step">
+        <h3>Step 1: Check Current Configuration</h3>
+        <div id="config"></div>
+    </div>
+
+    <div class="step">
+        <h3>Step 2: Test OAuth URL Generation</h3>
+        <button onclick="testOAuthUrl()">Generate OAuth URL</button>
+        <div id="oauth-url"></div>
+    </div>
+
+    <div class="step">
+        <h3>Step 3: Extract Redirect URI</h3>
+        <div id="redirect-uri"></div>
+    </div>
+
+    <div class="step">
+        <h3>Step 4: Required Actions</h3>
+        <div id="actions"></div>
+    </div>
+
+    <script>
+        function showConfiguration() {
+            const config = {
+                backendUrl: 'http://localhost:55435',
+                frontendUrl: 'http://localhost:5173',
+                googleClientId: '861209908201-nqe32tsj61ht3msht9rr6ve2el5dlfkr.apps.googleusercontent.com',
+                oauthRoute: '/api/auth/google',
+                callbackRoute: '/api/auth/google/callback',
+                expectedRedirectUri: 'http://localhost:55435/api/auth/google/callback'
+            };
+
+            const configDiv = document.getElementById('config');
+            configDiv.innerHTML = `
+                <div class="code">
+                    Backend URL: ${config.backendUrl}<br>
+                    Frontend URL: ${config.frontendUrl}<br>
+                    Google Client ID: ${config.googleClientId}<br>
+                    OAuth Route: ${config.oauthRoute}<br>
+                    Callback Route: ${config.callbackRoute}<br>
+                    Expected Redirect URI: <strong>${config.expectedRedirectUri}</strong>
+                </div>
+            `;
+        }
+
+        function testOAuthUrl() {
+            const baseUrl = 'http://localhost:55435/api/auth/google';
+            const params = new URLSearchParams({
+                mode: 'login',
+                login_page: 'default'
+            });
+            
+            const fullUrl = `${baseUrl}?${params.toString()}`;
+            
+            const urlDiv = document.getElementById('oauth-url');
+            urlDiv.innerHTML = `
+                <p><strong>Generated OAuth URL:</strong></p>
+                <div class="code">${fullUrl}</div>
+                <p><a href="${fullUrl}" target="_blank">Click here to test OAuth</a></p>
+            `;
+        }
+
+        function extractRedirectUri() {
+            const redirectUri = 'http://localhost:55435/api/auth/google/callback';
+            
+            const uriDiv = document.getElementById('redirect-uri');
+            uriDiv.innerHTML = `
+                <p><strong>Redirect URI that must be configured in Google Cloud Console:</strong></p>
+                <div class="code success">${redirectUri}</div>
+                <p class="warning">This URI must be EXACTLY configured in Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client IDs → Edit → Authorized redirect URIs</p>
+            `;
+        }
+
+        function showRequiredActions() {
+            const actionsDiv = document.getElementById('actions');
+            actionsDiv.innerHTML = `
+                <h4>📋 Required Actions to Fix redirect_uri_mismatch:</h4>
+                <ol>
+                    <li><strong>Open Google Cloud Console:</strong> <a href="https://console.cloud.google.com/" target="_blank">https://console.cloud.google.com/</a></li>
+                    <li><strong>Go to:</strong> APIs & Services → Credentials</li>
+                    <li><strong>Find OAuth Client:</strong> 861209908201-nqe32tsj61ht3msht9rr6ve2el5dlfkr.apps.googleusercontent.com</li>
+                    <li><strong>Click Edit</strong> (pencil icon)</li>
+                    <li><strong>In "Authorized redirect URIs":</strong></li>
+                    <li style="margin-left: 20px;">
+                        <ul>
+                            <li>Remove all existing URIs</li>
+                            <li>Add exactly: <code>http://localhost:55435/api/auth/google/callback</code></li>
+                            <li>Optional: Add <code>http://127.0.0.1:55435/api/auth/google/callback</code></li>
+                        </ul>
+                    </li>
+                    <li><strong>Click Save</strong></li>
+                    <li><strong>Wait 2-5 minutes</strong> for changes to propagate</li>
+                    <li><strong>Test again</strong></li>
+                </ol>
+                
+                <h4>⚠️ Important Notes:</h4>
+                <ul>
+                    <li>The URI must match EXACTLY - no typos, no extra slashes</li>
+                    <li>Use HTTP (not HTTPS) for localhost development</li>
+                    <li>Port must be 55435 (not 3000, 8080, etc.)</li>
+                    <li>Wait a few minutes after saving for Google to update</li>
+                </ul>
+
+                <h4>🧪 Testing After Fix:</h4>
+                <ul>
+                    <li>Restart backend server</li>
+                    <li>Clear browser cache</li>
+                    <li>Try login in incognito mode</li>
+                    <li>Check browser network tab for redirect_uri parameter</li>
+                </ul>
+            `;
+        }
+
+        // Initialize
+        showConfiguration();
+        extractRedirectUri();
+        showRequiredActions();
+    </script>
+</body>
+</html>

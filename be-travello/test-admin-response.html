@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Admin Response to User</title>
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .chat-container {
+            border: 1px solid #ddd;
+            padding: 20px;
+            border-radius: 8px;
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .message {
+            margin: 10px 0;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        .user-message {
+            background: #e3f2fd;
+            text-align: right;
+        }
+        .admin-message {
+            background: #f0f0f0;
+            text-align: left;
+        }
+        .system-message {
+            background: #f0f0f0;
+            text-align: center;
+            font-style: italic;
+        }
+        input {
+            width: 70%;
+            padding: 8px;
+            margin-right: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            padding: 8px 15px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .connected {
+            background: #d4edda;
+            color: #155724;
+        }
+        .disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        #messages {
+            height: 300px;
+            overflow-y: auto;
+            border: 1px solid #eee;
+            padding: 10px;
+            margin: 10px 0;
+            background: #fafafa;
+        }
+        .instructions {
+            background: #fff3cd;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-size: 12px;
+        }
+        .admin-controls {
+            background: #e8f5e8;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <h2>👨‍💼 Test Admin Response to User</h2>
+        
+        <div class="instructions">
+            <strong>Instructions:</strong><br>
+            1. Open admin chat: <a href="http://localhost:5173/admin/chat" target="_blank">Admin Chat</a><br>
+            2. Open this test page: <a href="http://localhost:55435/test-admin-response.html" target="_blank">Test Admin Response</a><br>
+            3. Send admin messages from this page<br>
+            4. Check if admin responses appear in user chat
+        </div>
+        
+        <div class="admin-controls">
+            <h3>Admin Controls</h3>
+            <input type="text" id="adminMessage" placeholder="Type admin response here..." />
+            <button onclick="sendAsAdmin()">Send as Admin</button>
+            <button onclick="sendTestResponse()">Send Test Response</button>
+        </div>
+        
+        <div class="status" id="status">Connecting...</div>
+        
+        <div id="messages"></div>
+        
+        <div>
+            <input type="text" id="messageInput" placeholder="Type user message here..." />
+            <button onclick="sendUserMessage()">Send as User</button>
+        </div>
+    </div>
+
+    <script>
+        const socket = io('http://localhost:55435', {
+            transports: ['websocket', 'polling'],
+            withCredentials: true
+        });
+
+        const statusDiv = document.getElementById('status');
+        const messagesDiv = document.getElementById('messages');
+        const adminMessageInput = document.getElementById('adminMessage');
+        const messageInput = document.getElementById('messageInput');
+        
+        let sessionId = null;
+
+        function addMessage(content, type = 'user', sender = '') {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}-message`;
+            const time = new Date().toLocaleTimeString();
+            messageDiv.innerHTML = `<small>${time}</small><br><strong>${sender}:</strong> ${content}`;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function updateStatus(message, type = 'info') {
+            statusDiv.className = `status ${type}`;
+            statusDiv.innerHTML = message;
+        }
+
+        socket.on('connect', () => {
+            updateStatus('✅ Connected to server', 'connected');
+            console.log('Connected to Socket.IO server');
+            
+            // Join as admin
+            const adminInfo = {
+                name: 'Test Admin',
+                email: 'admin@test.com',
+                id: 'test-admin-1'
+            };
+            
+            socket.emit('admin:join', {
+                adminInfo: adminInfo,
+                adminId: 'test-admin-1'
+            });
+        });
+
+        socket.on('chat:status', (data) => {
+            console.log('Chat status:', data);
+        });
+
+        socket.on('message:new', (data) => {
+            console.log('New message received:', data);
+            if (data.message.sender === 'user') {
+                addMessage(data.message.message, 'user', data.message.senderName);
+            }
+        });
+
+        socket.on('admin:user_joined', (data) => {
+            console.log('User joined:', data);
+            addMessage(`User ${data.userInfo.name} joined the chat`, 'system');
+        });
+
+        socket.on('error', (error) => {
+            console.error('Socket error:', error);
+            updateStatus(`❌ Error: ${error.message}`, 'disconnected');
+        });
+
+        socket.on('disconnect', () => {
+            updateStatus('❌ Disconnected from server', 'disconnected');
+        });
+
+        function sendAsAdmin() {
+            const message = adminMessageInput.value.trim();
+            if (!message) return;
+
+            // Send admin message
+            socket.emit('admin:message:send', {
+                message: message,
+                sessionId: sessionId || 'test-session',
+                adminInfo: {
+                    name: 'Test Admin',
+                    email: 'admin@test.com',
+                    id: 'test-admin-1'
+                }
+            });
+
+            addMessage(message, 'admin', 'Test Admin');
+            adminMessageInput.value = '';
+        }
+
+        function sendTestResponse() {
+            const testResponses = [
+                'Terima kasih sudah menghubungi kami. Tim admin akan segera membalas pesan Anda.',
+                'Baik, saya akan bantu Anda dengan pertanyaan tersebut.',
+                'Mohon tunggu sebentar, admin sedang memeriksa informasi yang Anda butuhkan.',
+                'Hai! Terima kasih atas pesan Anda. Ada yang bisa saya bantu?'
+            ];
+            
+            const randomResponse = testResponses[Math.floor(Math.random() * testResponses.length)];
+            adminMessageInput.value = randomResponse;
+            sendAsAdmin();
+        }
+
+        function sendUserMessage() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            // Send user message
+            socket.emit('message:send', {
+                message: message,
+                sessionId: sessionId || 'test-session',
+                userInfo: {
+                    name: 'Test User',
+                    email: 'user@test.com'
+                }
+            });
+
+            addMessage(message, 'user', 'Test User');
+            messageInput.value = '';
+        }
+
+        // Initialize
+        updateStatus('🔄 Connecting to server...', 'info');
+    </script>
+</body>
+</html>

@@ -1,28 +1,21 @@
 const express = require('express');
 const router = express.Router();
-const {
-  getAllExperiences,
-  getExperienceById,
-  createExperience,
-  updateExperience,
-  deleteExperience
-} = require('../controllers/simple-experience.controller');
+const experienceController = require('../controllers/experience.controller');
 
-console.log('🔧 Experience routes loaded with controller:', Object.keys(require('../controllers/simple-experience.controller')));
+// Public routes - for users
+router.get('/active', experienceController.getActiveExperiences);
+router.get('/featured', experienceController.getActiveExperiences); // with featured=true query
+router.get('/options', experienceController.getExperienceOptions);
+router.get('/:id', experienceController.getExperienceById);
 
-// GET /api/experiences - Get all experiences
-router.get('/', getAllExperiences);
-
-// GET /api/experiences/:id - Get experience by ID
-router.get('/:id', getExperienceById);
-
-// POST /api/experiences - Create new experience
-router.post('/', createExperience);
-
-// PUT /api/experiences/:id - Update experience
-router.put('/:id', updateExperience);
-
-// DELETE /api/experiences/:id - Delete experience
-router.delete('/:id', deleteExperience);
+// Admin routes - for content management
+router.get('/', experienceController.getAllExperiences);
+router.get('/stats/overview', experienceController.getExperienceStats);
+router.post('/', experienceController.createExperience);
+router.put('/:id', experienceController.updateExperience);
+router.delete('/:id', experienceController.deleteExperience);
+router.patch('/:id/toggle-status', experienceController.toggleExperienceStatus);
+router.patch('/:id/toggle-featured', experienceController.toggleExperienceFeatured);
+router.patch('/reorder', experienceController.reorderExperiences);
 
 module.exports = router;

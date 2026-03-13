@@ -1,4 +1,7 @@
-// Simple AI Chatbot Controller
+// Enhanced AI Chatbot Controller
+const EnhancedAIChatbotService = require('../services/enhanced-ai-chatbot.service');
+const aiService = new EnhancedAIChatbotService();
+
 const chat = async (req, res) => {
     try {
         const { message, userName, userEmail } = req.body;
@@ -12,19 +15,8 @@ const chat = async (req, res) => {
             });
         }
 
-        // Simple response logic
-        let response = '';
-        const lowerMessage = message.toLowerCase();
-
-        if (lowerMessage.includes('copywriter') || lowerMessage.includes('harga') || lowerMessage.includes('jasa')) {
-            response = 'Layanan Copywriter TRAVELLO - Kami menyediakan berbagai layanan copywriting: Content Writing, SEO Content, Business Content, Digital Marketing, Content Strategy. Semua layanan include research, editing, dan revisi!';
-        } else if (lowerMessage.includes('travel') || lowerMessage.includes('wisata') || lowerMessage.includes('destinasi')) {
-            response = 'Top Destinasi Wisata Indonesia - Bali, Yogyakarta, Raja Ampat, Labuan Bajo, Lombok. Kami siap membantu perjalanan Anda!';
-        } else if (lowerMessage.includes('travello') || lowerMessage.includes('tentang') || lowerMessage.includes('about')) {
-            response = 'Tentang TRAVELLO - Platform travel & content terintegrasi dengan 10+ tahun pengalaman, 500+ satisfied clients, dan 24/7 customer support. Kami siap membantu perjalanan dan kebutuhan content Anda!';
-        } else {
-            response = 'Maaf, kami belum memiliki pelayanan tersebut. TRAVELLO hanya fokus pada Layanan Travel & Wisata serta Jasa Copywriter & Content. Silakan ajukan pertanyaan seputar travel atau copywriting. Kami siap membantu!';
-        }
+        // Generate response using enhanced AI service
+        const response = await aiService.generateResponse(message, userName || 'User');
 
         console.log('AI Response generated successfully');
 

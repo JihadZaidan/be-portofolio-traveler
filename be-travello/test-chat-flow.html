@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Flow Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .test-btn {
+            background: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .test-btn:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .socket-status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .connected {
+            background: #d4edda;
+            color: #155724;
+        }
+        .disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .chat-preview {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .message {
+            padding: 8px;
+            margin: 5px 0;
+            border-radius: 8px;
+        }
+        .message.user {
+            background: #007bff;
+            color: white;
+            margin-left: 20px;
+        }
+        .message.admin {
+            background: #28a745;
+            color: white;
+            margin-right: 20px;
+        }
+        .message.system {
+            background: #ffc107;
+            color: #856404;
+            text-align: center;
+            font-style: italic;
+        }
+        .timestamp {
+            font-size: 10px;
+            opacity: 0.7;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 Chat Flow Test: User → Admin</h1>
+        <p>Testing that user messages from AI chatbot and Contact Me flow to admin chat</p>
+        
+        <div class="test-section">
+            <h3>🔌 Socket.IO Connection Status</h3>
+            <div id="socket-status" class="socket-status disconnected">Connecting...</div>
+        </div>
+
+        <div class="test-section">
+            <h3>👤 User Simulation</h3>
+            <button class="test-btn" onclick="simulateUserMessage()">📝 Send Test Message to Admin</button>
+            <button class="test-btn" onclick="simulateCSMode()">👋 Switch to CS Mode</button>
+            <button class="test-btn" onclick="simulateContactMe()">📞 Open Contact Me Modal</button>
+        </div>
+
+        <div class="test-section">
+            <h3>👨 Admin View</h3>
+            <button class="test-btn" onclick="openAdminChat()">💬 Open Admin Chat Dashboard</button>
+            <div id="admin-preview" class="chat-preview"></div>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        let socket = null;
+        let socketStatus = 'disconnected';
+        let userMessages = [];
+        let adminMessages = [];
+
+        // Initialize Socket.IO connection
+        function initSocket() {
+            socket = io('http://localhost:55435');
+            
+            socket.on('connect', () => {
+                console.log('🔗 Connected to Socket.IO as test client');
+                updateSocketStatus('connected');
+                addResult('✅ Connected to Socket.IO server', 'success');
+            });
+
+            socket.on('disconnect', () => {
+                console.log('🔌 Disconnected from Socket.IO');
+                updateSocketStatus('disconnected');
+                addResult('❌ Disconnected from Socket.IO', 'error');
+            });
+
+            // Handle admin responses
+            socket.on('message:new', (data) => {
+                console.log('💬 Received admin response:', data);
+                addResult(`💬 Admin: "${data.message.message}"`, 'success');
+                
+                const adminMessage = {
+                    id: `admin-${Date.now()}`,
+                    content: data.message.message,
+                    role: 'admin',
+                    name: data.message.senderName,
+                    timestamp: new Date(data.message.timestamp).toLocaleTimeString()
+                };
+                adminMessages.push(adminMessage);
+                updateAdminPreview();
+            });
+
+            // Handle chat status updates
+            socket.on('chat:status', (data) => {
+                console.log('📊 Chat status:', data);
+                addResult(`📊 Chat Status: ${data.status}`, 'info');
+            });
+
+            // Handle connection stats
+            socket.on('connection_stats', (stats) => {
+                console.log('📈 Connection stats:', stats);
+                addResult(`📈 Stats: ${stats.connectedUsers} users, ${stats.connectedAdmins} admins`, 'info');
+            });
+
+            // Handle errors
+            socket.on('error', (error) => {
+                console.error('❌ Socket error:', error);
+                addResult(`❌ Socket error: ${error.message}`, 'error');
+            });
+        }
+
+        function updateSocketStatus(status) {
+            socketStatus = status;
+            const statusEl = document.getElementById('socket-status');
+            statusEl.textContent = status === 'connected' ? '🟢 Connected' : '🔴 Disconnected';
+            statusEl.className = `socket-status ${status}`;
+        }
+
+        function addResult(message, type = 'info') {
+            const resultsEl = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            resultsEl.appendChild(div);
+            resultsEl.scrollTop = resultsEl.scrollHeight;
+        }
+
+        function updateAdminPreview() {
+            const previewEl = document.getElementById('admin-preview');
+            previewEl.innerHTML = adminMessages.map(msg => `
+                <div class="message ${msg.role}">
+                    <strong>${msg.name}:</strong> ${msg.content}
+                    <div class="timestamp">${msg.timestamp}</div>
+                </div>
+            `).join('');
+        }
+
+        function simulateUserMessage() {
+            if (socketStatus !== 'connected') {
+                addResult('❌ Not connected to Socket.IO', 'error');
+                return;
+            }
+
+            // Join as user
+            const userInfo = {
+                name: 'Test User',
+                email: 'testuser@example.com',
+                isGuest: true
+            };
+            
+            socket.emit('user:join', {
+                userInfo,
+                userId: null
+            });
+
+            // Send message
+            const testMessage = 'Halo admin, saya butuh bantuan untuk layanan copywriter';
+            socket.emit('message:send', {
+                message: testMessage,
+                sessionId: `session-${Date.now()}`,
+                userInfo: userInfo
+            });
+
+            addResult(`📤 User sent: "${testMessage}"`, 'info');
+            userMessages.push({
+                id: `user-${Date.now()}`,
+                content: testMessage,
+                role: 'user',
+                name: userInfo.name,
+                timestamp: new Date().toLocaleTimeString()
+            });
+        }
+
+        function simulateCSMode() {
+            if (socketStatus !== 'connected') {
+                addResult('❌ Not connected to Socket.IO', 'error');
+                return;
+            }
+
+            // Switch to CS mode
+            socket.emit('user:join', {
+                userInfo: {
+                    name: 'Test User',
+                    email: 'testuser@example.com',
+                    isGuest: true
+                },
+                userId: null
+            });
+
+            addResult('👋 Switched to CS mode - waiting for admin response', 'info');
+        }
+
+        function simulateContactMe() {
+            addResult('📞 Opening Contact Me modal simulation...', 'info');
+            // In real app, this would open ContactChatModal
+            addResult('📞 Contact Me modal would open with CS mode enabled', 'info');
+            
+            // Simulate CS mode
+            simulateCSMode();
+        }
+
+        function openAdminChat() {
+            addResult('💬 Opening Admin Chat Dashboard...', 'info');
+            window.open('http://localhost:5174/admin/chat', '_blank');
+        }
+
+        // Initialize on load
+        window.addEventListener('load', () => {
+            initSocket();
+            addResult('🚀 Initializing chat flow test...', 'info');
+        });
+    </script>
+</body>
+</html>

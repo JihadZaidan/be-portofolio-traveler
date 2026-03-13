@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Chat Test - TRAVELLO</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            height: 600px;
+        }
+
+        .chat-section {
+            border-right: 1px solid #e5e7eb;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-section:last-child {
+            border-right: none;
+        }
+
+        .section-header {
+            padding: 16px;
+            border-bottom: 1px solid #e5e7eb;
+            background: #f9fafb;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .connection-status {
+            padding: 12px 16px;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected {
+            background: #10b981;
+        }
+
+        .status-dot.connecting {
+            background: #f59e0b;
+        }
+
+        .status-dot.disconnected {
+            background: #ef4444;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            background: #ffffff;
+        }
+
+        .message {
+            margin-bottom: 12px;
+            padding: 8px 12px;
+            border-radius: 12px;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+
+        .message.user {
+            background: #3b82f6;
+            color: white;
+            margin-left: auto;
+            text-align: right;
+        }
+
+        .message.admin {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .message.system {
+            background: #fef3c7;
+            color: #92400e;
+            text-align: center;
+            font-style: italic;
+            font-size: 12px;
+        }
+
+        .message-info {
+            font-size: 10px;
+            opacity: 0.7;
+            margin-top: 4px;
+        }
+
+        .input-area {
+            padding: 16px;
+            border-top: 1px solid #e5e7eb;
+            background: #f9fafb;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .input-field {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .input-field:focus {
+            border-color: #3b82f6;
+        }
+
+        .send-button {
+            padding: 8px 16px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+
+        .send-button:hover {
+            background: #2563eb;
+        }
+
+        .send-button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        .role-toggle {
+            padding: 16px;
+            border-bottom: 1px solid #e5e7eb;
+            background: #f9fafb;
+        }
+
+        .toggle-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .toggle-button {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #d1d5db;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .toggle-button.active {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+
+        .stats {
+            padding: 12px 16px;
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            border-radius: 8px;
+            margin: 16px;
+            font-size: 12px;
+            color: #166534;
+        }
+
+        .instructions {
+            padding: 16px;
+            background: #fef3c7;
+            border: 1px solid #fcd34d;
+            border-radius: 8px;
+            margin: 16px;
+            font-size: 12px;
+            color: #92400e;
+        }
+
+        .instructions h3 {
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .instructions ul {
+            margin-left: 20px;
+        }
+
+        .instructions li {
+            margin-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 TRAVELLO Real-time Chat Test</h1>
+            <p>Test admin-user communication with Socket.IO</p>
+        </div>
+
+        <div class="main-content">
+            <!-- User Chat Section -->
+            <div class="chat-section">
+                <div class="section-header">
+                    👤 User Chat
+                </div>
+                
+                <div class="role-toggle">
+                    <div class="toggle-group">
+                        <button class="toggle-button active" onclick="setRole('user', this)">User Mode</button>
+                        <button class="toggle-button" onclick="setRole('admin', this)">Admin Mode</button>
+                    </div>
+                </div>
+
+                <div class="connection-status">
+                    <div class="status-dot connecting" id="status-dot"></div>
+                    <span id="status-text">Connecting...</span>
+                </div>
+
+                <div class="stats" id="stats">
+                    <strong>Connection Stats:</strong><br>
+                    Users: <span id="user-count">0</span> | 
+                    Admins: <span id="admin-count">0</span> | 
+                    Total Sockets: <span id="total-sockets">0</span>
+                </div>
+
+                <div class="instructions">
+                    <h3>📝 Test Instructions:</h3>
+                    <ul>
+                        <li>Open this page in two separate tabs</li>
+                        <li>Set one tab to User Mode, one to Admin Mode</li>
+                        <li>Send messages to test real-time communication</li>
+                        <li>Check browser console for detailed logs</li>
+                    </ul>
+                </div>
+
+                <div class="messages" id="messages"></div>
+
+                <div class="input-area">
+                    <div class="input-group">
+                        <input 
+                            type="text" 
+                            class="input-field" 
+                            id="message-input" 
+                            placeholder="Type your message..."
+                            onkeypress="handleKeyPress(event)"
+                        >
+                        <button class="send-button" id="send-button" onclick="sendMessage()">
+                            Send
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Admin Chat Section -->
+            <div class="chat-section">
+                <div class="section-header">
+                    👨‍💼 Admin Dashboard
+                </div>
+
+                <div class="connection-status">
+                    <div class="status-dot connecting" id="admin-status-dot"></div>
+                    <span id="admin-status-text">Connecting...</span>
+                </div>
+
+                <div class="messages" id="admin-messages"></div>
+
+                <div class="input-area">
+                    <div class="input-group">
+                        <input 
+                            type="text" 
+                            class="input-field" 
+                            id="admin-message-input" 
+                            placeholder="Type admin response..."
+                            onkeypress="handleAdminKeyPress(event)"
+                        >
+                        <button class="send-button" id="admin-send-button" onclick="sendAdminMessage()">
+                            Send
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let socket = null;
+        let currentRole = 'user';
+        let sessionId = null;
+
+        // Initialize Socket.IO connection
+        function initSocket() {
+            socket = io();
+            
+            socket.on('connect', () => {
+                console.log('🔗 Connected to Socket.IO server');
+                updateConnectionStatus('connected');
+                
+                // Join based on current role
+                if (currentRole === 'user') {
+                    joinAsUser();
+                } else {
+                    joinAsAdmin();
+                }
+            });
+
+            socket.on('disconnect', () => {
+                console.log('🔌 Disconnected from Socket.IO server');
+                updateConnectionStatus('disconnected');
+            });
+
+            // Handle new messages
+            socket.on('message:new', (data) => {
+                console.log('💬 New message received:', data);
+                
+                if (currentRole === 'user' && data.message.sender === 'admin') {
+                    addMessage(data.message.message, 'admin', data.message.senderName, data.message.timestamp);
+                } else if (currentRole === 'admin' && data.message.sender === 'user') {
+                    addAdminMessage(data.message.message, 'user', data.message.senderName, data.message.timestamp);
+                }
+            });
+
+            // Handle chat status updates
+            socket.on('chat:status', (data) => {
+                console.log('📊 Chat status updated:', data);
+                if (data.sessionId) {
+                    sessionId = data.sessionId;
+                }
+            });
+
+            // Handle connection stats
+            socket.on('connection_stats', (stats) => {
+                console.log('📈 Connection stats:', stats);
+                updateStats(stats);
+            });
+
+            // Handle admin-specific events
+            socket.on('admin:active_chats', (data) => {
+                console.log('📋 Active chats received:', data);
+                addAdminMessage(`Active chats: ${data.chats?.length || 0}`, 'system', 'System');
+            });
+
+            socket.on('admin:user_joined', (data) => {
+                console.log('👤 User joined:', data);
+                addAdminMessage(`User joined: ${data.userInfo.name}`, 'system', 'System');
+            });
+
+            socket.on('error', (error) => {
+                console.error('❌ Socket error:', error);
+                addMessage('Connection error occurred', 'system', 'System');
+            });
+        }
+
+        function joinAsUser() {
+            const userInfo = {
+                name: 'Test User',
+                email: 'test@example.com',
+                isGuest: true
+            };
+            
+            socket.emit('user:join', {
+                userInfo,
+                userId: null
+            });
+            
+            console.log('👤 Joined as user:', userInfo);
+            addMessage('Connected as user', 'system', 'System');
+        }
+
+        function joinAsAdmin() {
+            const adminInfo = {
+                id: 'admin-1',
+                name: 'Test Admin',
+                email: 'admin@travello.com'
+            };
+            
+            socket.emit('admin:join', {
+                adminInfo,
+                adminId: 'admin-1'
+            });
+            
+            console.log('👨‍💼 Joined as admin:', adminInfo);
+            addAdminMessage('Connected as admin', 'system', 'System');
+        }
+
+        function setRole(role, button) {
+            currentRole = role;
+            
+            // Update button states
+            document.querySelectorAll('.toggle-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            button.classList.add('active');
+            
+            // Rejoin with new role if connected
+            if (socket && socket.connected) {
+                if (role === 'user') {
+                    joinAsUser();
+                } else {
+                    joinAsAdmin();
+                }
+            }
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('message-input');
+            const message = input.value.trim();
+            
+            if (!message || !socket || !socket.connected) return;
+            
+            if (currentRole === 'user') {
+                // Send as user
+                socket.emit('message:send', {
+                    message,
+                    sessionId: sessionId || `session-${Date.now()}`,
+                    userInfo: {
+                        name: 'Test User',
+                        email: 'test@example.com',
+                        isGuest: true
+                    }
+                });
+                
+                addMessage(message, 'user', 'Test User');
+            } else {
+                // Send as admin
+                socket.emit('admin:message:send', {
+                    message,
+                    sessionId: sessionId || `session-${Date.now()}`,
+                    adminInfo: {
+                        id: 'admin-1',
+                        name: 'Test Admin',
+                        email: 'admin@travello.com'
+                    }
+                });
+                
+                addMessage(message, 'admin', 'Test Admin');
+            }
+            
+            input.value = '';
+        }
+
+        function sendAdminMessage() {
+            const input = document.getElementById('admin-message-input');
+            const message = input.value.trim();
+            
+            if (!message || !socket || !socket.connected) return;
+            
+            socket.emit('admin:message:send', {
+                message,
+                sessionId: sessionId || `session-${Date.now()}`,
+                adminInfo: {
+                    id: 'admin-1',
+                    name: 'Test Admin',
+                    email: 'admin@travello.com'
+                }
+            });
+            
+            addAdminMessage(message, 'admin', 'Test Admin');
+            input.value = '';
+        }
+
+        function addMessage(text, sender, senderName, timestamp) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+            
+            const time = timestamp || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            
+            messageDiv.innerHTML = `
+                <div>${text}</div>
+                <div class="message-info">${senderName} • ${time}</div>
+            `;
+            
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function addAdminMessage(text, sender, senderName, timestamp) {
+            const messagesDiv = document.getElementById('admin-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+            
+            const time = timestamp || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            
+            messageDiv.innerHTML = `
+                <div>${text}</div>
+                <div class="message-info">${senderName} • ${time}</div>
+            `;
+            
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function updateConnectionStatus(status) {
+            const dot = document.getElementById('status-dot');
+            const text = document.getElementById('status-text');
+            const adminDot = document.getElementById('admin-status-dot');
+            const adminText = document.getElementById('admin-status-text');
+            
+            dot.className = `status-dot ${status}`;
+            adminDot.className = `status-dot ${status}`;
+            
+            if (status === 'connected') {
+                text.textContent = 'Connected';
+                adminText.textContent = 'Connected';
+            } else if (status === 'connecting') {
+                text.textContent = 'Connecting...';
+                adminText.textContent = 'Connecting...';
+            } else {
+                text.textContent = 'Disconnected';
+                adminText.textContent = 'Disconnected';
+            }
+        }
+
+        function updateStats(stats) {
+            document.getElementById('user-count').textContent = stats.connectedUsers || 0;
+            document.getElementById('admin-count').textContent = stats.connectedAdmins || 0;
+            document.getElementById('total-sockets').textContent = (stats.totalUserSockets || 0) + (stats.totalAdminSockets || 0);
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        function handleAdminKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendAdminMessage();
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            initSocket();
+        });
+    </script>
+</body>
+</html>

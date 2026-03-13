@@ -1,89 +1,46 @@
-const { Router } = require('express');
-const { User, initUser } = require('../models/User.model.js');
+const express = require('express');
+const { authenticateToken, authenticateAdminToken } = require('../middleware/auth.middleware');
+const { 
+    getAllUsers, 
+    getUserStats, 
+    updateUserStatus, 
+    deleteUser, 
+    getActiveChatSessions,
+    getAllTransactions,
+    updateTransactionStatus,
+    getTransactionDetails
+} = require('../controllers/admin.controller');
 
-const router = Router();
+const router = express.Router();
 
-// Get all users
-router.get('/users', async (req, res) => {
-  try {
-    await initUser();
-    const users = await User.findAll();
-    
-    res.json({
-      success: true,
-      message: 'Users retrieved successfully',
-      data: {
-        users: users.map(user => user.toJSON()),
-        count: users.length
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching users:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch users',
-      error: error.message
-    });
-  }
-});
+// Public endpoint for admin chat (no auth required for demo)
+router.get('/chat-users', getAllUsers);
 
-// Get user by ID
-router.get('/users/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    await initUser();
-    
-    const user = await User.findByPk(id);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-    
-    res.json({
-      success: true,
-      message: 'User retrieved successfully',
-      data: {
-        user: user.toJSON()
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching user:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch user',
-      error: error.message
-    });
-  }
-});
+// Get active chat sessions for admin chat
+router.get('/chat-sessions', getActiveChatSessions);
 
-// Delete user by ID
-router.delete('/users/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    await initUser();
-    
-    const deleted = await User.destroy({ where: { id } });
-    if (deleted === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-    
-    res.json({
-      success: true,
-      message: 'User deleted successfully'
-    });
-  } catch (error) {
-    console.error('Error deleting user:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to delete user',
-      error: error.message
-    });
-  }
-});
+// Get all users with pagination and search (admin auth required)
+router.get('/users', authenticateAdminToken, getAllUsers);
+
+// Get user statistics (admin auth required)
+router.get('/users/stats', authenticateAdminToken, getUserStats);
+
+// Update user status or role (admin auth required)
+router.put('/users/:userId', authenticateAdminToken, updateUserStatus);
+
+// Delete (soft delete) user (admin auth required)
+router.delete('/users/:userId', authenticateAdminToken, deleteUser);
+
+// Get all transactions with pagination and filters (admin auth required)
+router.get('/transactions', authenticateAdminToken, getAllTransactions);
+
+// Get all transactions without auth (for testing)
+router.get('/transactions-test', getAllTransactions);
+
+// Get transaction details (admin auth required)
+router.get('/transactions/:transactionId', authenticateAdminToken, getTransactionDetails);
+
+// Update transaction status (admin auth required)
+router.put('/transactions/:transactionId', authenticateAdminToken, updateTransactionStatus);
 
 module.exports = router;

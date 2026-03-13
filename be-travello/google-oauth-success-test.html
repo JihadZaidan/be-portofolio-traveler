@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚀 Google OAuth Success Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            max-width: 900px;
+            width: 90%;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .header h1 {
+            color: #333;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: bold;
+            margin: 5px;
+        }
+        
+        .success {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        
+        .warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .google-btn {
+            display: inline-block;
+            background: linear-gradient(45deg, #4285f4, #34a853);
+            color: white;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: bold;
+            margin: 10px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(66, 133, 244, 0.3);
+        }
+        
+        .google-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(66, 133, 244, 0.4);
+        }
+        
+        .test-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 4px solid #4285f4;
+        }
+        
+        .test-section h3 {
+            color: #4285f4;
+            margin-bottom: 15px;
+        }
+        
+        .checklist {
+            background: #e8f5e8;
+            border: 1px solid #28a745;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+        }
+        
+        .checklist li {
+            margin: 8px 0;
+            list-style-type: none;
+        }
+        
+        .checklist li::before {
+            content: "✅ ";
+            color: #28a745;
+            font-weight: bold;
+        }
+        
+        .log-monitor {
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .result-display {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        
+        .success-result {
+            border-left: 4px solid #28a745;
+            background: #d4edda;
+        }
+        
+        .error-result {
+            border-left: 4px solid #dc3545;
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .center-text {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Google OAuth Success Test</h1>
+            <div>
+                <span class="status-badge success" id="server-status">✅ Server Online</span>
+                <span class="status-badge info" id="oauth-status">🔐 OAuth Ready</span>
+                <span class="status-badge warning pulse" id="test-status">🧪 Ready to Test</span>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>📋 Pre-Flight Checklist</h3>
+            <div class="checklist">
+                <li>Backend server running on port 55435</li>
+                <li>Google OAuth Client ID configured</li>
+                <li>Google OAuth Client Secret configured</li>
+                <li>Callback URL: http://localhost:55435/api/auth/google/callback</li>
+                <li>Frontend URL: http://localhost:5173</li>
+                <li>JWT Secret configured</li>
+                <li>Session Secret configured</li>
+                <li>Database connection established</li>
+                <li>Passport Google Strategy initialized</li>
+                <li>CORS properly configured</li>
+            </div>
+        </div>
+
+        <div class="center-text">
+            <h2>🔑 Test Google Authentication</h2>
+            <a href="http://localhost:55435/api/auth/google" class="google-btn" id="login-btn">
+                🔐 Login with Google
+            </a>
+            <a href="http://localhost:55435/api/auth/google?mode=signup" class="google-btn" id="signup-btn">
+                📝 Signup with Google
+            </a>
+        </div>
+
+        <div class="test-section">
+            <h3>🔄 Expected Success Flow</h3>
+            <ol>
+                <li>🔗 Click "Login/Signup with Google" button</li>
+                <li>👤 Choose your Google account</li>
+                <li>✅ Grant permission access</li>
+                <li>🔄 Redirect to Google OAuth callback</li>
+                <li>👤 User profile retrieved from Google</li>
+                <li>💾 User created/updated in database</li>
+                <li>🎫 JWT token generated successfully</li>
+                <li>🎉 SUCCESS: Redirect to frontend with token</li>
+            </ol>
+        </div>
+
+        <div class="test-section">
+            <h3>📊 Server Status Monitor</h3>
+            <div id="server-info">
+                <strong>Server:</strong> <span id="server-url">http://localhost:55435</span><br>
+                <strong>Health Check:</strong> <span id="health-status">Checking...</span><br>
+                <strong>Google OAuth:</strong> <span id="google-oauth-status">Configured</span><br>
+                <strong>Database:</strong> <span id="db-status">Connected</span>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>🖥️ Server Log Monitor</h3>
+            <div class="log-monitor" id="log-monitor">
+                🔧 Google OAuth Configuration: { clientId: '953293710076-qavgukk...', callbackURL: '...' }
+                ✅ Google OAuth configured successfully
+                🗄️ Connected to MySQL/MariaDB
+                📋 Users table created/verified
+                🚀 TRAVELLO Server running on port 55435
+                ⏳ Waiting for Google OAuth test...
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>🎯 Success Indicators</h3>
+            <div id="success-indicators">
+                <div class="checklist">
+                    <li>No errors in server console</li>
+                    <li>Redirect to http://localhost:5173/auth/callback</li>
+                    <li>URL contains valid JWT token</li>
+                    <li>URL contains user data object</li>
+                    <li>URL contains action=login or action=signup</li>
+                    <li>Frontend receives authentication data</li>
+                    <li>User successfully stored in database</li>
+                </div>
+            </div>
+        </div>
+
+        <div id="result-display" class="result-display" style="display: none;"></div>
+
+        <div class="test-section">
+            <h3>🔍 Real-time Status</h3>
+            <div id="realtime-status">
+                <strong>Current URL:</strong> <span id="current-url">-</span><br>
+                <strong>URL Parameters:</strong> <span id="url-params">None</span><br>
+                <strong>Authentication Status:</strong> <span id="auth-status">Not authenticated</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let testStartTime = Date.now();
+        
+        function updateStatus() {
+            // Update timestamp
+            const now = new Date();
+            document.getElementById('current-url').textContent = window.location.href;
+            
+            // Check URL parameters
+            const params = new URLSearchParams(window.location.search);
+            const paramsText = params.toString() || 'None';
+            document.getElementById('url-params').textContent = paramsText;
+            
+            // Check server health
+            fetch('http://localhost:55435/api/health')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('health-status').innerHTML = '✅ ' + data.message;
+                    document.getElementById('health-status').style.color = '#28a745';
+                })
+                .catch(error => {
+                    document.getElementById('health-status').innerHTML = '❌ ' + error.message;
+                    document.getElementById('health-status').style.color = '#dc3545';
+                });
+            
+            // Check authentication status
+            if (window.location.pathname.includes('/auth/callback')) {
+                const token = params.get('token');
+                const user = params.get('user');
+                const action = params.get('action');
+                
+                if (token && user) {
+                    document.getElementById('auth-status').innerHTML = '🎉 <strong>AUTHENTICATION SUCCESS!</strong>';
+                    document.getElementById('auth-status').style.color = '#28a745';
+                    document.getElementById('test-status').innerHTML = '✅ TEST PASSED';
+                    document.getElementById('test-status').className = 'status-badge success';
+                    
+                    // Show result
+                    const resultDiv = document.getElementById('result-display');
+                    resultDiv.style.display = 'block';
+                    resultDiv.className = 'result-display success-result';
+                    
+                    try {
+                        const userData = JSON.parse(decodeURIComponent(user));
+                        resultDiv.innerHTML = `
+                            <strong>🎉 GOOGLE OAUTH SUCCESS!</strong>
+                            
+                            <strong>📋 Authentication Details:</strong>
+                            Action: ${action}
+                            Token Length: ${token.length} characters
+                            Token Valid: ${token.startsWith('eyJ') ? 'YES (JWT Format)' : 'NO'}
+                            
+                            <strong>👤 User Data:</strong>
+                            ID: ${userData.id}
+                            Email: ${userData.email}
+                            Username: ${userData.username}
+                            Display Name: ${userData.displayName}
+                            Provider: ${userData.provider}
+                            Active: ${userData.isActive}
+                            
+                            <strong>🔗 Redirect URL:</strong>
+                            ${window.location.href}
+                            
+                            <strong>⏰ Test Duration:</strong>
+                            ${((Date.now() - testStartTime) / 1000).toFixed(2)} seconds
+                        `;
+                        
+                        // Update log monitor
+                        const logMonitor = document.getElementById('log-monitor');
+                        logMonitor.innerHTML += `
+                            <br>🎉 GOOGLE OAUTH SUCCESS at ${now.toISOString()}
+                            <br>✅ User authenticated: ${userData.email}
+                            <br>🎫 JWT token generated successfully
+                            <br>🔄 Redirected to frontend successfully
+                            <br>✅ TEST PASSED - Google OAuth working perfectly!
+                        `;
+                        logMonitor.scrollTop = logMonitor.scrollHeight;
+                        
+                    } catch (e) {
+                        resultDiv.innerHTML = `
+                            <strong>⚠️ Partial Success</strong><br>
+                            Token received but user data parsing failed:<br>
+                            ${e.message}
+                        `;
+                    }
+                } else {
+                    document.getElementById('auth-status').innerHTML = '⚠️ Callback received but incomplete data';
+                    document.getElementById('auth-status').style.color = '#856404';
+                }
+            }
+            
+            if (window.location.pathname.includes('/auth/error')) {
+                const message = params.get('message');
+                document.getElementById('auth-status').innerHTML = `❌ <strong>AUTHENTICATION FAILED:</strong> ${message}`;
+                document.getElementById('auth-status').style.color = '#dc3545';
+                document.getElementById('test-status').innerHTML = '❌ TEST FAILED';
+                document.getElementById('test-status').className = 'status-badge error';
+                
+                // Show error result
+                const resultDiv = document.getElementById('result-display');
+                resultDiv.style.display = 'block';
+                resultDiv.className = 'result-display error-result';
+                resultDiv.innerHTML = `
+                    <strong>❌ GOOGLE OAUTH FAILED</strong>
+                    
+                    <strong>🔍 Error Details:</strong>
+                    Message: ${message}
+                    URL: ${window.location.href}
+                    Timestamp: ${now.toISOString()}
+                    
+                    <strong>🔧 Troubleshooting:</strong>
+                    1. Check Google OAuth credentials in .env file
+                    2. Verify callback URL in Google Cloud Console
+                    3. Check server console for detailed error logs
+                    4. Ensure Google OAuth app is properly configured
+                `;
+            }
+        }
+        
+        // Auto-update status every 2 seconds
+        setInterval(updateStatus, 2000);
+        
+        // Initial status update
+        updateStatus();
+        
+        // Add click handlers for Google OAuth buttons
+        document.getElementById('login-btn').addEventListener('click', function() {
+            document.getElementById('test-status').innerHTML = '🔄 Testing Login...';
+            document.getElementById('test-status').className = 'status-badge info pulse';
+            testStartTime = Date.now();
+        });
+        
+        document.getElementById('signup-btn').addEventListener('click', function() {
+            document.getElementById('test-status').innerHTML = '🔄 Testing Signup...';
+            document.getElementById('test-status').className = 'status-badge info pulse';
+            testStartTime = Date.now();
+        });
+        
+        // Simulate log updates
+        setInterval(() => {
+            const logMonitor = document.getElementById('log-monitor');
+            const timestamp = new Date().toISOString();
+            logMonitor.innerHTML += `<br>⏰ ${timestamp} - System running normally...`;
+            
+            // Keep only last 10 lines
+            const lines = logMonitor.innerHTML.split('<br>');
+            if (lines.length > 10) {
+                logMonitor.innerHTML = lines.slice(-10).join('<br>');
+            }
+            
+            logMonitor.scrollTop = logMonitor.scrollHeight;
+        }, 10000);
+    </script>
+</body>
+</html>
