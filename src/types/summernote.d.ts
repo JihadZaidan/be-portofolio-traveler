@@ -1,1 +1,0 @@
-declare module "summernote/dist/summernote-lite.min.js";
